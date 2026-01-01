@@ -249,21 +249,23 @@ services:
       # Workflows Configuration
       - N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN=true
       
-      # Environment Variables for Workflows
-      - GOOGLE_CALENDAR_ID=${GOOGLE_CALENDAR_ID}
-      - GOOGLE_TASKS_LIST_ID=${GOOGLE_TASKS_LIST_ID}
-      - GOOGLE_GEMINI_API_KEY=${GOOGLE_GEMINI_API_KEY}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TELEGRAM_INTERNAL_CHAT_ID=${TELEGRAM_INTERNAL_CHAT_ID}
-      - CLINIC_NAME=${CLINIC_NAME}
-      - CLINIC_ADDRESS=${CLINIC_ADDRESS}
-      - CLINIC_PHONE=${CLINIC_PHONE}
-      - CLINIC_EMAIL=${CLINIC_EMAIL:-}
-      - CLINIC_HOURS_START=${CLINIC_HOURS_START:-08:00}
-      - CLINIC_HOURS_END=${CLINIC_HOURS_END:-19:00}
-      - CLINIC_CALENDAR_PUBLIC_LINK=${CLINIC_CALENDAR_PUBLIC_LINK}
-      - MCP_CALENDAR_ENDPOINT=${MCP_CALENDAR_ENDPOINT}
-      - EVOLUTION_INSTANCE_NAME=${EVOLUTION_INSTANCE_NAME:-clinic_instance}
+      # Multi-Tenant Configuration
+      # Note: Tenant-specific config is now stored in PostgreSQL tenant_config table
+      # These are system-level settings only
+      
+      # System Admin Notifications
+      - SYSTEM_ADMIN_TELEGRAM_ID=${SYSTEM_ADMIN_TELEGRAM_ID}
+      - SYSTEM_ADMIN_EMAIL=${SYSTEM_ADMIN_EMAIL}
+      
+      # Shared API Keys (for shared credential approach)
+      - SHARED_GOOGLE_GEMINI_API_KEY=${SHARED_GOOGLE_GEMINI_API_KEY}
+      
+      # DEPRECATED: Legacy single-tenant env vars (remove after migration)
+      # - GOOGLE_CALENDAR_ID=${GOOGLE_CALENDAR_ID}
+      # - GOOGLE_TASKS_LIST_ID=${GOOGLE_TASKS_LIST_ID}
+      # - TELEGRAM_INTERNAL_CHAT_ID=${TELEGRAM_INTERNAL_CHAT_ID}
+      # - CLINIC_NAME=${CLINIC_NAME}
+      # - MCP_CALENDAR_ENDPOINT=${MCP_CALENDAR_ENDPOINT}
     ports:
       - "${N8N_PORT:-5678}:5678"
     volumes:
