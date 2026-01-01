@@ -1,0 +1,25 @@
+{
+  "event": "messages.upsert",
+  "instance": "clinic_instance",
+  "data": {
+    "key": {
+      "remoteJid": "5531977777777@s.whatsapp.net",
+      "fromMe": false,
+      "id": "3EB0B430B6F8F1D0E31D"
+    },
+    "pushName": "Ana Costa",
+    "message": {
+      "messageType": "imageMessage",
+      "imageMessage": {
+        "url": "https://example.com/images/prescription.jpg",
+        "mimetype": "image/jpeg",
+        "caption": "Esta é a receita que o médico me passou",
+        "fileLength": 234567,
+        "height": 1920,
+        "width": 1080
+      }
+    },
+    "messageTimestamp": 1704110600
+  }
+}
+

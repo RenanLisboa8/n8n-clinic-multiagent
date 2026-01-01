@@ -1,0 +1,308 @@
+{
+  "name": "Mock Test Workflow - Patient Interactions",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger (Run Tests)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [240, 400],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "test_scenarios",
+              "name": "test_scenarios",
+              "type": "array",
+              "value": "={{ [\n  {\n    \"scenario\": \"Text Message - Schedule Appointment\",\n    \"message_type\": \"conversation\",\n    \"message_text\": \"Olá, gostaria de agendar uma consulta para próxima semana\",\n    \"patient_name\": \"Maria Silva\",\n    \"phone\": \"5531999999999\"\n  },\n  {\n    \"scenario\": \"Text Message - Reschedule\",\n    \"message_type\": \"conversation\",\n    \"message_text\": \"Preciso remarcar minha consulta de amanhã\",\n    \"patient_name\": \"João Santos\",\n    \"phone\": \"5531988888888\"\n  },\n  {\n    \"scenario\": \"Text Message - Cancel\",\n    \"message_type\": \"conversation\",\n    \"message_text\": \"Quero cancelar minha consulta\",\n    \"patient_name\": \"Ana Costa\",\n    \"phone\": \"5531977777777\"\n  },\n  {\n    \"scenario\": \"Text Message - Check Availability\",\n    \"message_type\": \"conversation\",\n    \"message_text\": \"Vocês têm horários disponíveis hoje?\",\n    \"patient_name\": \"Pedro Oliveira\",\n    \"phone\": \"5531966666666\"\n  },\n  {\n    \"scenario\": \"Audio Message - Voice Booking\",\n    \"message_type\": \"audioMessage\",\n    \"message_id\": \"MOCK_AUDIO_123\",\n    \"patient_name\": \"Carla Mendes\",\n    \"phone\": \"5531955555555\"\n  },\n  {\n    \"scenario\": \"Image Message - Prescription OCR\",\n    \"message_type\": \"imageMessage\",\n    \"image_url\": \"https://example.com/mock-prescription.jpg\",\n    \"patient_name\": \"Roberto Lima\",\n    \"phone\": \"5531944444444\"\n  },\n  {\n    \"scenario\": \"Emergency - Escalation Trigger\",\n    \"message_type\": \"conversation\",\n    \"message_text\": \"URGENTE! Estou com muita dor e preciso de atendimento imediato!\",\n    \"patient_name\": \"Lucia Ferreira\",\n    \"phone\": \"5531933333333\"\n  }\n] }}"
+            }
+          ]
+        }
+      },
+      "id": "prepare-test-data",
+      "name": "Prepare Test Scenarios",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 400],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-scenarios",
+      "name": "Loop Through Scenarios",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [680, 400],
+      "typeVersion": 3.1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "mock_webhook_payload",
+              "name": "mock_webhook_payload",
+              "type": "object",
+              "value": "={{ {\n  \"event\": \"messages.upsert\",\n  \"instance\": \"test_instance\",\n  \"data\": {\n    \"key\": {\n      \"remoteJid\": $json.phone + '@s.whatsapp.net',\n      \"fromMe\": false,\n      \"id\": 'TEST_' + $now.toMillis()\n    },\n    \"pushName\": $json.patient_name,\n    \"message\": {\n      \"messageType\": $json.message_type,\n      \"conversation\": $json.message_text || '',\n      \"extendedTextMessage\": $json.message_text ? { \"text\": $json.message_text } : null\n    },\n    \"messageTimestamp\": $now.toMillis()\n  }\n} }}"
+            },
+            {
+              "id": "scenario_name",
+              "name": "scenario_name",
+              "type": "string",
+              "value": "={{ $json.scenario }}"
+            }
+          ]
+        }
+      },
+      "id": "build-mock-payload",
+      "name": "Build Mock WhatsApp Payload",
+      "type": "n8n-nodes-base.set",
+      "position": [900, 400],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_URL }}webhook/whatsapp-webhook",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify($json.mock_webhook_payload) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-to-webhook",
+      "name": "Send to WhatsApp Handler Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1120, 400],
+      "typeVersion": 4.2,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "seconds"
+      },
+      "id": "wait-between-tests",
+      "name": "Wait Between Tests",
+      "type": "n8n-nodes-base.wait",
+      "position": [1340, 400],
+      "typeVersion": 1.1,
+      "webhookId": "test-wait"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "test_result",
+              "name": "test_result",
+              "type": "object",
+              "value": "={{ {\n  \"scenario\": $('Build Mock WhatsApp Payload').item.json.scenario_name,\n  \"success\": $json.statusCode === 200,\n  \"status_code\": $json.statusCode,\n  \"timestamp\": $now,\n  \"response\": $json.body\n} }}"
+            }
+          ]
+        }
+      },
+      "id": "log-test-result",
+      "name": "Log Test Result",
+      "type": "n8n-nodes-base.set",
+      "position": [1560, 400],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "all_tests",
+              "name": "all_tests",
+              "type": "array",
+              "value": "={{ $json }}"
+            },
+            {
+              "id": "total_tests",
+              "name": "total_tests",
+              "type": "number",
+              "value": "={{ $json.length }}"
+            },
+            {
+              "id": "passed",
+              "name": "passed",
+              "type": "number",
+              "value": "={{ $json.filter(t => t.test_result.success).length }}"
+            },
+            {
+              "id": "failed",
+              "name": "failed",
+              "type": "number",
+              "value": "={{ $json.filter(t => !t.test_result.success).length }}"
+            },
+            {
+              "id": "success_rate",
+              "name": "success_rate",
+              "type": "string",
+              "value": "={{ Math.round(($json.filter(t => t.test_result.success).length / $json.length) * 100) }}%"
+            }
+          ]
+        }
+      },
+      "id": "aggregate-results",
+      "name": "Aggregate Test Results",
+      "type": "n8n-nodes-base.set",
+      "position": [1780, 400],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $env.TELEGRAM_INTERNAL_CHAT_ID }}",
+        "text": "=🧪 *TEST EXECUTION COMPLETED*\n\n*Summary:*\n- Total Tests: {{ $json.total_tests }}\n- ✅ Passed: {{ $json.passed }}\n- ❌ Failed: {{ $json.failed }}\n- Success Rate: {{ $json.success_rate }}\n\n*Time:* {{ $now }}\n\n_Check n8n executions for detailed results._",
+        "additionalFields": {
+          "parseMode": "Markdown"
+        }
+      },
+      "id": "notify-results",
+      "name": "Send Results to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "position": [2000, 400],
+      "typeVersion": 1.2,
+      "credentials": {
+        "telegramApi": {
+          "id": "{{TELEGRAM_BOT_CREDENTIAL_ID}}",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger (Run Tests)": {
+      "main": [
+        [
+          {
+            "node": "Prepare Test Scenarios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Test Scenarios": {
+      "main": [
+        [
+          {
+            "node": "Loop Through Scenarios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Through Scenarios": {
+      "main": [
+        [
+          {
+            "node": "Build Mock WhatsApp Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Mock WhatsApp Payload": {
+      "main": [
+        [
+          {
+            "node": "Send to WhatsApp Handler Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to WhatsApp Handler Webhook": {
+      "main": [
+        [
+          {
+            "node": "Wait Between Tests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Between Tests": {
+      "main": [
+        [
+          {
+            "node": "Log Test Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Test Result": {
+      "main": [
+        [
+          {
+            "node": "Loop Through Scenarios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Through Scenarios": {
+      "main": [
+        null,
+        [
+          {
+            "node": "Aggregate Test Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Test Results": {
+      "main": [
+        [
+          {
+            "node": "Send Results to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "test-mock-workflow-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "test",
+      "id": "30"
+    },
+    {
+      "name": "ci-cd",
+      "id": "31"
+    }
+  ]
+}
+

@@ -1,0 +1,18 @@
+{
+  "event": "messages.upsert",
+  "instance": "clinic_instance",
+  "data": {
+    "key": {
+      "remoteJid": "5531999999999@s.whatsapp.net",
+      "fromMe": false,
+      "id": "3EB0B430B6F8F1D0E31B"
+    },
+    "pushName": "Maria Silva",
+    "message": {
+      "messageType": "conversation",
+      "conversation": "Olá, gostaria de agendar uma consulta para próxima terça-feira às 14h"
+    },
+    "messageTimestamp": 1704110400
+  }
+}
+
