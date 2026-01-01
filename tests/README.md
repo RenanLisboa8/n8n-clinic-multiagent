@@ -1,118 +1,118 @@
-# Testing Guide
+# Guia de Testes
 
-## Overview
-This directory contains test workflows and sample payloads for validating the Multi-Agent Clinic Management System.
+## Visão Geral
+Este diretório contém workflows de teste e payloads de exemplo para validar o Sistema Multi-Agente de Gestão de Clínicas.
 
-## Contents
+## Conteúdo
 
-### Test Workflows
-- **`mock-test-workflow.json`** - Automated test suite that simulates patient interactions
+### Workflows de Teste
+- **`mock-test-workflow.json`** - Suíte de testes automatizada que simula interações com pacientes
 
-### Sample Payloads
-- **`text-message.json`** - Sample text message from WhatsApp
-- **`audio-message.json`** - Sample audio message payload
-- **`image-message.json`** - Sample image message with caption
+### Payloads de Exemplo
+- **`text-message.json`** - Mensagem de texto de exemplo do WhatsApp
+- **`audio-message.json`** - Payload de mensagem de áudio de exemplo
+- **`image-message.json`** - Mensagem de imagem de exemplo com legenda
 
-## Running Tests
+## Executando Testes
 
-### Method 1: Using the Mock Test Workflow
+### Método 1: Usando o Workflow de Teste Mock
 
-1. Import `mock-test-workflow.json` into n8n
-2. Ensure all main workflows are active
-3. Click "Execute Workflow" in the n8n interface
-4. Check Telegram for test results summary
+1. Importar `mock-test-workflow.json` para o n8n
+2. Garantir que todos os workflows principais estejam ativos
+3. Clicar em "Executar Workflow" na interface do n8n
+4. Verificar Telegram para resumo dos resultados dos testes
 
-### Method 2: Using cURL with Sample Payloads
+### Método 2: Usando cURL com Payloads de Exemplo
 
-Test individual message types:
+Testar tipos individuais de mensagem:
 
 ```bash
-# Test text message
+# Testar mensagem de texto
 curl -X POST http://localhost:5678/webhook/whatsapp-webhook \
   -H "Content-Type: application/json" \
   -d @tests/sample-payloads/text-message.json
 
-# Test audio message
+# Testar mensagem de áudio
 curl -X POST http://localhost:5678/webhook/whatsapp-webhook \
   -H "Content-Type: application/json" \
   -d @tests/sample-payloads/audio-message.json
 
-# Test image message
+# Testar mensagem de imagem
 curl -X POST http://localhost:5678/webhook/whatsapp-webhook \
   -H "Content-Type: application/json" \
   -d @tests/sample-payloads/image-message.json
 ```
 
-### Method 3: Docker Compose Test Environment
+### Método 3: Ambiente de Teste Docker Compose
 
-Run tests in isolated environment:
+Executar testes em ambiente isolado:
 
 ```bash
-# Start all services
+# Iniciar todos os serviços
 docker-compose up -d
 
-# Wait for services to be healthy
+# Aguardar serviços ficarem saudáveis
 docker-compose ps
 
-# Run test suite
-docker-compose exec n8n n8n execute --id=<mock-test-workflow-id>
+# Executar suíte de testes
+docker-compose exec n8n n8n execute --id=<id-workflow-teste-mock>
 ```
 
-## Test Scenarios Covered
+## Cenários de Teste Cobertos
 
-The mock test workflow includes:
+O workflow de teste mock inclui:
 
-1. ✅ **Text Message - Schedule Appointment** - Patient requests new appointment
-2. ✅ **Text Message - Reschedule** - Patient wants to change existing appointment
-3. ✅ **Text Message - Cancel** - Patient cancels appointment
-4. ✅ **Text Message - Check Availability** - Patient asks about available slots
-5. ✅ **Audio Message - Voice Booking** - Patient sends voice message
-6. ✅ **Image Message - Prescription OCR** - Patient sends image of prescription
-7. ✅ **Emergency - Escalation Trigger** - Urgent message triggers human escalation
+1. ✅ **Mensagem de Texto - Agendar Consulta** - Paciente solicita nova consulta
+2. ✅ **Mensagem de Texto - Reagendar** - Paciente quer alterar consulta existente
+3. ✅ **Mensagem de Texto - Cancelar** - Paciente cancela consulta
+4. ✅ **Mensagem de Texto - Verificar Disponibilidade** - Paciente pergunta sobre horários disponíveis
+5. ✅ **Mensagem de Áudio - Agendamento por Voz** - Paciente envia mensagem de voz
+6. ✅ **Mensagem de Imagem - OCR de Receita** - Paciente envia imagem de receita
+7. ✅ **Emergência - Gatilho de Escalonamento** - Mensagem urgente dispara escalonamento humano
 
-## Expected Behaviors
+## Comportamentos Esperados
 
-### Successful Test Results
-- All webhooks return HTTP 200
-- Agent responses are formatted correctly
-- Calendar operations execute without errors
-- Escalations trigger Telegram alerts
-- No ghost nodes or disconnected flows
+### Resultados de Teste Bem-Sucedidos
+- Todos os webhooks retornam HTTP 200
+- Respostas do agente estão formatadas corretamente
+- Operações de calendário executam sem erros
+- Escalonamentos disparam alertas do Telegram
+- Sem nós fantasma ou fluxos desconectados
 
-### Common Issues
+### Problemas Comuns
 
-**Webhook Not Found (404)**
-- Ensure WhatsApp Patient Handler workflow is active
-- Check webhook path matches configuration
+**Webhook Não Encontrado (404)**
+- Garantir que workflow Manipulador de Paciente WhatsApp está ativo
+- Verificar se caminho do webhook corresponde à configuração
 
-**Timeout Errors**
-- Increase `N8N_EXECUTIONS_TIMEOUT` in .env
-- Check external API connectivity (Google, Evolution)
+**Erros de Timeout**
+- Aumentar `N8N_EXECUTIONS_TIMEOUT` no .env
+- Verificar conectividade de API externa (Google, Evolution)
 
-**Credential Errors**
-- Verify all credentials are configured in n8n
-- Check credential IDs match in workflow JSONs
+**Erros de Credencial**
+- Verificar se todas as credenciais estão configuradas no n8n
+- Verificar se IDs de credencial correspondem nos JSONs de workflow
 
-## Validation Checklist
+## Checklist de Validação
 
-Before deploying to production:
+Antes de implantar em produção:
 
-- [ ] All test scenarios pass (100% success rate)
-- [ ] Response times < 5 seconds average
-- [ ] Error handler triggers correctly
-- [ ] Telegram notifications arrive
-- [ ] WhatsApp messages are sent
-- [ ] Calendar events created properly
-- [ ] Memory/context maintained across messages
-- [ ] No duplicate agent responses
-- [ ] Escalations work as expected
+- [ ] Todos os cenários de teste passam (taxa de sucesso de 100%)
+- [ ] Tempos de resposta < 5 segundos em média
+- [ ] Manipulador de erros dispara corretamente
+- [ ] Notificações do Telegram chegam
+- [ ] Mensagens WhatsApp são enviadas
+- [ ] Eventos de calendário criados adequadamente
+- [ ] Memória/contexto mantido entre mensagens
+- [ ] Sem respostas duplicadas do agente
+- [ ] Escalonamentos funcionam como esperado
 
-## Continuous Integration
+## Integração Contínua
 
-### GitHub Actions Example
+### Exemplo de GitHub Actions
 
 ```yaml
-name: n8n Workflow Tests
+name: Testes de Workflow n8n
 
 on: [push, pull_request]
 
@@ -121,48 +121,47 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Start n8n stack
+      - name: Iniciar stack n8n
         run: docker-compose up -d
-      - name: Wait for health
+      - name: Aguardar saúde
         run: sleep 30
-      - name: Run tests
+      - name: Executar testes
         run: |
           curl -f http://localhost:5678/healthz
-          # Import and execute test workflow
-      - name: Cleanup
+          # Importar e executar workflow de teste
+      - name: Limpeza
         run: docker-compose down
 ```
 
-## Monitoring Test Results
+## Monitoramento de Resultados de Teste
 
-Test execution logs can be found in:
-- n8n UI: **Executions** tab
-- Telegram: Summary messages
-- Docker logs: `docker-compose logs n8n`
+Logs de execução de teste podem ser encontrados em:
+- Interface do n8n: aba **Execuções**
+- Telegram: Mensagens de resumo
+- Logs do Docker: `docker-compose logs n8n`
 
-## Adding New Tests
+## Adicionando Novos Testes
 
-To add a new test scenario:
+Para adicionar um novo cenário de teste:
 
-1. Create sample payload in `sample-payloads/`
-2. Add scenario to `mock-test-workflow.json` test array
-3. Document expected behavior
-4. Run and validate
+1. Criar payload de exemplo em `sample-payloads/`
+2. Adicionar cenário ao array de teste do `mock-test-workflow.json`
+3. Documentar comportamento esperado
+4. Executar e validar
 
-## Performance Benchmarks
+## Benchmarks de Performance
 
-Target metrics:
-- Webhook response: < 200ms
-- Agent processing: < 3s
-- End-to-end flow: < 5s
-- Success rate: > 99%
+Métricas alvo:
+- Resposta do webhook: < 200ms
+- Processamento do agente: < 3s
+- Fluxo end-to-end: < 5s
+- Taxa de sucesso: > 99%
 
-## Support
+## Suporte
 
-If tests fail unexpectedly:
-1. Check service health: `docker-compose ps`
-2. Review logs: `docker-compose logs`
-3. Verify credentials in n8n UI
-4. Check external API status
-5. Consult main README.md troubleshooting section
-
+Se os testes falharem inesperadamente:
+1. Verificar saúde do serviço: `docker-compose ps`
+2. Revisar logs: `docker-compose logs`
+3. Verificar credenciais na interface do n8n
+4. Verificar status de API externa
+5. Consultar seção de solução de problemas do README.md principal
