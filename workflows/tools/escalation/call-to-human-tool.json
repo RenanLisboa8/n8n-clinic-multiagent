@@ -1,0 +1,212 @@
+{
+  "name": "Call to Human Tool",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "workflow-input",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [240, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "alert_message",
+              "name": "alert_message",
+              "type": "string",
+              "value": "=🚨 *ESCALATION ALERT*\n\n*Patient:* {{ $json.patient_name || 'Unknown' }}\n*Phone:* {{ $json.phone_number }}\n*Reason:* {{ $json.reason }}\n\n*Last Message:*\n{{ $json.last_message }}\n\n*Time:* {{ $now }}\n\n_Please contact the patient as soon as possible._"
+            }
+          ]
+        }
+      },
+      "id": "prepare-alert",
+      "name": "Prepare Alert Message",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 300],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $env.TELEGRAM_INTERNAL_CHAT_ID }}",
+        "text": "={{ $json.alert_message }}",
+        "additionalFields": {
+          "parseMode": "Markdown"
+        }
+      },
+      "id": "send-alert",
+      "name": "Send Alert to Staff",
+      "type": "n8n-nodes-base.telegram",
+      "position": [680, 300],
+      "typeVersion": 1.2,
+      "credentials": {
+        "telegramApi": {
+          "id": "{{TELEGRAM_BOT_CREDENTIAL_ID}}",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "patient_message",
+              "name": "patient_message",
+              "type": "string",
+              "value": "=Entendo a urgência da sua situação. Vou encaminhar seu caso para um de nossos atendentes, que entrará em contato em breve. Agradecemos pela paciência! 🙏"
+            }
+          ]
+        }
+      },
+      "id": "prepare-patient-response",
+      "name": "Prepare Patient Response",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 500],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "={{ $json.instance_name || $env.EVOLUTION_INSTANCE_NAME }}",
+        "remoteJid": "={{ $json.phone_number }}",
+        "messageText": "={{ $json.patient_message }}",
+        "options_message": {}
+      },
+      "id": "notify-patient",
+      "name": "Notify Patient",
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "position": [680, 500],
+      "typeVersion": 1,
+      "credentials": {
+        "evolutionApi": {
+          "id": "{{EVOLUTION_API_CREDENTIAL_ID}}",
+          "name": "Evolution API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "type": "boolean",
+              "value": "=true"
+            },
+            {
+              "id": "escalated",
+              "name": "escalated",
+              "type": "boolean",
+              "value": "=true"
+            },
+            {
+              "id": "reason",
+              "name": "reason",
+              "type": "string",
+              "value": "={{ $json.reason }}"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "type": "string",
+              "value": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "id": "format-output",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.set",
+      "position": [900, 400],
+      "typeVersion": 3.4
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Alert Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Patient Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Alert Message": {
+      "main": [
+        [
+          {
+            "node": "Send Alert to Staff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Alert to Staff": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Patient Response": {
+      "main": [
+        [
+          {
+            "node": "Notify Patient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Patient": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "tool-call-to-human-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "tool",
+      "id": "1"
+    },
+    {
+      "name": "escalation",
+      "id": "5"
+    }
+  ]
+}
+
