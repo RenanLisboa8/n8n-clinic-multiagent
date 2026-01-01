@@ -1,0 +1,302 @@
+{
+  "name": "Tenant Config Loader",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "workflow-trigger",
+      "name": "When Called by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [240, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "instance_name_extract",
+              "name": "instance_name",
+              "type": "string",
+              "value": "={{ $json.body?.instance || $json.instance || $json.instance_name || '' }}"
+            },
+            {
+              "id": "original_data",
+              "name": "original_data",
+              "type": "object",
+              "value": "={{ $json }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-instance",
+      "name": "Extract Instance Name",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 300],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM get_tenant_by_instance('{{ $json.instance_name }}');",
+        "options": {}
+      },
+      "id": "query-tenant-config",
+      "name": "Query Tenant Config",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 300],
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "tenant-exists",
+                    "leftValue": "={{ $json.tenant_id }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "tenant_found"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "check-tenant-exists",
+      "name": "Check Tenant Exists",
+      "type": "n8n-nodes-base.switch",
+      "position": [900, 300],
+      "typeVersion": 3.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "merge-data",
+              "name": "data",
+              "type": "object",
+              "value": "={{ { ...($('Extract Instance Name').item.json.original_data), tenant_config: $json, tenant_id: $json.tenant_id } }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "merge-config",
+      "name": "Merge Config with Original Data",
+      "type": "n8n-nodes-base.set",
+      "position": [1120, 240],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO tenant_activity_log (tenant_id, activity_type, metadata)\nVALUES (NULL, 'unknown_instance', '{\"instance_name\": \"{{ $('Extract Instance Name').item.json.instance_name }}\", \"timestamp\": \"{{ $now }}\"}'::jsonb);",
+        "options": {}
+      },
+      "id": "log-unknown-instance",
+      "name": "Log Unknown Instance",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1120, 420],
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const instanceName = $('Extract Instance Name').item.json.instance_name;\n\n// Throw error that will be caught by error workflow\nthrow new Error(`⚠️ UNKNOWN INSTANCE: ${instanceName}\\n\\nThis Evolution API instance is not registered in the system.\\n\\nAction Required:\\n1. Add tenant configuration via SQL\\n2. Or deactivate this instance\\n\\nInstance: ${instanceName}`);"
+      },
+      "id": "throw-error",
+      "name": "Throw Error - Unknown Instance",
+      "type": "n8n-nodes-base.code",
+      "position": [1340, 420],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT increment_message_count('{{ $json.data.tenant_id }}'::uuid);",
+        "options": {}
+      },
+      "id": "increment-counter",
+      "name": "Increment Message Counter",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1340, 240],
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "return-data",
+              "name": "json",
+              "type": "object",
+              "value": "={{ $('Merge Config with Original Data').item.json.data }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-output",
+      "name": "Prepare Output",
+      "type": "n8n-nodes-base.set",
+      "position": [1560, 240],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "content": "## Tenant Config Loader\n\n**Purpose**: Load tenant-specific configuration from database based on Evolution API instance name.\n\n**Usage**: Call this workflow from any main workflow that receives webhook data.\n\n**Input**: Webhook payload containing `instance` field\n\n**Output**: Original data + `tenant_config` object + `tenant_id`\n\n**Error Handling**: Throws error if instance not found (caught by error handler workflow)",
+        "height": 280,
+        "width": 400
+      },
+      "id": "documentation",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [220, 80],
+      "typeVersion": 1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Called by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Extract Instance Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Instance Name": {
+      "main": [
+        [
+          {
+            "node": "Query Tenant Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Tenant Config": {
+      "main": [
+        [
+          {
+            "node": "Check Tenant Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Tenant Exists": {
+      "main": [
+        [
+          {
+            "node": "Merge Config with Original Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Unknown Instance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Config with Original Data": {
+      "main": [
+        [
+          {
+            "node": "Increment Message Counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Unknown Instance": {
+      "main": [
+        [
+          {
+            "node": "Throw Error - Unknown Instance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment Message Counter": {
+      "main": [
+        [
+          {
+            "node": "Prepare Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "tenant-config-loader-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "sub-workflow",
+      "id": "20"
+    },
+    {
+      "name": "utility",
+      "id": "21"
+    }
+  ]
+}
+

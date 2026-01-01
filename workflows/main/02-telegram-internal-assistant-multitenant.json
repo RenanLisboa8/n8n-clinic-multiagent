@@ -1,0 +1,457 @@
+{
+  "name": "02 - Telegram Internal Assistant (Multi-Tenant)",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "position": [240, 400],
+      "webhookId": "telegram-internal-assistant-mt",
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "chat_id",
+              "name": "chat_id",
+              "type": "string",
+              "value": "={{ $json.message.chat.id.toString() }}"
+            },
+            {
+              "id": "message_text",
+              "name": "message_text",
+              "type": "string",
+              "value": "={{ $json.message.text }}"
+            },
+            {
+              "id": "user_name",
+              "name": "user_name",
+              "type": "string",
+              "value": "={{ $json.message.from.first_name }}"
+            }
+          ]
+        }
+      },
+      "id": "parse-telegram",
+      "name": "Parse Telegram Message",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 400],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM tenant_config WHERE telegram_internal_chat_id = '{{ $json.chat_id }}' AND is_active = true LIMIT 1;",
+        "options": {}
+      },
+      "id": "lookup-tenant",
+      "name": "Lookup Tenant by Chat ID",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 400],
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "🔍 Identifies tenant by Telegram chat ID"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "tenant-exists",
+                    "leftValue": "={{ $json.tenant_id }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "authorized"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "check-authorization",
+      "name": "Check Authorization",
+      "type": "n8n-nodes-base.switch",
+      "position": [900, 400],
+      "typeVersion": 3.2
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Telegram Message').item.json.chat_id }}",
+        "text": "❌ *Acesso Negado*\n\nEste chat não está autorizado a usar o sistema.\n\nContato: suporte@sistema.com",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "send-unauthorized",
+      "name": "Send Unauthorized Message",
+      "type": "n8n-nodes-base.telegram",
+      "position": [1120, 560],
+      "webhookId": "telegram-response",
+      "typeVersion": 1.2,
+      "credentials": {
+        "telegramApi": {
+          "id": "{{TELEGRAM_BOT_CREDENTIAL_ID}}",
+          "name": "Telegram Bot Shared"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "merge-config",
+              "name": "tenant_config",
+              "type": "object",
+              "value": "={{ $json }}"
+            },
+            {
+              "id": "original-message",
+              "name": "message_text",
+              "type": "string",
+              "value": "={{ $('Parse Telegram Message').item.json.message_text }}"
+            },
+            {
+              "id": "chat-id",
+              "name": "chat_id",
+              "type": "string",
+              "value": "={{ $('Parse Telegram Message').item.json.chat_id }}"
+            }
+          ]
+        }
+      },
+      "id": "merge-config",
+      "name": "Merge Tenant Config",
+      "type": "n8n-nodes-base.set",
+      "position": [1120, 320],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message_text }}",
+        "options": {
+          "systemMessage": "={{ $json.tenant_config.system_prompt_internal }}"
+        }
+      },
+      "id": "internal-agent",
+      "name": "Internal Assistant Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [1340, 320],
+      "typeVersion": 1.8,
+      "notes": "🤖 Uses tenant-specific internal prompt"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [1340, 520],
+      "id": "gemini-model",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "{{GOOGLE_GEMINI_CREDENTIAL_ID}}",
+          "name": "Google Gemini Shared"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.tenant_config.tenant_id }}_telegram_{{ $json.chat_id }}",
+        "contextWindowLength": 10
+      },
+      "id": "chat-memory",
+      "name": "Postgres Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "position": [1340, 620],
+      "typeVersion": 1.3,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sseEndpoint": "={{ $json.tenant_config.mcp_calendar_endpoint }}",
+        "options": {}
+      },
+      "id": "calendar-tool",
+      "name": "MCP Calendar Tool",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "position": [1200, 720],
+      "typeVersion": 1,
+      "notes": "📅 Tenant-specific calendar"
+    },
+    {
+      "parameters": {
+        "task": "={{ $json.tenant_config.google_tasks_list_id }}",
+        "title": "={{ $fromAI('Title', '', 'string') }}",
+        "additionalFields": {
+          "notes": "={{ $fromAI('Notes', '', 'string') }}",
+          "status": "needsAction"
+        }
+      },
+      "id": "google-tasks",
+      "name": "Google Tasks Tool",
+      "type": "n8n-nodes-base.googleTasksTool",
+      "position": [1200, 820],
+      "typeVersion": 1,
+      "credentials": {
+        "googleTasksOAuth2Api": {
+          "id": "{{GOOGLE_TASKS_CREDENTIAL_ID}}",
+          "name": "Google Tasks Shared"
+        }
+      },
+      "notes": "✅ Tenant-specific task list"
+    },
+    {
+      "parameters": {
+        "name": "Ferramenta_Envio_Wpp",
+        "description": "Use para enviar mensagem de confirmação/remarcação ao paciente via WhatsApp",
+        "workflowId": {
+          "__rl": true,
+          "value": "{{ 'WhatsApp Send Tool' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "instance_name": "={{ $json.tenant_config.evolution_instance_name }}",
+            "remote_jid": "={{ $fromAI('patient_phone', '', 'string') }}",
+            "message_text": "={{ $fromAI('message_text', '', 'string') }}"
+          }
+        }
+      },
+      "id": "whatsapp-tool",
+      "name": "WhatsApp Send Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [1200, 920],
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Merge Tenant Config').item.json.chat_id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "send-telegram-response",
+      "name": "Send Telegram Response",
+      "type": "n8n-nodes-base.telegram",
+      "position": [1560, 320],
+      "webhookId": "telegram-response-mt",
+      "typeVersion": 1.2,
+      "credentials": {
+        "telegramApi": {
+          "id": "{{TELEGRAM_BOT_CREDENTIAL_ID}}",
+          "name": "Telegram Bot Shared"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Multi-Tenant Telegram Internal Assistant\n\n**Purpose**: Internal tool for clinic staff to manage appointments and shopping lists\n\n**Authentication**: By Telegram Chat ID\n\n**Key Changes**:\n- ✅ Identifies tenant by chat_id\n- ✅ Unauthorized chats are rejected\n- ✅ Uses tenant-specific calendar/tasks\n- ✅ Can send WhatsApp to patients\n\n**Security**: Only authorized chat IDs can access",
+        "height": 300,
+        "width": 400,
+        "color": 5
+      },
+      "id": "documentation",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [220, 80],
+      "typeVersion": 1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Telegram Message": {
+      "main": [
+        [
+          {
+            "node": "Lookup Tenant by Chat ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Tenant by Chat ID": {
+      "main": [
+        [
+          {
+            "node": "Check Authorization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Authorization": {
+      "main": [
+        [
+          {
+            "node": "Merge Tenant Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Unauthorized Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Tenant Config": {
+      "main": [
+        [
+          {
+            "node": "Internal Assistant Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Internal Assistant Agent": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Internal Assistant Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Internal Assistant Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Calendar Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Internal Assistant Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Tasks Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Internal Assistant Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Send Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Internal Assistant Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "={{ 'Error Handler' }}"
+  },
+  "versionId": "telegram-internal-assistant-mt-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "main",
+      "id": "10"
+    },
+    {
+      "name": "multi-tenant",
+      "id": "12"
+    },
+    {
+      "name": "internal",
+      "id": "13"
+    }
+  ]
+}
+

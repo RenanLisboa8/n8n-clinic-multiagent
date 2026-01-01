@@ -1,0 +1,564 @@
+{
+  "name": "01 - WhatsApp Patient Handler (Multi-Tenant)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-webhook",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "WhatsApp Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 400],
+      "typeVersion": 2,
+      "webhookId": "whatsapp-patient-handler-mt"
+    },
+    {
+      "parameters": {
+        "workflow": "={{ 'Tenant Config Loader' }}",
+        "options": {}
+      },
+      "id": "load-tenant-config",
+      "name": "Load Tenant Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [460, 400],
+      "typeVersion": 1.2,
+      "notes": "🔑 Loads tenant-specific configuration from database"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "message_type",
+              "name": "message_type",
+              "type": "string",
+              "value": "={{ $json.body.data.message.messageType }}"
+            },
+            {
+              "id": "remote_jid",
+              "name": "remote_jid",
+              "type": "string",
+              "value": "={{ $json.body.data.key.remoteJid }}"
+            },
+            {
+              "id": "message_text",
+              "name": "message_text",
+              "type": "string",
+              "value": "={{ $json.body.data.message.conversation || $json.body.data.message.extendedTextMessage?.text || '' }}"
+            },
+            {
+              "id": "message_id",
+              "name": "message_id",
+              "type": "string",
+              "value": "={{ $json.body.data.key.id }}"
+            },
+            {
+              "id": "push_name",
+              "name": "push_name",
+              "type": "string",
+              "value": "={{ $json.body.data.pushName }}"
+            },
+            {
+              "id": "image_url",
+              "name": "image_url",
+              "type": "string",
+              "value": "={{ $json.body.data.message.imageMessage?.url || '' }}"
+            },
+            {
+              "id": "audio_url",
+              "name": "audio_url",
+              "type": "string",
+              "value": "={{ $json.body.data.message.audioMessage?.url || '' }}"
+            },
+            {
+              "id": "tenant_config",
+              "name": "tenant_config",
+              "type": "object",
+              "value": "={{ $json.tenant_config }}"
+            },
+            {
+              "id": "tenant_id",
+              "name": "tenant_id",
+              "type": "string",
+              "value": "={{ $json.tenant_id }}"
+            }
+          ]
+        }
+      },
+      "id": "parse-webhook",
+      "name": "Parse Webhook Data",
+      "type": "n8n-nodes-base.set",
+      "position": [680, 400],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message_type }}",
+                    "rightValue": "conversation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message_type }}",
+                    "rightValue": "imageMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message_type }}",
+                    "rightValue": "audioMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "message-type-switch",
+      "name": "Message Type Switch",
+      "type": "n8n-nodes-base.switch",
+      "position": [900, 400],
+      "typeVersion": 3.2
+    },
+    {
+      "parameters": {
+        "workflow": "={{ 'Audio Transcription Tool' }}",
+        "options": {
+          "fieldMapping": {
+            "mappingMode": "defineBelow",
+            "values": {
+              "audio_url": "={{ $json.audio_url }}",
+              "message_id": "={{ $json.message_id }}",
+              "instance_name": "={{ $json.tenant_config.evolution_instance_name }}"
+            }
+          }
+        }
+      },
+      "id": "audio-transcription",
+      "name": "Process Audio",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [1120, 600],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "workflow": "={{ 'Image OCR Tool' }}",
+        "options": {
+          "fieldMapping": {
+            "mappingMode": "defineBelow",
+            "values": {
+              "image_url": "={{ $json.image_url }}"
+            }
+          }
+        }
+      },
+      "id": "image-ocr",
+      "name": "Process Image",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [1120, 500],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message_text || $json.transcribed_text || $json.extracted_text }}",
+        "options": {
+          "systemMessage": "={{ $json.tenant_config.system_prompt_patient }}"
+        }
+      },
+      "id": "patient-agent",
+      "name": "Patient Assistant Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [1340, 400],
+      "typeVersion": 1.8,
+      "notes": "🤖 Uses tenant-specific system prompt from database"
+    },
+    {
+      "parameters": {
+        "options": {
+          "model": {
+            "__rl": true,
+            "value": "={{ $json.tenant_config.llm_model_name || 'gemini-2.0-flash-exp' }}",
+            "mode": "list"
+          },
+          "temperature": "={{ $json.tenant_config.llm_temperature || 0.7 }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [1340, 600],
+      "id": "gemini-model",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "{{GOOGLE_GEMINI_CREDENTIAL_ID}}",
+          "name": "Google Gemini Shared"
+        }
+      },
+      "notes": "🔧 Uses SHARED credential for all tenants"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.tenant_id }}_{{ $json.remote_jid }}",
+        "contextWindowLength": 10
+      },
+      "id": "chat-memory",
+      "name": "Postgres Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "position": [1340, 700],
+      "typeVersion": 1.3,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "💾 Tenant-isolated memory using tenant_id prefix"
+    },
+    {
+      "parameters": {
+        "sseEndpoint": "={{ $json.tenant_config.mcp_calendar_endpoint }}",
+        "options": {}
+      },
+      "id": "calendar-tool",
+      "name": "MCP Calendar Tool",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "position": [1200, 800],
+      "typeVersion": 1,
+      "notes": "📅 Dynamic calendar endpoint per tenant"
+    },
+    {
+      "parameters": {
+        "name": "CallToHuman",
+        "description": "Use essa ferramenta para escalar atendimento para humano em casos urgentes ou complexos",
+        "workflowId": {
+          "__rl": true,
+          "value": "{{ 'Call to Human Tool' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $json.tenant_id }}",
+            "patient_name": "={{ $fromAI('patient_name', '', 'string') }}",
+            "phone_number": "={{ $json.remote_jid }}",
+            "last_message": "={{ $fromAI('last_message', '', 'string') }}",
+            "telegram_chat_id": "={{ $json.tenant_config.telegram_internal_chat_id }}"
+          }
+        }
+      },
+      "id": "escalation-tool",
+      "name": "Human Escalation Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [1200, 900],
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.output }}",
+        "options": {
+          "systemMessage": "Você formata mensagens para WhatsApp. Substitua ** por * e remova #."
+        }
+      },
+      "id": "format-message",
+      "name": "Format Message for WhatsApp",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [1560, 400],
+      "typeVersion": 1.8
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [1560, 600],
+      "id": "gemini-formatter",
+      "name": "Google Gemini Chat Model (Formatter)",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "{{GOOGLE_GEMINI_CREDENTIAL_ID}}",
+          "name": "Google Gemini Shared"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "={{ $('Parse Webhook Data').item.json.tenant_config.evolution_instance_name }}",
+        "remoteJid": "={{ $('Parse Webhook Data').item.json.remote_jid }}",
+        "messageText": "={{ $json.output }}",
+        "options_message": {}
+      },
+      "id": "send-whatsapp",
+      "name": "Send WhatsApp Response",
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "position": [1780, 400],
+      "typeVersion": 1,
+      "credentials": {
+        "evolutionApi": {
+          "id": "{{EVOLUTION_API_CREDENTIAL_ID}}",
+          "name": "Evolution API Master"
+        }
+      },
+      "notes": "📤 Uses SHARED Evolution API credential with dynamic instance"
+    },
+    {
+      "parameters": {
+        "content": "## Multi-Tenant WhatsApp Patient Handler\n\n**Flow**:\n1. Receive webhook from Evolution API\n2. Load tenant config from database\n3. Route message by type (text/image/audio)\n4. Process with AI agent using tenant-specific prompts\n5. Format and send response\n\n**Key Changes**:\n- ✅ Tenant config loaded dynamically\n- ✅ Shared credentials for all services\n- ✅ Tenant-isolated memory\n- ✅ Dynamic calendar endpoint\n- ✅ No hardcoded values",
+        "height": 320,
+        "width": 400,
+        "color": 6
+      },
+      "id": "documentation",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [220, 80],
+      "typeVersion": 1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "WhatsApp Webhook": {
+      "main": [
+        [
+          {
+            "node": "Load Tenant Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Tenant Config": {
+      "main": [
+        [
+          {
+            "node": "Parse Webhook Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Webhook Data": {
+      "main": [
+        [
+          {
+            "node": "Message Type Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message Type Switch": {
+      "main": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Audio": {
+      "main": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Image": {
+      "main": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patient Assistant Agent": {
+      "main": [
+        [
+          {
+            "node": "Format Message for WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Calendar Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Escalation Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Message for WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model (Formatter)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Format Message for WhatsApp",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "={{ 'Error Handler' }}"
+  },
+  "versionId": "whatsapp-patient-handler-mt-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "main",
+      "id": "10"
+    },
+    {
+      "name": "multi-tenant",
+      "id": "12"
+    },
+    {
+      "name": "production",
+      "id": "11"
+    }
+  ]
+}
+
