@@ -1,73 +1,143 @@
+# ====================================
+# n8n Clinic Multi-Agent System
+# Production Docker Compose Configuration
+# ====================================
+
+version: '3.8'
+
+# ====================================
+# NETWORKS
+# ====================================
+networks:
+  clinic_network:
+    name: clinic_network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ====================================
+# VOLUMES
+# ====================================
+volumes:
+  postgres_data:
+    name: clinic_postgres_data
+    driver: local
+  redis_data:
+    name: clinic_redis_data
+    driver: local
+  n8n_data:
+    name: clinic_n8n_data
+    driver: local
+  evolution_store:
+    name: clinic_evolution_store
+    driver: local
+  evolution_instances:
+    name: clinic_evolution_instances
+    driver: local
+
+# ====================================
+# SERVICES
+# ====================================
 services:
-  # ---------------------------------
-  # Banco de Dados (Postgres 16)
-  # ---------------------------------
+  # ----------------------------------
+  # PostgreSQL Database
+  # ----------------------------------
   postgres:
     image: postgres:16-alpine
-    container_name: n8n_postgres
+    container_name: clinic_postgres
     restart: unless-stopped
     env_file: .env
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
     networks:
-      - n8n_network
+      - clinic_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
 
-  # ---------------------------------
-  # Cache (Redis 7)
-  # ---------------------------------
+  # ----------------------------------
+  # Redis Cache
+  # ----------------------------------
   redis:
     image: redis:7-alpine
-    container_name: n8n_redis
+    container_name: clinic_redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory ${REDIS_MAX_MEMORY:-256mb}
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD}
+      --save 900 1
+      --save 300 10
+      --save 60 10000
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     networks:
-      - n8n_network
+      - clinic_network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      test: ["CMD", "redis-cli", "--pass", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
 
-  # ---------------------------------
-  # Evolution API v2
-  # ---------------------------------
+  # ----------------------------------
+  # Evolution API v2 (WhatsApp)
+  # ----------------------------------
   evolution_api:
     image: atendai/evolution-api:v2.2.3
-    container_name: evolution_api
+    container_name: clinic_evolution_api
     restart: unless-stopped
     env_file: .env
-    # Adicionando DNS do Google para evitar erros de WebSocket/Timeout
     dns:
       - 8.8.8.8
       - 8.8.4.4
     environment:
+      # Server Configuration
       - SERVER_URL=${EVOLUTION_BASE_URL}
       - SERVER_PORT=8080
-      - TZ=${TZ}
-      - WA_CONNECTION_TIMEOUT=60000
-      - WA_RECONNECT_INTERVAL=5000
+      - TZ=${TZ:-America/Sao_Paulo}
       
-      # Autenticação
+      # Connection Timeouts
+      - WA_CONNECTION_TIMEOUT=${WA_CONNECTION_TIMEOUT:-60000}
+      - WA_RECONNECT_INTERVAL=${WA_RECONNECT_INTERVAL:-5000}
+      
+      # Authentication
       - AUTHENTICATION_TYPE=apikey
       - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
       - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
       
-      # Banco de Dados
+      # Database Configuration
       - DATABASE_ENABLED=true
       - DATABASE_PROVIDER=postgresql
       - DATABASE_CONNECTION_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=evolution
@@ -77,80 +147,128 @@ services:
       - DATABASE_SAVE_DATA_CONTACTS=true
       - DATABASE_SAVE_DATA_CHATS=true
       
-      # Redis
+      # Redis Cache
       - CACHE_REDIS_ENABLED=true
-      - CACHE_REDIS_URI=redis://redis:6379
+      - CACHE_REDIS_URI=redis://:${REDIS_PASSWORD}@redis:6379
       - CACHE_REDIS_PREFIX_KEY=evolution
       - CACHE_REDIS_SAVE_INSTANCES=false
       - CACHE_LOCAL_ENABLED=false
       
-      # Logs e Configs
-      - LOG_LEVEL=ERROR
+      # Logging
+      - LOG_LEVEL=${EVOLUTION_LOG_LEVEL:-ERROR}
+      - LOG_COLOR=true
+      
+      # WhatsApp Configuration
       - DEL_INSTANCE=false
-      - CONFIG_SESSION_PHONE_CLIENT=Evolution API
+      - CONFIG_SESSION_PHONE_CLIENT=${WA_PHONE_CLIENT:-Evolution API Clinic}
       - CONFIG_SESSION_PHONE_VERSION=2.3000.1030825052
-      - QRCODE_LIMIT=30
+      - QRCODE_LIMIT=${QRCODE_LIMIT:-30}
       
       # WebSocket
       - WEBSOCKET_ENABLED=true
     ports:
-      - "8080:8080"
+      - "${EVOLUTION_PORT:-8080}:8080"
     volumes:
       - evolution_store:/evolution/store
       - evolution_instances:/evolution/instances
     networks:
-      - n8n_network
+      - clinic_network
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
 
-  # ---------------------------------
-  # N8N (Workflow Automation)
-  # ---------------------------------
+  # ----------------------------------
+  # n8n Workflow Automation
+  # ----------------------------------
   n8n:
     image: n8nio/n8n:latest
-    container_name: n8n
+    container_name: clinic_n8n
     restart: unless-stopped
     env_file: .env
     environment:
+      # Server Configuration
       - N8N_HOST=0.0.0.0
       - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://localhost:5678/
-      - TZ=${TZ}
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      - TZ=${TZ:-America/Sao_Paulo}
       
-      # Configuração DB
+      # Database Configuration
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
       - DB_POSTGRESDB_USER=${POSTGRES_USER}
       - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_POSTGRESDB_SCHEMA=${N8N_DB_SCHEMA:-public}
       
-      # Segurança
+      # Security
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_USER_MANAGEMENT_JWT_SECRET=${N8N_JWT_SECRET}
+      
+      # Execution
+      - EXECUTIONS_TIMEOUT=${N8N_EXECUTIONS_TIMEOUT:-300}
+      - EXECUTIONS_TIMEOUT_MAX=${N8N_EXECUTIONS_TIMEOUT_MAX:-3600}
+      - EXECUTIONS_DATA_SAVE_ON_ERROR=${N8N_SAVE_ON_ERROR:-all}
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=${N8N_SAVE_ON_SUCCESS:-all}
+      - EXECUTIONS_DATA_SAVE_ON_PROGRESS=${N8N_SAVE_ON_PROGRESS:-true}
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=${N8N_DATA_MAX_AGE:-168}
+      
+      # Logging
+      - N8N_LOG_LEVEL=${N8N_LOG_LEVEL:-info}
+      - N8N_LOG_OUTPUT=${N8N_LOG_OUTPUT:-console,file}
+      
+      # Features
+      - N8N_METRICS=true
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      
+      # Endpoints
+      - N8N_ENDPOINT_REST=${N8N_ENDPOINT_REST:-rest}
+      - N8N_ENDPOINT_WEBHOOK=${N8N_ENDPOINT_WEBHOOK:-webhook}
+      - N8N_ENDPOINT_WEBHOOK_TEST=${N8N_ENDPOINT_WEBHOOK_TEST:-webhook-test}
     ports:
-      - "5678:5678"
+      - "${N8N_PORT:-5678}:5678"
     volumes:
       - n8n_data:/home/node/.n8n
+      - ./workflows:/home/node/.n8n/workflows:ro
+      - ./scripts:/home/node/scripts:ro
     networks:
-      - n8n_network
+      - clinic_network
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-
-networks:
-  n8n_network:
-    name: n8n_network
-    driver: bridge
-
-volumes:
-  n8n_data:
-  postgres_data:
-  redis_data:
-  evolution_store:
-  evolution_instances:
+      evolution_api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+    user: "1000:1000"
