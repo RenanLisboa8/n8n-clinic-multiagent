@@ -1,0 +1,442 @@
+{
+  "name": "01 - WhatsApp Patient Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-webhook",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "WhatsApp Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 400],
+      "typeVersion": 2,
+      "webhookId": "whatsapp-patient-handler"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "message_type",
+              "name": "message_type",
+              "type": "string",
+              "value": "={{ $json.body.data.message.messageType }}"
+            },
+            {
+              "id": "remote_jid",
+              "name": "remote_jid",
+              "type": "string",
+              "value": "={{ $json.body.data.key.remoteJid }}"
+            },
+            {
+              "id": "instance_name",
+              "name": "instance_name",
+              "type": "string",
+              "value": "={{ $json.body.instance }}"
+            },
+            {
+              "id": "message_text",
+              "name": "message_text",
+              "type": "string",
+              "value": "={{ $json.body.data.message.conversation || $json.body.data.message.extendedTextMessage?.text || '' }}"
+            },
+            {
+              "id": "message_id",
+              "name": "message_id",
+              "type": "string",
+              "value": "={{ $json.body.data.key.id }}"
+            },
+            {
+              "id": "push_name",
+              "name": "push_name",
+              "type": "string",
+              "value": "={{ $json.body.data.pushName }}"
+            }
+          ]
+        }
+      },
+      "id": "parse-webhook",
+      "name": "Parse Webhook Data",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 400],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message_type }}",
+                    "rightValue": "conversation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message_type }}",
+                    "rightValue": "imageMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message_type }}",
+                    "rightValue": "audioMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "message-type-switch",
+      "name": "Message Type Switch",
+      "type": "n8n-nodes-base.switch",
+      "position": [680, 400],
+      "typeVersion": 3.2
+    },
+    {
+      "parameters": {
+        "workflow": "={{ 'Audio Transcription Tool' }}",
+        "options": {}
+      },
+      "id": "audio-transcription",
+      "name": "Process Audio",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [900, 600],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "workflow": "={{ 'Image OCR Tool' }}",
+        "options": {}
+      },
+      "id": "image-ocr",
+      "name": "Process Image",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [900, 500],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message_text || $json.transcribed_text || $json.transcribed_text }}",
+        "options": {
+          "systemMessage": "=Hoje é {{ $now }}\n\n## PAPEL\nVocê é o **Assistente Virtual da {{ $env.CLINIC_NAME }}**, especializado em atendimento ao paciente via WhatsApp.\n\n## OBJETIVO\nFornecer atendimento cordial, eficiente e profissional para:\n1. Agendar consultas\n2. Reagendar consultas existentes\n3. Cancelar consultas\n4. Responder dúvidas sobre a clínica\n5. Processar imagens (receitas, exames)\n6. Escalonar situações urgentes para humanos\n\n## INFORMAÇÕES DA CLÍNICA\n- **Nome:** {{ $env.CLINIC_NAME }}\n- **Endereço:** {{ $env.CLINIC_ADDRESS }}\n- **Telefone:** {{ $env.CLINIC_PHONE }}\n- **Horário:** {{ $env.CLINIC_HOURS_START }} às {{ $env.CLINIC_HOURS_END }}\n- **Agenda Pública:** {{ $env.CLINIC_CALENDAR_PUBLIC_LINK }}\n\n## FERRAMENTAS DISPONÍVEIS\n1. **MCP Google Calendar** - Para consultar, criar, atualizar e excluir eventos\n2. **Call to Human** - Para escalonar casos urgentes ou complexos\n\n## DIRETRIZES\n1. Seja sempre cordial, empático e profissional\n2. Use linguagem clara e acessível\n3. Para agendamentos, sempre confirme: nome completo, data de nascimento, telefone\n4. Verifique disponibilidade antes de confirmar horários\n5. Não invente informações - se não sabe, seja honesto\n6. Escalona para humano em casos de:\n   - Emergências médicas\n   - Insatisfação extrema do paciente\n   - Assuntos fora do seu escopo\n\n## FORMATO DE RESPOSTA\n- Use formatação WhatsApp: *negrito* para ênfase\n- Seja objetivo mas cordial\n- Use emojis com moderação para humanizar\n- Estruture informações em listas quando apropriado\n\n## IMPORTANTE\n- Mantenha o contexto da conversa\n- Confirme sempre antes de criar/alterar eventos\n- Registre todos os dados necessários antes de agendar"
+        }
+      },
+      "id": "patient-agent",
+      "name": "Patient Assistant Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [1120, 400],
+      "typeVersion": 1.8
+    },
+    {
+      "parameters": {
+        "options": {
+          "model": {
+            "__rl": true,
+            "value": "gemini-2.0-flash-exp",
+            "mode": "list",
+            "cachedResultName": "Gemini 2.0 Flash Experimental"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [1120, 600],
+      "id": "gemini-model",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "{{GOOGLE_GEMINI_CREDENTIAL_ID}}",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.remote_jid }}",
+        "contextWindowLength": 10
+      },
+      "id": "chat-memory",
+      "name": "Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "position": [1120, 700],
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "workflow": "={{ 'Message Formatter Tool' }}",
+        "options": {
+          "fieldMapping": {
+            "mappingMode": "defineBelow",
+            "values": {
+              "raw_text": "={{ $json.output }}"
+            }
+          }
+        }
+      },
+      "id": "format-message",
+      "name": "Format Message",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [1340, 400],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "workflow": "={{ 'WhatsApp Send Tool' }}",
+        "options": {
+          "fieldMapping": {
+            "mappingMode": "defineBelow",
+            "values": {
+              "instance_name": "={{ $json.instance_name }}",
+              "remote_jid": "={{ $json.remote_jid }}",
+              "message_text": "={{ $json.formatted_text }}"
+            }
+          }
+        }
+      },
+      "id": "send-whatsapp",
+      "name": "Send WhatsApp Response",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [1560, 400],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "workflow": "={{ 'MCP Calendar Tool' }}",
+        "options": {}
+      },
+      "id": "calendar-tool",
+      "name": "Calendar Tool",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [1120, 800],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "workflow": "={{ 'Call to Human Tool' }}",
+        "options": {}
+      },
+      "id": "escalation-tool",
+      "name": "Escalation Tool",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [1120, 900],
+      "typeVersion": 1.2
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "WhatsApp Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Webhook Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Webhook Data": {
+      "main": [
+        [
+          {
+            "node": "Message Type Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message Type Switch": {
+      "main": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Audio": {
+      "main": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Image": {
+      "main": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patient Assistant Agent": {
+      "main": [
+        [
+          {
+            "node": "Format Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Message": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalation Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "={{ $env.ERROR_WORKFLOW_ID || 'Error Handler' }}"
+  },
+  "versionId": "main-whatsapp-patient-handler-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "main",
+      "id": "10"
+    },
+    {
+      "name": "production",
+      "id": "11"
+    }
+  ]
+}
+

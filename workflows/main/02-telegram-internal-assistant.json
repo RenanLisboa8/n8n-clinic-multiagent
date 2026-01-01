@@ -1,0 +1,289 @@
+{
+  "name": "02 - Telegram Internal Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "position": [240, 400],
+      "typeVersion": 1.2,
+      "webhookId": "telegram-internal-assistant",
+      "credentials": {
+        "telegramApi": {
+          "id": "{{TELEGRAM_BOT_CREDENTIAL_ID}}",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "chat_id",
+              "name": "chat_id",
+              "type": "string",
+              "value": "={{ $json.message.chat.id }}"
+            },
+            {
+              "id": "message_text",
+              "name": "message_text",
+              "type": "string",
+              "value": "={{ $json.message.text }}"
+            },
+            {
+              "id": "user_name",
+              "name": "user_name",
+              "type": "string",
+              "value": "={{ $json.message.from.first_name }} {{ $json.message.from.last_name || '' }}"
+            },
+            {
+              "id": "message_id",
+              "name": "message_id",
+              "type": "string",
+              "value": "={{ $json.message.message_id }}"
+            }
+          ]
+        }
+      },
+      "id": "parse-message",
+      "name": "Parse Message",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 400],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message_text }}",
+        "options": {
+          "systemMessage": "=Hoje é {{ $now }}\n\n## PAPEL\nVocê é o **Assistente Interno da {{ $env.CLINIC_NAME }}**, acionado pela equipe via Telegram para tarefas administrativas.\n\n## OBJETIVO\nAuxiliar a equipe com:\n1. Reagendamento de pacientes\n2. Consulta de agendamentos\n3. Adicionar itens à lista de compras da clínica\n4. Enviar notificações para pacientes via WhatsApp\n\n## INFORMAÇÕES DA CLÍNICA\n- **Nome:** {{ $env.CLINIC_NAME }}\n- **Endereço:** {{ $env.CLINIC_ADDRESS }}\n- **Telefone:** {{ $env.CLINIC_PHONE }}\n\n## FERRAMENTAS DISPONÍVEIS\n1. **MCP Google Calendar** - Gerenciar agendamentos\n2. **Google Tasks** - Lista de compras/lembretes\n3. **WhatsApp Send Tool** - Enviar mensagens aos pacientes\n\n## DIRETRIZES OPERACIONAIS\n\n### Reagendamento de Pacientes\n1. Busque a consulta no calendário usando nome do paciente\n2. Extraia o telefone da descrição do evento\n3. Atualize o evento no calendário\n4. Envie mensagem ao paciente via WhatsApp informando\n5. Confirme à equipe no Telegram\n\n### Lista de Compras\n1. Adicione itens solicitados no Google Tasks\n2. Use a lista: {{ $env.GOOGLE_TASKS_LIST_ID }}\n3. Confirme à equipe o que foi adicionado\n\n### Consulta de Agendamentos\n1. Use o calendário para buscar por data ou nome\n2. Liste de forma clara e organizada\n3. Inclua: hora, nome, telefone se disponível\n\n## FORMATO DE RESPOSTA\n- Use formatação Telegram Markdown\n- Seja objetivo e profissional\n- Organize informações em listas\n- Confirme sempre as ações realizadas\n\n## REGRAS IMPORTANTES\n- NUNCA envie mensagens aos pacientes sem autorização explícita da equipe\n- Sempre confirme antes de alterar ou cancelar consultas\n- Mantenha profissionalismo mesmo sendo interno\n- Registre todas as ações importantes"
+        }
+      },
+      "id": "internal-agent",
+      "name": "Internal Assistant Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [680, 400],
+      "typeVersion": 1.8
+    },
+    {
+      "parameters": {
+        "options": {
+          "model": {
+            "__rl": true,
+            "value": "gemini-2.0-flash-exp",
+            "mode": "list",
+            "cachedResultName": "Gemini 2.0 Flash Experimental"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [680, 600],
+      "id": "gemini-model",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "{{GOOGLE_GEMINI_CREDENTIAL_ID}}",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.chat_id }}",
+        "contextWindowLength": 10
+      },
+      "id": "chat-memory",
+      "name": "Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "position": [680, 700],
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "workflow": "={{ 'MCP Calendar Tool' }}",
+        "options": {}
+      },
+      "id": "calendar-tool",
+      "name": "Calendar Tool",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [680, 800],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "task": "={{ $env.GOOGLE_TASKS_LIST_ID }}",
+        "title": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Title', ``, 'string') }}",
+        "additionalFields": {
+          "notes": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Notes', ``, 'string') }}",
+          "status": "needsAction"
+        }
+      },
+      "id": "google-tasks-tool",
+      "name": "Google Tasks",
+      "type": "n8n-nodes-base.googleTasksTool",
+      "position": [680, 900],
+      "typeVersion": 1,
+      "credentials": {
+        "googleTasksOAuth2Api": {
+          "id": "{{GOOGLE_TASKS_CREDENTIAL_ID}}",
+          "name": "Google Tasks account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflow": "={{ 'WhatsApp Send Tool' }}",
+        "options": {}
+      },
+      "id": "whatsapp-tool",
+      "name": "WhatsApp Send Tool",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [680, 1000],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "parseMode": "Markdown"
+        }
+      },
+      "id": "send-telegram-response",
+      "name": "Send Telegram Response",
+      "type": "n8n-nodes-base.telegram",
+      "position": [900, 400],
+      "typeVersion": 1.2,
+      "credentials": {
+        "telegramApi": {
+          "id": "{{TELEGRAM_BOT_CREDENTIAL_ID}}",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Message": {
+      "main": [
+        [
+          {
+            "node": "Internal Assistant Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Internal Assistant Agent": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Internal Assistant Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Internal Assistant Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Internal Assistant Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Tasks": {
+      "ai_tool": [
+        [
+          {
+            "node": "Internal Assistant Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Send Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Internal Assistant Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "={{ $env.ERROR_WORKFLOW_ID || 'Error Handler' }}"
+  },
+  "versionId": "main-telegram-internal-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "main",
+      "id": "10"
+    },
+    {
+      "name": "production",
+      "id": "11"
+    }
+  ]
+}
+

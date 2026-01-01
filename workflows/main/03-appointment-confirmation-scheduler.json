@@ -1,0 +1,425 @@
+{
+  "name": "03 - Appointment Confirmation Scheduler",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Daily Trigger (8 AM Mon-Fri)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 400],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tomorrow_date",
+              "name": "tomorrow_date",
+              "type": "string",
+              "value": "={{ $now.plus({days: 1}).toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "id": "trigger_time",
+              "name": "trigger_time",
+              "type": "string",
+              "value": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "id": "prepare-dates",
+      "name": "Prepare Dates",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 400],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendarId": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_CALENDAR_ID }}",
+          "mode": "id",
+          "cachedResultName": "Clinic Calendar"
+        },
+        "returnAll": true,
+        "options": {
+          "timeMax": "={{ $json.tomorrow_date }}T23:59:59-03:00",
+          "timeMin": "={{ $json.tomorrow_date }}T00:00:00-03:00"
+        }
+      },
+      "id": "fetch-appointments",
+      "name": "Fetch Tomorrow's Appointments",
+      "type": "n8n-nodes-base.googleCalendar",
+      "position": [680, 400],
+      "typeVersion": 1.2,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "{{GOOGLE_CALENDAR_CREDENTIAL_ID}}",
+          "name": "Google Calendar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-appointments",
+      "name": "Loop Over Appointments",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [900, 400],
+      "typeVersion": 3.1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "patient_name",
+              "name": "patient_name",
+              "type": "string",
+              "value": "={{ $json.summary }}"
+            },
+            {
+              "id": "appointment_time",
+              "name": "appointment_time",
+              "type": "string",
+              "value": "={{ $json.start.dateTime }}"
+            },
+            {
+              "id": "phone_number",
+              "name": "phone_number",
+              "type": "string",
+              "value": "={{ $json.description?.match(/\\d{10,15}/)?.[0] || '' }}"
+            },
+            {
+              "id": "event_id",
+              "name": "event_id",
+              "type": "string",
+              "value": "={{ $json.id }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-contact",
+      "name": "Extract Patient Contact",
+      "type": "n8n-nodes-base.set",
+      "position": [1120, 400],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.phone_number }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "has-phone",
+      "name": "Has Phone?",
+      "type": "n8n-nodes-base.if",
+      "position": [1340, 400],
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "confirmation_message",
+              "name": "confirmation_message",
+              "type": "string",
+              "value": "=Olá, *{{ $json.patient_name }}*! 👋\n\nEste é um lembrete da *{{ $env.CLINIC_NAME }}*.\n\nVocê tem uma consulta agendada para:\n📅 *Amanhã* às *{{ $json.appointment_time }}*\n📍 {{ $env.CLINIC_ADDRESS }}\n\nPor favor, responda:\n✅ *CONFIRMAR* - Para confirmar presença\n📅 *REAGENDAR* - Se precisar mudar o horário\n❌ *CANCELAR* - Para cancelar\n\nAguardamos seu retorno! 🙂"
+            },
+            {
+              "id": "remote_jid",
+              "name": "remote_jid",
+              "type": "string",
+              "value": "={{ $json.phone_number }}@s.whatsapp.net"
+            }
+          ]
+        }
+      },
+      "id": "prepare-confirmation",
+      "name": "Prepare Confirmation Message",
+      "type": "n8n-nodes-base.set",
+      "position": [1560, 300],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "id": "wait",
+      "name": "Wait (Rate Limit)",
+      "type": "n8n-nodes-base.wait",
+      "position": [1780, 300],
+      "typeVersion": 1.1,
+      "webhookId": "confirmation-wait"
+    },
+    {
+      "parameters": {
+        "workflow": "={{ 'WhatsApp Send Tool' }}",
+        "options": {
+          "fieldMapping": {
+            "mappingMode": "defineBelow",
+            "values": {
+              "instance_name": "={{ $env.EVOLUTION_INSTANCE_NAME }}",
+              "remote_jid": "={{ $json.remote_jid }}",
+              "message_text": "={{ $json.confirmation_message }}"
+            }
+          }
+        }
+      },
+      "id": "send-confirmation",
+      "name": "Send Confirmation",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [2000, 300],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "log_entry",
+              "name": "log_entry",
+              "type": "string",
+              "value": "=Confirmation sent to {{ $json.patient_name }} ({{ $json.phone_number }})"
+            },
+            {
+              "id": "success",
+              "name": "success",
+              "type": "boolean",
+              "value": "=true"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "type": "string",
+              "value": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "id": "log-success",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.set",
+      "position": [2220, 300],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "log_entry",
+              "name": "log_entry",
+              "type": "string",
+              "value": "=Skipped {{ $json.patient_name }} - No phone number"
+            },
+            {
+              "id": "success",
+              "name": "success",
+              "type": "boolean",
+              "value": "=false"
+            },
+            {
+              "id": "reason",
+              "name": "reason",
+              "type": "string",
+              "value": "no_phone"
+            }
+          ]
+        }
+      },
+      "id": "log-skip",
+      "name": "Log Skip",
+      "type": "n8n-nodes-base.set",
+      "position": [1560, 500],
+      "typeVersion": 3.4
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Daily Trigger (8 AM Mon-Fri)": {
+      "main": [
+        [
+          {
+            "node": "Prepare Dates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Dates": {
+      "main": [
+        [
+          {
+            "node": "Fetch Tomorrow's Appointments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Tomorrow's Appointments": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Appointments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Appointments": {
+      "main": [
+        [
+          {
+            "node": "Extract Patient Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Patient Contact": {
+      "main": [
+        [
+          {
+            "node": "Has Phone?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Phone?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Confirmation Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Confirmation Message": {
+      "main": [
+        [
+          {
+            "node": "Wait (Rate Limit)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait (Rate Limit)": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Success": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Appointments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Skip": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Appointments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "={{ $env.ERROR_WORKFLOW_ID || 'Error Handler' }}"
+  },
+  "versionId": "main-confirmation-scheduler-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "main",
+      "id": "10"
+    },
+    {
+      "name": "production",
+      "id": "11"
+    },
+    {
+      "name": "scheduled",
+      "id": "12"
+    }
+  ]
+}
+

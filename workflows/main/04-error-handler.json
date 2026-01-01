@@ -1,0 +1,312 @@
+{
+  "name": "04 - Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "position": [240, 400],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "workflow_name",
+              "name": "workflow_name",
+              "type": "string",
+              "value": "={{ $json.workflow.name }}"
+            },
+            {
+              "id": "workflow_id",
+              "name": "workflow_id",
+              "type": "string",
+              "value": "={{ $json.workflow.id }}"
+            },
+            {
+              "id": "execution_id",
+              "name": "execution_id",
+              "type": "string",
+              "value": "={{ $json.execution.id }}"
+            },
+            {
+              "id": "error_message",
+              "name": "error_message",
+              "type": "string",
+              "value": "={{ $json.error.message }}"
+            },
+            {
+              "id": "error_node",
+              "name": "error_node",
+              "type": "string",
+              "value": "={{ $json.error.node?.name || 'Unknown' }}"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "type": "string",
+              "value": "={{ $now }}"
+            },
+            {
+              "id": "error_stack",
+              "name": "error_stack",
+              "type": "string",
+              "value": "={{ $json.error.stack || 'No stack trace' }}"
+            }
+          ]
+        }
+      },
+      "id": "parse-error",
+      "name": "Parse Error Data",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 400],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "alert_message",
+              "name": "alert_message",
+              "type": "string",
+              "value": "=🚨 *WORKFLOW ERROR ALERT*\n\n*Workflow:* {{ $json.workflow_name }}\n*Execution ID:* `{{ $json.execution_id }}`\n*Failed Node:* {{ $json.error_node }}\n*Time:* {{ $json.timestamp }}\n\n*Error Message:*\n```\n{{ $json.error_message }}\n```\n\n*Action Required:*\nPlease check the n8n interface for details and fix the issue.\n\n*Direct Link:*\n{{ $env.N8N_WEBHOOK_URL }}executions/{{ $json.execution_id }}"
+            }
+          ]
+        }
+      },
+      "id": "format-alert",
+      "name": "Format Alert Message",
+      "type": "n8n-nodes-base.set",
+      "position": [680, 400],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $env.TELEGRAM_INTERNAL_CHAT_ID }}",
+        "text": "={{ $json.alert_message }}",
+        "additionalFields": {
+          "parseMode": "Markdown",
+          "disableNotification": false
+        }
+      },
+      "id": "send-telegram-alert",
+      "name": "Send Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "position": [900, 400],
+      "typeVersion": 1.2,
+      "credentials": {
+        "telegramApi": {
+          "id": "{{TELEGRAM_BOT_CREDENTIAL_ID}}",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.workflow_name }}",
+              "rightValue": "WhatsApp Patient Handler",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ]
+        }
+      },
+      "id": "is-patient-workflow",
+      "name": "Is Patient Workflow?",
+      "type": "n8n-nodes-base.if",
+      "position": [900, 600],
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fallback_message",
+              "name": "fallback_message",
+              "type": "string",
+              "value": "=Desculpe, estamos com uma dificuldade técnica temporária. Por favor, tente novamente em alguns minutos ou entre em contato pelo telefone {{ $env.CLINIC_PHONE }}. Pedimos desculpas pelo inconveniente! 🙏"
+            }
+          ]
+        }
+      },
+      "id": "prepare-fallback",
+      "name": "Prepare Fallback Message",
+      "type": "n8n-nodes-base.set",
+      "position": [1120, 500],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "={{ $env.EVOLUTION_INSTANCE_NAME }}",
+        "remoteJid": "={{ $('Error Trigger').item.json.execution?.data?.resultData?.runData?.['Parse Webhook Data']?.[0]?.data?.main?.[0]?.[0]?.json?.remote_jid || '' }}",
+        "messageText": "={{ $json.fallback_message }}",
+        "options_message": {}
+      },
+      "id": "send-fallback",
+      "name": "Send Fallback to Patient",
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "position": [1340, 500],
+      "typeVersion": 1,
+      "credentials": {
+        "evolutionApi": {
+          "id": "{{EVOLUTION_API_CREDENTIAL_ID}}",
+          "name": "Evolution API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error_logged",
+              "name": "error_logged",
+              "type": "boolean",
+              "value": "=true"
+            },
+            {
+              "id": "alert_sent",
+              "name": "alert_sent",
+              "type": "boolean",
+              "value": "=true"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "type": "string",
+              "value": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "id": "final-log",
+      "name": "Final Log",
+      "type": "n8n-nodes-base.set",
+      "position": [1120, 400],
+      "typeVersion": 3.4
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Error Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Error Data": {
+      "main": [
+        [
+          {
+            "node": "Format Alert Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Patient Workflow?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Alert Message": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram Alert": {
+      "main": [
+        [
+          {
+            "node": "Final Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Patient Workflow?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Fallback Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Fallback Message": {
+      "main": [
+        [
+          {
+            "node": "Send Fallback to Patient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Fallback to Patient": {
+      "main": [
+        [
+          {
+            "node": "Final Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "versionId": "error-handler-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "system",
+      "id": "20"
+    },
+    {
+      "name": "error-handling",
+      "id": "21"
+    }
+  ]
+}
+
