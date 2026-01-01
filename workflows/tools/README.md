@@ -1,26 +1,26 @@
-# Workflow Tools
+# Ferramentas de Workflow
 
-This directory contains reusable tool workflows that can be called from main workflows.
+Este diretório contém workflows de ferramentas reutilizáveis que podem ser chamados dos workflows principais.
 
-## Tool Categories
+## Categorias de Ferramentas
 
-### 📞 Communication Tools (`communication/`)
+### 📞 Ferramentas de Comunicação (`communication/`)
 
 #### `whatsapp-send-tool.json`
-Send WhatsApp messages via Evolution API.
+Enviar mensagens WhatsApp via Evolution API.
 
-**Inputs:**
-- `instance_name` (string, optional): Evolution API instance name (defaults to env var)
-- `remote_jid` (string, required): Phone number in format `5511999999999@s.whatsapp.net`
-- `message_text` (string, required): Message content
+**Entradas:**
+- `instance_name` (string, opcional): Nome da instância da Evolution API (padrão para variável de ambiente)
+- `remote_jid` (string, obrigatório): Número de telefone no formato `5511999999999@s.whatsapp.net`
+- `message_text` (string, obrigatório): Conteúdo da mensagem
 
-**Outputs:**
-- `success` (boolean): Whether message was sent
-- `message_id` (string): WhatsApp message ID
+**Saídas:**
+- `success` (boolean): Se a mensagem foi enviada
+- `message_id` (string): ID da mensagem WhatsApp
 - `status` (string): "sent"
-- `timestamp` (string): ISO 8601 timestamp
+- `timestamp` (string): Timestamp ISO 8601
 
-**Usage Example:**
+**Exemplo de Uso:**
 ```json
 {
   "remote_jid": "5511999999999@s.whatsapp.net",
@@ -31,134 +31,134 @@ Send WhatsApp messages via Evolution API.
 ---
 
 #### `message-formatter-tool.json`
-Format messages for WhatsApp markdown compatibility.
+Formatar mensagens para compatibilidade com markdown do WhatsApp.
 
-**Inputs:**
-- `raw_text` (string, required): Unformatted text from AI agent
+**Entradas:**
+- `raw_text` (string, obrigatório): Texto não formatado do agente de IA
 
-**Outputs:**
-- `formatted_text` (string): WhatsApp-compatible markdown
+**Saídas:**
+- `formatted_text` (string): Markdown compatível com WhatsApp
 
-**Transformations:**
-- `**bold**` → `*bold*`
-- `# Header` → `Header`
-- Preserves line breaks and emojis
+**Transformações:**
+- `**negrito**` → `*negrito*`
+- `# Cabeçalho` → `Cabeçalho`
+- Preserva quebras de linha e emojis
 
 ---
 
 #### `telegram-notify-tool.json`
-Send notifications to staff via Telegram.
+Enviar notificações para equipe via Telegram.
 
-**Inputs:**
-- `chat_id` (string, required): Telegram chat ID
-- `message` (string, required): Notification message
-- `notification_type` (string, optional): "info", "warning", or "error"
+**Entradas:**
+- `chat_id` (string, obrigatório): ID do chat Telegram
+- `message` (string, obrigatório): Mensagem de notificação
+- `notification_type` (string, opcional): "info", "warning" ou "error"
 
-**Outputs:**
-- `success` (boolean): Whether notification was sent
-- `message_id` (string): Telegram message ID
+**Saídas:**
+- `success` (boolean): Se a notificação foi enviada
+- `message_id` (string): ID da mensagem Telegram
 
 ---
 
-### 🤖 AI Processing Tools (`ai-processing/`)
+### 🤖 Ferramentas de Processamento de IA (`ai-processing/`)
 
 #### `image-ocr-tool.json`
-Extract text from images using Google Gemini Vision.
+Extrair texto de imagens usando Google Gemini Vision.
 
-**Inputs:**
-- `image_url` (string, required): Public URL of the image
+**Entradas:**
+- `image_url` (string, obrigatório): URL pública da imagem
 
-**Outputs:**
-- `transcribed_text` (string): Extracted text content
-- `image_description` (string): Description of image context
-- `success` (boolean): Processing status
-- `timestamp` (string): Processing time
+**Saídas:**
+- `transcribed_text` (string): Conteúdo de texto extraído
+- `image_description` (string): Descrição do contexto da imagem
+- `success` (boolean): Status do processamento
+- `timestamp` (string): Tempo de processamento
 
-**Use Cases:**
-- Medical prescriptions
-- Lab results
-- Handwritten notes
-- ID documents
+**Casos de Uso:**
+- Receitas médicas
+- Resultados de exames
+- Notas manuscritas
+- Documentos de identificação
 
 ---
 
 #### `audio-transcription-tool.json`
-Transcribe audio messages using Google Gemini Audio.
+Transcrever mensagens de áudio usando Google Gemini Audio.
 
-**Inputs:**
-- `instance_name` (string, optional): Evolution API instance
-- `message_id` (string, required): Audio message ID
+**Entradas:**
+- `instance_name` (string, opcional): Instância da Evolution API
+- `message_id` (string, obrigatório): ID da mensagem de áudio
 
-**Outputs:**
-- `transcribed_text` (string): Audio transcription
-- `success` (boolean): Processing status
-- `timestamp` (string): Processing time
+**Saídas:**
+- `transcribed_text` (string): Transcrição do áudio
+- `success` (boolean): Status do processamento
+- `timestamp` (string): Tempo de processamento
 
-**Flow:**
-1. Download audio from Evolution API
-2. Convert base64 to binary
-3. Transcribe with Gemini Audio
-4. Return text
+**Fluxo:**
+1. Baixar áudio da Evolution API
+2. Converter base64 para binário
+3. Transcrever com Gemini Audio
+4. Retornar texto
 
 ---
 
-### 📅 Calendar Tools (`calendar/`)
+### 📅 Ferramentas de Calendário (`calendar/`)
 
 #### `mcp-calendar-tool.json`
-Unified Google Calendar interface via MCP protocol.
+Interface unificada do Google Calendar via protocolo MCP.
 
-**Actions:**
-- `get_all`: List events in date range
-- `get_availability`: Check free slots
-- `create`: Create new event
-- `update`: Update existing event
-- `delete`: Delete event
-- `get`: Get single event details
+**Ações:**
+- `get_all`: Listar eventos em intervalo de datas
+- `get_availability`: Verificar horários disponíveis
+- `create`: Criar novo evento
+- `update`: Atualizar evento existente
+- `delete`: Deletar evento
+- `get`: Obter detalhes de evento único
 
-**Inputs (vary by action):**
-- `action` (string, required): Action to perform
-- `date_start`, `date_end` (datetime): For get_all, get_availability
-- `event_id` (string): For update, delete, get
-- `title`, `description` (string): For create, update
+**Entradas (variam por ação):**
+- `action` (string, obrigatório): Ação a realizar
+- `date_start`, `date_end` (datetime): Para get_all, get_availability
+- `event_id` (string): Para update, delete, get
+- `title`, `description` (string): Para create, update
 
-**Outputs:**
-- Event data or confirmation message
+**Saídas:**
+- Dados do evento ou mensagem de confirmação
 
 ---
 
-### 🚨 Escalation Tools (`escalation/`)
+### 🚨 Ferramentas de Escalonamento (`escalation/`)
 
 #### `call-to-human-tool.json`
-Escalate conversation to human operator.
+Escalonar conversa para operador humano.
 
-**Inputs:**
-- `patient_name` (string, required): Patient's name
-- `phone_number` (string, required): Patient's WhatsApp number
-- `last_message` (string, required): Most recent message
-- `reason` (string, required): Escalation reason
+**Entradas:**
+- `patient_name` (string, obrigatório): Nome do paciente
+- `phone_number` (string, obrigatório): Número WhatsApp do paciente
+- `last_message` (string, obrigatório): Mensagem mais recente
+- `reason` (string, obrigatório): Motivo do escalonamento
 
-**Escalation Triggers:**
-- Medical urgency keywords
-- Patient dissatisfaction
-- Request to speak with human
-- Out-of-scope topics
+**Gatilhos de Escalonamento:**
+- Palavras-chave de urgência médica
+- Insatisfação do paciente
+- Solicitação para falar com humano
+- Tópicos fora do escopo
 
-**Outputs:**
-- Notification sent to staff via Telegram
-- Confirmation message to patient
+**Saídas:**
+- Notificação enviada à equipe via Telegram
+- Mensagem de confirmação ao paciente
 
 ---
 
-## Tool Development Guidelines
+## Diretrizes para Desenvolvimento de Ferramentas
 
-### Creating a New Tool
+### Criando uma Nova Ferramenta
 
-1. **Define Clear Interface**
-   - Document required inputs
-   - Define expected outputs
-   - Specify error cases
+1. **Definir Interface Clara**
+   - Documentar entradas obrigatórias
+   - Definir saídas esperadas
+   - Especificar casos de erro
 
-2. **Use Execute Workflow Trigger**
+2. **Usar Gatilho Execute Workflow**
    ```json
    {
      "parameters": {},
@@ -166,136 +166,135 @@ Escalate conversation to human operator.
    }
    ```
 
-3. **Add Error Handling**
-   - Try/Catch nodes for external APIs
-   - Default values for optional inputs
-   - Clear error messages
+3. **Adicionar Tratamento de Erros**
+   - Nós Try/Catch para APIs externas
+   - Valores padrão para entradas opcionais
+   - Mensagens de erro claras
 
-4. **Follow Naming Convention**
-   - `[function]-tool.json`
-   - Lowercase with hyphens
-   - Descriptive name
+4. **Seguir Convenção de Nomenclatura**
+   - `[funcao]-tool.json`
+   - Minúsculas com hífens
+   - Nome descritivo
 
-5. **Add Documentation**
-   - Update this README
-   - Add inline comments in workflow
-   - Include usage examples
+5. **Adicionar Documentação**
+   - Atualizar este README
+   - Adicionar comentários inline no workflow
+   - Incluir exemplos de uso
 
-### Testing Tools
+### Testando Ferramentas
 
-Test each tool individually:
+Testar cada ferramenta individualmente:
 
 ```bash
-# In n8n UI:
-1. Open tool workflow
-2. Click "Execute Workflow" button
-3. Provide test inputs
-4. Verify outputs match expected format
+# Na interface do n8n:
+1. Abrir workflow da ferramenta
+2. Clicar no botão "Executar Workflow"
+3. Fornecer entradas de teste
+4. Verificar se saídas correspondem ao formato esperado
 ```
 
-### Tool Best Practices
+### Melhores Práticas para Ferramentas
 
-✅ **DO:**
-- Keep tools focused (single responsibility)
-- Use environment variables for configuration
-- Return consistent output format
-- Add retry logic for external APIs
-- Log important events
+✅ **FAZER:**
+- Manter ferramentas focadas (responsabilidade única)
+- Usar variáveis de ambiente para configuração
+- Retornar formato de saída consistente
+- Adicionar lógica de retry para APIs externas
+- Registrar eventos importantes
 
-❌ **DON'T:**
-- Mix multiple responsibilities in one tool
-- Hardcode credentials or sensitive data
-- Skip error handling
-- Create circular tool dependencies
-- Forget to document changes
-
----
-
-## Tool Dependencies
-
-### Credentials Required
-
-Tools use these n8n credentials:
-- **Evolution API**: For WhatsApp operations
-- **Google Gemini API**: For AI processing
-- **Telegram Bot**: For notifications
-- **Google Calendar OAuth2**: For calendar operations
-- **PostgreSQL**: For chat memory (main workflows)
-
-### Environment Variables
-
-Tools reference these env vars:
-- `EVOLUTION_INSTANCE_NAME`: Default WhatsApp instance
-- `TELEGRAM_INTERNAL_CHAT_ID`: Staff notification target
-- `MCP_CALENDAR_ENDPOINT`: Calendar API endpoint
-- `CLINIC_NAME`, `CLINIC_ADDRESS`: Business info
+❌ **NÃO FAZER:**
+- Misturar múltiplas responsabilidades em uma ferramenta
+- Hardcodar credenciais ou dados sensíveis
+- Pular tratamento de erros
+- Criar dependências circulares de ferramentas
+- Esquecer de documentar mudanças
 
 ---
 
-## Tool Import Order
+## Dependências de Ferramentas
 
-When importing tools, follow this order to satisfy dependencies:
+### Credenciais Necessárias
 
-1. **Communication Tools** (no dependencies)
+Ferramentas usam estas credenciais do n8n:
+- **Evolution API**: Para operações WhatsApp
+- **Google Gemini API**: Para processamento de IA
+- **Bot Telegram**: Para notificações
+- **Google Calendar OAuth2**: Para operações de calendário
+- **PostgreSQL**: Para memória de chat (workflows principais)
+
+### Variáveis de Ambiente
+
+Ferramentas referenciam estas variáveis de ambiente:
+- `EVOLUTION_INSTANCE_NAME`: Instância WhatsApp padrão
+- `TELEGRAM_INTERNAL_CHAT_ID`: Alvo de notificação da equipe
+- `MCP_CALENDAR_ENDPOINT`: Endpoint da API de calendário
+- `CLINIC_NAME`, `CLINIC_ADDRESS`: Informações do negócio
+
+---
+
+## Ordem de Importação de Ferramentas
+
+Ao importar ferramentas, siga esta ordem para satisfazer dependências:
+
+1. **Ferramentas de Comunicação** (sem dependências)
    - message-formatter-tool.json
    - whatsapp-send-tool.json
    - telegram-notify-tool.json
 
-2. **Calendar Tools** (no dependencies)
+2. **Ferramentas de Calendário** (sem dependências)
    - mcp-calendar-tool.json
 
-3. **AI Processing Tools** (depends on communication)
+3. **Ferramentas de Processamento de IA** (depende de comunicação)
    - image-ocr-tool.json
    - audio-transcription-tool.json
 
-4. **Escalation Tools** (depends on communication)
+4. **Ferramentas de Escalonamento** (depende de comunicação)
    - call-to-human-tool.json
 
 ---
 
-## Troubleshooting
+## Solução de Problemas
 
-### Tool Not Found Error
+### Erro de Ferramenta Não Encontrada
 
-**Problem:** Main workflow cannot find tool workflow
+**Problema:** Workflow principal não consegue encontrar workflow da ferramenta
 
-**Solution:**
-1. Verify tool workflow is saved and active
-2. Check tool workflow ID matches in main workflow
-3. Ensure tool has "Execute Workflow Trigger" node
+**Solução:**
+1. Verificar se workflow da ferramenta está salvo e ativo
+2. Verificar se ID do workflow da ferramenta corresponde no workflow principal
+3. Garantir que ferramenta tem nó "Execute Workflow Trigger"
 
-### Credential Errors
+### Erros de Credencial
 
-**Problem:** Tool fails with authentication error
+**Problema:** Ferramenta falha com erro de autenticação
 
-**Solution:**
-1. Update credential IDs in tool JSON
-2. Verify credentials are valid in n8n settings
-3. Check credential permissions
+**Solução:**
+1. Atualizar IDs de credencial no JSON da ferramenta
+2. Verificar se credenciais são válidas nas configurações do n8n
+3. Verificar permissões de credencial
 
-### Timeout Errors
+### Erros de Timeout
 
-**Problem:** Tool execution times out
+**Problema:** Execução da ferramenta expira
 
-**Solution:**
-1. Increase timeout in tool settings
-2. Add retry logic for external API calls
-3. Check external service health
-
----
-
-## Contributing
-
-When adding new tools:
-
-1. Follow the structure of existing tools
-2. Update this README with tool documentation
-3. Add tags: `tool` and category (`communication`, `ai-processing`, etc.)
-4. Test thoroughly before committing
-5. Update REFACTORING_GUIDE.md if applicable
+**Solução:**
+1. Aumentar timeout nas configurações da ferramenta
+2. Adicionar lógica de retry para chamadas de API externa
+3. Verificar saúde do serviço externo
 
 ---
 
-**Last Updated:** 2026-01-01  
-**Version:** 1.0
+## Contribuindo
 
+Ao adicionar novas ferramentas:
+
+1. Seguir a estrutura de ferramentas existentes
+2. Atualizar este README com documentação da ferramenta
+3. Adicionar tags: `tool` e categoria (`communication`, `ai-processing`, etc.)
+4. Testar minuciosamente antes de commitar
+5. Atualizar REFACTORING_GUIDE.md se aplicável
+
+---
+
+**Última Atualização:** 2026-01-01  
+**Versão:** 1.0

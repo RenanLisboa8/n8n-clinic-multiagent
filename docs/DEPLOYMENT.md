@@ -1,177 +1,177 @@
-# Deployment Guide
+# Guia de Implantação
 
-## Overview
+## Visão Geral
 
-This guide provides step-by-step instructions for deploying the n8n Clinic Multi-Agent System to production.
-
----
-
-## Pre-Deployment Checklist
-
-### Infrastructure Requirements
-
-- [ ] Server with minimum 2 CPU cores, 4GB RAM, 20GB storage
-- [ ] Docker 20.10+ and Docker Compose v2.0+ installed
-- [ ] Domain name configured with DNS
-- [ ] SSL certificate obtained (Let's Encrypt recommended)
-- [ ] Firewall rules configured
-- [ ] Backup storage configured
-
-### Service Accounts & Credentials
-
-- [ ] Google Account with Calendar API enabled
-- [ ] Google Tasks API enabled
-- [ ] Google Gemini API key obtained
-- [ ] Telegram Bot created via @BotFather
-- [ ] Telegram Chat ID obtained
-- [ ] Evolution API instance configured
-- [ ] Database passwords generated
-
-### Documentation Review
-
-- [ ] Read README.md
-- [ ] Review ARCHITECTURE.md
-- [ ] Understand REFACTORING_GUIDE.md
-- [ ] Review env.example
+Este guia fornece instruções passo a passo para implantar o Sistema Multi-Agente n8n para Clínicas em produção.
 
 ---
 
-## Deployment Steps
+## Checklist Pré-Implantação
 
-### Step 1: Server Preparation
+### Requisitos de Infraestrutura
 
-#### 1.1 Update System
+- [ ] Servidor com mínimo de 2 núcleos de CPU, 4GB RAM, 20GB armazenamento
+- [ ] Docker 20.10+ e Docker Compose v2.0+ instalados
+- [ ] Nome de domínio configurado com DNS
+- [ ] Certificado SSL obtido (Let's Encrypt recomendado)
+- [ ] Regras de firewall configuradas
+- [ ] Armazenamento de backup configurado
+
+### Contas de Serviço e Credenciais
+
+- [ ] Conta Google com API do Calendar habilitada
+- [ ] API do Google Tasks habilitada
+- [ ] Chave API do Google Gemini obtida
+- [ ] Bot do Telegram criado via @BotFather
+- [ ] ID do Chat do Telegram obtido
+- [ ] Instância da Evolution API configurada
+- [ ] Senhas do banco de dados geradas
+
+### Revisão de Documentação
+
+- [ ] Ler README.md
+- [ ] Revisar ARCHITECTURE.md
+- [ ] Entender REFACTORING_GUIDE.md
+- [ ] Revisar env.example
+
+---
+
+## Passos de Implantação
+
+### Passo 1: Preparação do Servidor
+
+#### 1.1 Atualizar Sistema
 
 ```bash
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y curl git ufw
 ```
 
-#### 1.2 Install Docker
+#### 1.2 Instalar Docker
 
 ```bash
-# Install Docker
+# Instalar Docker
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 
-# Install Docker Compose
+# Instalar Docker Compose
 sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
 
-# Verify installation
+# Verificar instalação
 docker --version
 docker-compose --version
 ```
 
-#### 1.3 Configure Firewall
+#### 1.3 Configurar Firewall
 
 ```bash
-# Allow SSH
+# Permitir SSH
 sudo ufw allow 22/tcp
 
-# Allow HTTP/HTTPS (if using reverse proxy)
+# Permitir HTTP/HTTPS (se usar proxy reverso)
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 
-# Allow n8n (or use reverse proxy instead)
+# Permitir n8n (ou usar proxy reverso)
 sudo ufw allow 5678/tcp
 
-# Allow Evolution API (or use reverse proxy)
+# Permitir Evolution API (ou usar proxy reverso)
 sudo ufw allow 8080/tcp
 
-# Enable firewall
+# Habilitar firewall
 sudo ufw enable
 sudo ufw status
 ```
 
 ---
 
-### Step 2: Application Setup
+### Passo 2: Configuração da Aplicação
 
-#### 2.1 Clone Repository
+#### 2.1 Clonar Repositório
 
 ```bash
 cd /opt
-sudo git clone https://github.com/yourusername/n8n-clinic-multiagent.git
+sudo git clone https://github.com/seuusuario/n8n-clinic-multiagent.git
 cd n8n-clinic-multiagent
 sudo chown -R $USER:$USER .
 ```
 
-#### 2.2 Configure Environment
+#### 2.2 Configurar Ambiente
 
 ```bash
-# Copy environment template
+# Copiar template de ambiente
 cp env.example .env
 
-# Generate secure keys
+# Gerar chaves seguras
 echo "N8N_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> .env
 echo "N8N_JWT_SECRET=$(openssl rand -base64 32)" >> .env
 echo "POSTGRES_PASSWORD=$(openssl rand -base64 32)" >> .env
 echo "REDIS_PASSWORD=$(openssl rand -hex 32)" >> .env
 echo "EVOLUTION_API_KEY=$(openssl rand -hex 32)" >> .env
 
-# Edit .env and fill in remaining values
+# Editar .env e preencher valores restantes
 nano .env
 ```
 
-**Critical values to set:**
-- `N8N_WEBHOOK_URL`: Your domain (https://your-domain.com/)
-- `EVOLUTION_BASE_URL`: Your Evolution API URL
-- `GOOGLE_CALENDAR_ID`: Your Google Calendar ID
-- `GOOGLE_GEMINI_API_KEY`: Your Gemini API key
-- `TELEGRAM_BOT_TOKEN`: Your bot token
-- `TELEGRAM_INTERNAL_CHAT_ID`: Your chat ID
-- `CLINIC_*`: Your clinic information
+**Valores críticos a definir:**
+- `N8N_WEBHOOK_URL`: Seu domínio (https://seu-dominio.com/)
+- `EVOLUTION_BASE_URL`: Sua URL da Evolution API
+- `GOOGLE_CALENDAR_ID`: Seu ID do Google Calendar
+- `GOOGLE_GEMINI_API_KEY`: Sua chave API Gemini
+- `TELEGRAM_BOT_TOKEN`: Seu token do bot
+- `TELEGRAM_INTERNAL_CHAT_ID`: Seu ID do chat
+- `CLINIC_*`: Informações da sua clínica
 
-#### 2.3 Secure Credentials
+#### 2.3 Proteger Credenciais
 
 ```bash
-# Set proper permissions
+# Definir permissões apropriadas
 chmod 600 .env
 
-# Backup encryption key (store offline!)
+# Fazer backup da chave de criptografia (armazenar offline!)
 echo "$N8N_ENCRYPTION_KEY" > ~/n8n-encryption-key.backup
 chmod 400 ~/n8n-encryption-key.backup
 
-# Move backup to secure location
-# mv ~/n8n-encryption-key.backup /secure/offline/location/
+# Mover backup para local seguro
+# mv ~/n8n-encryption-key.backup /local/offline/seguro/
 ```
 
 ---
 
-### Step 3: SSL Configuration (Production)
+### Passo 3: Configuração SSL (Produção)
 
-#### Option A: Let's Encrypt with Certbot
+#### Opção A: Let's Encrypt com Certbot
 
 ```bash
-# Install Certbot
+# Instalar Certbot
 sudo apt install -y certbot
 
-# Generate certificate
-sudo certbot certonly --standalone -d your-domain.com
+# Gerar certificado
+sudo certbot certonly --standalone -d seu-dominio.com
 
-# Certificates will be at:
-# /etc/letsencrypt/live/your-domain.com/fullchain.pem
-# /etc/letsencrypt/live/your-domain.com/privkey.pem
+# Certificados estarão em:
+# /etc/letsencrypt/live/seu-dominio.com/fullchain.pem
+# /etc/letsencrypt/live/seu-dominio.com/privkey.pem
 ```
 
-#### Option B: Reverse Proxy (Recommended)
+#### Opção B: Proxy Reverso (Recomendado)
 
-Create `nginx.conf`:
+Criar `nginx.conf`:
 
 ```nginx
 server {
     listen 80;
-    server_name your-domain.com;
+    server_name seu-dominio.com;
     return 301 https://$server_name$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name your-domain.com;
+    server_name seu-dominio.com;
 
-    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/seu-dominio.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/seu-dominio.com/privkey.pem;
 
     # n8n
     location / {
@@ -196,81 +196,81 @@ server {
 
 ---
 
-### Step 4: Start Services
+### Passo 4: Iniciar Serviços
 
-#### 4.1 Initial Startup
+#### 4.1 Inicialização Inicial
 
 ```bash
 cd /opt/n8n-clinic-multiagent
 
-# Start services in background
+# Iniciar serviços em segundo plano
 docker-compose up -d
 
-# Watch logs
+# Observar logs
 docker-compose logs -f
 ```
 
-#### 4.2 Verify Health
+#### 4.2 Verificar Saúde
 
 ```bash
-# Check all services are healthy
+# Verificar se todos os serviços estão saudáveis
 docker-compose ps
 
-# Should show:
+# Deve mostrar:
 # clinic_postgres    healthy
 # clinic_redis       healthy
 # clinic_evolution_api   healthy
 # clinic_n8n         healthy
 
-# Test endpoints
+# Testar endpoints
 curl http://localhost:5678/healthz
 curl http://localhost:8080/health
 ```
 
 ---
 
-### Step 5: n8n Configuration
+### Passo 5: Configuração do n8n
 
-#### 5.1 First-Time Setup
+#### 5.1 Configuração Inicial
 
-1. Open browser: `https://your-domain.com`
-2. Create admin account (save credentials securely!)
-3. Complete initial setup wizard
+1. Abrir navegador: `https://seu-dominio.com`
+2. Criar conta de administrador (salvar credenciais com segurança!)
+3. Completar assistente de configuração inicial
 
-#### 5.2 Configure Credentials
+#### 5.2 Configurar Credenciais
 
-In n8n Settings → Credentials, add:
+Em n8n Configurações → Credenciais, adicionar:
 
 **Evolution API:**
-- URL: `http://evolution_api:8080` (internal Docker network)
-- API Key: (from .env `EVOLUTION_API_KEY`)
+- URL: `http://evolution_api:8080` (rede interna Docker)
+- Chave API: (do .env `EVOLUTION_API_KEY`)
 
 **Google Calendar OAuth2:**
-- Follow Google OAuth setup
-- Authorize calendar access
+- Seguir configuração OAuth do Google
+- Autorizar acesso ao calendário
 
 **Google Tasks OAuth2:**
-- Follow Google OAuth setup
-- Authorize tasks access
+- Seguir configuração OAuth do Google
+- Autorizar acesso às tarefas
 
 **Telegram:**
-- Bot Token: (from .env `TELEGRAM_BOT_TOKEN`)
+- Token do Bot: (do .env `TELEGRAM_BOT_TOKEN`)
 
 **Google Gemini:**
-- API Key: (from .env `GOOGLE_GEMINI_API_KEY`)
+- Chave API: (do .env `GOOGLE_GEMINI_API_KEY`)
 
 **PostgreSQL:**
 - Host: `postgres`
-- Port: `5432`
-- Database: (from .env `POSTGRES_DB`)
-- User: (from .env `POSTGRES_USER`)
-- Password: (from .env `POSTGRES_PASSWORD`)
+- Porta: `5432`
+- Banco de Dados: (do .env `POSTGRES_DB`)
+- Usuário: (do .env `POSTGRES_USER`)
+- Senha: (do .env `POSTGRES_PASSWORD`)
 
-#### 5.3 Import Workflows
+#### 5.3 Importar Workflows
 
-**Order of import:**
+**Ordem de importação:**
 
-1. **Tools first** (dependencies):
+1. **Ferramentas primeiro** (dependências):
    ```
    workflows/tools/communication/message-formatter-tool.json
    workflows/tools/communication/whatsapp-send-tool.json
@@ -280,43 +280,43 @@ In n8n Settings → Credentials, add:
    workflows/tools/escalation/call-to-human-tool.json
    ```
 
-2. **Main workflows** (after tools):
+2. **Workflows principais** (após ferramentas):
    ```
    workflows/main/01-whatsapp-patient-handler.json
    workflows/main/02-telegram-internal-assistant.json
    workflows/main/03-appointment-confirmation-scheduler.json
    ```
 
-**Import steps:**
-1. In n8n: Workflows → Import from File
-2. Select JSON file
-3. Click "Import"
-4. Update credential references if needed
-5. Save workflow
+**Passos de importação:**
+1. No n8n: Workflows → Importar de Arquivo
+2. Selecionar arquivo JSON
+3. Clicar em "Importar"
+4. Atualizar referências de credenciais se necessário
+5. Salvar workflow
 
 ---
 
-### Step 6: Webhook Configuration
+### Passo 6: Configuração de Webhook
 
-#### 6.1 n8n Webhooks
+#### 6.1 Webhooks n8n
 
-For each webhook node, get the webhook URL:
-1. Open workflow
-2. Click webhook node
-3. Copy "Production URL"
+Para cada nó de webhook, obter a URL do webhook:
+1. Abrir workflow
+2. Clicar no nó de webhook
+3. Copiar "URL de Produção"
 
-#### 6.2 Evolution API Webhook
+#### 6.2 Webhook da Evolution API
 
-Configure Evolution API to send events to n8n:
+Configurar Evolution API para enviar eventos ao n8n:
 
 ```bash
-# Example webhook configuration
+# Exemplo de configuração de webhook
 curl -X POST http://localhost:8080/webhook/set \
-  -H "apikey: YOUR_EVOLUTION_API_KEY" \
+  -H "apikey: SUA_CHAVE_API_EVOLUTION" \
   -H "Content-Type: application/json" \
   -d '{
     "webhook": {
-      "url": "https://your-domain.com/webhook/evolutionAPIKORE",
+      "url": "https://seu-dominio.com/webhook/evolutionAPIKORE",
       "events": [
         "MESSAGES_UPSERT",
         "MESSAGES_UPDATE"
@@ -326,89 +326,89 @@ curl -X POST http://localhost:8080/webhook/set \
   }'
 ```
 
-#### 6.3 Telegram Webhook
+#### 6.3 Webhook do Telegram
 
-Set Telegram webhook (if not using polling):
+Definir webhook do Telegram (se não usar polling):
 
 ```bash
-curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
-  -d "url=https://your-domain.com/webhook-test/telegram"
+curl -X POST "https://api.telegram.org/bot<SEU_TOKEN_BOT>/setWebhook" \
+  -d "url=https://seu-dominio.com/webhook-test/telegram"
 ```
 
 ---
 
-### Step 7: Activate Workflows
+### Passo 7: Ativar Workflows
 
-In n8n UI, activate workflows in order:
+Na interface do n8n, ativar workflows na ordem:
 
-1. ✅ All tool workflows (set to active)
+1. ✅ Todos os workflows de ferramentas (definir como ativo)
 2. ✅ `01-whatsapp-patient-handler`
 3. ✅ `02-telegram-internal-assistant`
 4. ✅ `03-appointment-confirmation-scheduler`
 
 ---
 
-### Step 8: Testing
+### Passo 8: Testes
 
-#### 8.1 Test Patient Flow
+#### 8.1 Testar Fluxo de Paciente
 
-1. Send WhatsApp message to clinic number
-2. Verify message received in n8n execution log
-3. Check agent response
-4. Verify response sent back to WhatsApp
+1. Enviar mensagem WhatsApp para número da clínica
+2. Verificar mensagem recebida no log de execução do n8n
+3. Verificar resposta do agente
+4. Verificar resposta enviada de volta ao WhatsApp
 
-#### 8.2 Test Internal Assistant
+#### 8.2 Testar Assistente Interno
 
-1. Send message to Telegram bot
-2. Verify command processed
-3. Check tool execution
-4. Verify response in Telegram
+1. Enviar mensagem ao bot do Telegram
+2. Verificar comando processado
+3. Verificar execução da ferramenta
+4. Verificar resposta no Telegram
 
-#### 8.3 Test Appointment Confirmation
+#### 8.3 Testar Confirmação de Consulta
 
-1. Create test appointment for tomorrow
-2. Wait for cron trigger (or manually execute)
-3. Verify confirmation sent
-4. Check WhatsApp delivery
+1. Criar consulta de teste para amanhã
+2. Aguardar gatilho cron (ou executar manualmente)
+3. Verificar confirmação enviada
+4. Verificar entrega no WhatsApp
 
 ---
 
-### Step 9: Monitoring Setup
+### Passo 9: Configuração de Monitoramento
 
-#### 9.1 Log Monitoring
+#### 9.1 Monitoramento de Logs
 
 ```bash
-# View all logs
+# Ver todos os logs
 docker-compose logs -f
 
-# View specific service
+# Ver serviço específico
 docker-compose logs -f n8n
 
-# Save logs to file
-docker-compose logs > system-logs-$(date +%Y%m%d).log
+# Salvar logs em arquivo
+docker-compose logs > logs-sistema-$(date +%Y%m%d).log
 ```
 
-#### 9.2 Resource Monitoring
+#### 9.2 Monitoramento de Recursos
 
 ```bash
-# Monitor Docker stats
+# Monitorar estatísticas Docker
 docker stats
 
-# Check disk usage
+# Verificar uso de disco
 df -h
 docker system df
 ```
 
-#### 9.3 Database Monitoring
+#### 9.3 Monitoramento de Banco de Dados
 
 ```bash
-# Connect to PostgreSQL
+# Conectar ao PostgreSQL
 docker-compose exec postgres psql -U n8n_clinic -d n8n_clinic_db
 
-# Check database size
+# Verificar tamanho do banco de dados
 SELECT pg_size_pretty(pg_database_size('n8n_clinic_db'));
 
-# Check table sizes
+# Verificar tamanhos das tabelas
 SELECT schemaname, tablename, pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) 
 FROM pg_tables 
 WHERE schemaname = 'public' 
@@ -417,11 +417,11 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 
 ---
 
-### Step 10: Backup Configuration
+### Passo 10: Configuração de Backup
 
-#### 10.1 Automated Database Backup
+#### 10.1 Backup Automatizado de Banco de Dados
 
-Create backup script `/opt/n8n-clinic-multiagent/scripts/backup.sh`:
+Criar script de backup `/opt/n8n-clinic-multiagent/scripts/backup.sh`:
 
 ```bash
 #!/bin/bash
@@ -435,44 +435,44 @@ docker-compose exec -T postgres pg_dump -U n8n_clinic n8n_clinic_db > $BACKUP_FI
 
 gzip $BACKUP_FILE
 
-# Keep only last 30 days
+# Manter apenas últimos 30 dias
 find $BACKUP_DIR -name "*.sql.gz" -mtime +30 -delete
 
-echo "Backup completed: $BACKUP_FILE.gz"
+echo "Backup concluído: $BACKUP_FILE.gz"
 ```
 
 ```bash
 chmod +x scripts/backup.sh
 ```
 
-#### 10.2 Schedule with Cron
+#### 10.2 Agendar com Cron
 
 ```bash
-# Edit crontab
+# Editar crontab
 crontab -e
 
-# Add daily backup at 3 AM
+# Adicionar backup diário às 3h
 0 3 * * * /opt/n8n-clinic-multiagent/scripts/backup.sh >> /var/log/n8n-backup.log 2>&1
 ```
 
 ---
 
-## Post-Deployment
+## Pós-Implantação
 
-### Security Hardening
+### Endurecimento de Segurança
 
 ```bash
-# Restrict Docker network access
+# Restringir acesso à rede Docker
 sudo iptables -A DOCKER-USER -i eth0 ! -s 10.0.0.0/8 -j DROP
 
-# Enable automatic security updates
+# Habilitar atualizações automáticas de segurança
 sudo apt install -y unattended-upgrades
 sudo dpkg-reconfigure --priority=low unattended-upgrades
 ```
 
-### Performance Tuning
+### Ajuste de Performance
 
-Edit `docker-compose.yaml` for production:
+Editar `docker-compose.yaml` para produção:
 
 ```yaml
 n8n:
@@ -486,106 +486,105 @@ n8n:
         memory: 1G
 ```
 
-### Monitoring Alerts
+### Alertas de Monitoramento
 
-Set up alerts for:
-- Service downtime
-- High error rates
-- Database size limits
-- Disk space warnings
-- Memory usage spikes
+Configurar alertas para:
+- Inatividade de serviço
+- Altas taxas de erro
+- Limites de tamanho do banco de dados
+- Avisos de espaço em disco
+- Picos de uso de memória
 
 ---
 
-## Troubleshooting
+## Solução de Problemas
 
-### Services Won't Start
+### Serviços Não Iniciam
 
 ```bash
-# Check Docker logs
+# Verificar logs do Docker
 docker-compose logs
 
-# Check .env configuration
+# Verificar configuração .env
 cat .env | grep -v "^#" | grep .
 
-# Verify ports are available
+# Verificar se portas estão disponíveis
 sudo netstat -tulpn | grep -E ':(5678|8080|5432|6379)'
 ```
 
-### Database Connection Issues
+### Problemas de Conexão com Banco de Dados
 
 ```bash
-# Test PostgreSQL
+# Testar PostgreSQL
 docker-compose exec postgres psql -U n8n_clinic -d n8n_clinic_db -c "SELECT 1;"
 
-# Check database logs
+# Verificar logs do banco de dados
 docker-compose logs postgres
 ```
 
-### Evolution API Not Responding
+### Evolution API Não Responde
 
 ```bash
-# Check Evolution API health
+# Verificar saúde da Evolution API
 curl http://localhost:8080/health
 
-# Check DNS resolution
+# Verificar resolução DNS
 docker-compose exec evolution_api nslookup google.com
 
-# Restart service
+# Reiniciar serviço
 docker-compose restart evolution_api
 ```
 
 ---
 
-## Rollback Procedure
+## Procedimento de Rollback
 
-If deployment fails:
+Se a implantação falhar:
 
 ```bash
-# Stop services
+# Parar serviços
 docker-compose down
 
-# Restore from backup
-docker-compose exec -T postgres psql -U n8n_clinic n8n_clinic_db < /backups/postgres/latest_backup.sql
+# Restaurar do backup
+docker-compose exec -T postgres psql -U n8n_clinic n8n_clinic_db < /backups/postgres/ultimo_backup.sql
 
-# Revert to previous version
-git checkout <previous-commit>
+# Reverter para versão anterior
+git checkout <commit-anterior>
 
-# Restart services
+# Reiniciar serviços
 docker-compose up -d
 ```
 
 ---
 
-## Maintenance Schedule
+## Cronograma de Manutenção
 
-### Daily
-- Monitor error logs
-- Check service health
-- Verify backups completed
+### Diariamente
+- Monitorar logs de erro
+- Verificar saúde do serviço
+- Verificar se backups foram concluídos
 
-### Weekly
-- Review execution metrics
-- Check disk space
-- Update Docker images
+### Semanalmente
+- Revisar métricas de execução
+- Verificar espaço em disco
+- Atualizar imagens Docker
 
-### Monthly
-- Security updates
-- Performance review
-- Backup verification
-- Credential rotation
-
----
-
-## Support
-
-For deployment issues:
-- Review logs: `docker-compose logs`
-- Check documentation: `docs/`
-- Open issue: GitHub Issues
+### Mensalmente
+- Atualizações de segurança
+- Revisão de performance
+- Verificação de backup
+- Rotação de credenciais
 
 ---
 
-**Deployment Guide Version:** 1.0  
-**Last Updated:** 2026-01-01
+## Suporte
 
+Para problemas de implantação:
+- Revisar logs: `docker-compose logs`
+- Verificar documentação: `docs/`
+- Abrir issue: GitHub Issues
+
+---
+
+**Versão do Guia de Implantação:** 1.0  
+**Última Atualização:** 2026-01-01

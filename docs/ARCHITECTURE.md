@@ -1,294 +1,295 @@
-# n8n Clinic Multi-Agent System - Workflow Architecture
+# Sistema Multi-Agente n8n para Clínicas - Arquitetura de Workflows
 
-## Overview
-This document describes the modular workflow architecture for the n8n Clinic Multi-Agent System, refactored from a monolithic design into a maintainable, scalable structure following the Single Responsibility Principle.
-
----
-
-## Architectural Principles
-
-### 1. **Separation of Concerns**
-- **Main Workflows**: Handle orchestration, routing, and high-level logic
-- **Tool Workflows**: Implement specific, reusable functionalities
-- **Agent Specialization**: Each agent has a clear, defined responsibility
-
-### 2. **Reusability**
-- Tools are self-contained and can be called from multiple workflows
-- Common operations (formatting, error handling) are centralized
-
-### 3. **Maintainability**
-- Each workflow file focuses on a single domain
-- Easy to locate, update, and debug specific functionality
+## Visão Geral
+Este documento descreve a arquitetura modular de workflows para o Sistema Multi-Agente n8n para Clínicas, refatorado de um design monolítico para uma estrutura sustentável e escalável seguindo o Princípio da Responsabilidade Única.
 
 ---
 
-## Proposed Workflow Structure
+## Princípios Arquiteturais
+
+### 1. **Separação de Responsabilidades**
+- **Workflows Principais**: Lidam com orquestração, roteamento e lógica de alto nível
+- **Workflows de Ferramentas**: Implementam funcionalidades específicas e reutilizáveis
+- **Especialização de Agentes**: Cada agente tem uma responsabilidade clara e definida
+
+### 2. **Reutilização**
+- Ferramentas são autocontidas e podem ser chamadas de múltiplos workflows
+- Operações comuns (formatação, tratamento de erros) são centralizadas
+
+### 3. **Manutenibilidade**
+- Cada arquivo de workflow foca em um único domínio
+- Fácil localizar e corrigir bugs
+- Mudanças em uma área não afetam outras
+
+---
+
+## Estrutura de Workflows Proposta
 
 ```
 workflows/
 ├── main/
-│   ├── 01-whatsapp-patient-handler.json          # Main patient interaction flow
-│   ├── 02-telegram-internal-assistant.json       # Internal staff assistant
-│   └── 03-appointment-confirmation-scheduler.json # Daily confirmation automation
+│   ├── 01-whatsapp-patient-handler.json          # Fluxo principal de interação com paciente
+│   ├── 02-telegram-internal-assistant.json       # Assistente interno da equipe
+│   └── 03-appointment-confirmation-scheduler.json # Automação de confirmação diária
 │
 └── tools/
     ├── calendar/
-    │   ├── mcp-calendar-tool.json                # Google Calendar operations
-    │   └── appointment-reminder-tool.json         # Send appointment reminders
+    │   ├── mcp-calendar-tool.json                # Operações do Google Calendar
+    │   └── appointment-reminder-tool.json         # Enviar lembretes de consulta
     │
     ├── communication/
-    │   ├── whatsapp-send-tool.json               # Evolution API WhatsApp sender
-    │   ├── telegram-notify-tool.json             # Telegram notifications
-    │   └── message-formatter-tool.json           # Format messages for WhatsApp
+    │   ├── whatsapp-send-tool.json               # Envio WhatsApp via Evolution API
+    │   ├── telegram-notify-tool.json             # Notificações Telegram
+    │   └── message-formatter-tool.json           # Formatar mensagens para WhatsApp
     │
     ├── ai-processing/
-    │   ├── image-ocr-tool.json                   # Process images with OCR
-    │   ├── audio-transcription-tool.json         # Transcribe audio messages
-    │   └── text-analysis-tool.json               # Analyze and interpret text
+    │   ├── image-ocr-tool.json                   # Processar imagens com OCR
+    │   ├── audio-transcription-tool.json         # Transcrever mensagens de áudio
+    │   └── text-analysis-tool.json               # Analisar e interpretar texto
     │
     └── escalation/
-        └── call-to-human-tool.json               # Escalate to human operator
+        └── call-to-human-tool.json               # Escalonar para operador humano
 ```
 
 ---
 
-## Workflow Descriptions
+## Descrições dos Workflows
 
-### **Main Workflows**
+### **Workflows Principais**
 
 #### 1. `01-whatsapp-patient-handler.json`
-**Purpose**: Handle all incoming WhatsApp messages from patients
+**Propósito**: Lidar com todas as mensagens WhatsApp recebidas de pacientes
 
-**Responsibilities**:
-- Receive webhook from Evolution API
-- Parse message type (text, image, audio, document)
-- Route to appropriate processing tool
-- Interact with AI assistant for responses
-- Send formatted responses back via WhatsApp
+**Responsabilidades**:
+- Receber webhook da Evolution API
+- Analisar tipo de mensagem (texto, imagem, áudio, documento)
+- Rotear para ferramenta de processamento apropriada
+- Interagir com assistente de IA para respostas
+- Enviar respostas formatadas de volta via WhatsApp
 
-**Key Nodes**:
-- Webhook Trigger (Evolution API)
-- Message Type Switch
-- Patient Assistant Agent
-- Tools: Image OCR, Audio Transcription, Calendar, Escalation
+**Nós Principais**:
+- Gatilho Webhook (Evolution API)
+- Switch de Tipo de Mensagem
+- Agente Assistente de Paciente
+- Ferramentas: OCR de Imagem, Transcrição de Áudio, Calendário, Escalonamento
 
-**Agent**: `Assistente Clínica` (Patient-facing assistant)
-- Handles scheduling, rescheduling, cancellations
-- Answers clinic questions
-- Escalates urgent situations
+**Agente**: `Assistente Clínica` (Assistente voltado para pacientes)
+- Lida com agendamentos, reagendamentos, cancelamentos
+- Responde perguntas sobre clínica
+- Escalona situações urgentes
 
 ---
 
 #### 2. `02-telegram-internal-assistant.json`
-**Purpose**: Internal tool for clinic staff to manage operations via Telegram
+**Propósito**: Ferramenta interna para equipe da clínica gerenciar operações via Telegram
 
-**Responsibilities**:
-- Receive commands from staff via Telegram
-- Manage patient rescheduling
-- Add items to clinic shopping list (Google Tasks)
-- Send rescheduling notifications to patients
+**Responsabilidades**:
+- Receber comandos da equipe via Telegram
+- Gerenciar reagendamento de pacientes
+- Adicionar itens à lista de compras da clínica (Google Tasks)
+- Enviar notificações de reagendamento aos pacientes
 
-**Key Nodes**:
-- Telegram Trigger
-- Internal Assistant Agent
-- Tools: Calendar, Google Tasks, WhatsApp Send
+**Nós Principais**:
+- Gatilho Telegram
+- Agente Assistente Interno
+- Ferramentas: Calendário, Google Tasks, Envio WhatsApp
 
-**Agent**: `Assistente Clínica Interno` (Internal assistant)
-- Only accessible by authorized staff
-- Performs administrative tasks
-- Coordinates with patient-facing workflows
+**Agente**: `Assistente Clínica Interno` (Assistente interno)
+- Acessível apenas por equipe autorizada
+- Realiza tarefas administrativas
+- Coordena com workflows voltados para pacientes
 
 ---
 
 #### 3. `03-appointment-confirmation-scheduler.json`
-**Purpose**: Automated daily confirmation of next-day appointments
+**Propósito**: Confirmação diária automatizada de consultas do dia seguinte
 
-**Responsibilities**:
-- Trigger daily at 8 AM (Mon-Fri)
-- Fetch next day's appointments from Google Calendar
-- Extract patient contact information
-- Send confirmation request via WhatsApp
-- Log confirmation status
+**Responsabilidades**:
+- Disparar diariamente às 8h (Seg-Sex)
+- Buscar consultas do dia seguinte do Google Calendar
+- Extrair informações de contato do paciente
+- Enviar solicitação de confirmação via WhatsApp
+- Registrar status de confirmação
 
-**Key Nodes**:
-- Schedule Trigger (Cron: 0 8 * * 1-5)
-- Google Calendar Fetch
-- Loop through appointments
-- Confirmation Assistant Agent
-- Tools: Calendar, WhatsApp Send
+**Nós Principais**:
+- Gatilho de Agendamento (Cron: 0 8 * * 1-5)
+- Busca Google Calendar
+- Loop através de consultas
+- Agente Assistente de Confirmação
+- Ferramentas: Calendário, Envio WhatsApp
 
-**Agent**: `Assistente de Confirmação`
-- Lists upcoming appointments
-- Sends confirmation requests
-- Does not handle responses (handled by main patient flow)
+**Agente**: `Assistente de Confirmação`
+- Lista consultas próximas
+- Envia solicitações de confirmação
+- Não lida com respostas (tratadas pelo fluxo principal de paciente)
 
 ---
 
-### **Tool Workflows**
+### **Workflows de Ferramentas**
 
-#### **Calendar Tools**
+#### **Ferramentas de Calendário**
 
 ##### `mcp-calendar-tool.json`
-**Purpose**: Unified interface to Google Calendar via MCP
+**Propósito**: Interface unificada para Google Calendar via MCP
 
-**Inputs**:
+**Entradas**:
 - `action`: get_all, get_availability, create, update, delete
 - `date_start`, `date_end`
-- `event_id` (for update/delete)
-- `description`, `title` (for create)
+- `event_id` (para update/delete)
+- `description`, `title` (para create)
 
-**Outputs**:
-- Event data or confirmation message
+**Saídas**:
+- Dados do evento ou mensagem de confirmação
 
 ---
 
 ##### `appointment-reminder-tool.json`
-**Purpose**: Send appointment reminder via WhatsApp
+**Propósito**: Enviar lembrete de consulta via WhatsApp
 
-**Inputs**:
-- `phone_number`: Patient's WhatsApp number
+**Entradas**:
+- `phone_number`: Número WhatsApp do paciente
 - `patient_name`
 - `appointment_date`
 - `appointment_time`
 
-**Outputs**:
-- Message sent confirmation
+**Saídas**:
+- Confirmação de envio de mensagem
 
 ---
 
-#### **Communication Tools**
+#### **Ferramentas de Comunicação**
 
 ##### `whatsapp-send-tool.json`
-**Purpose**: Send WhatsApp message via Evolution API
+**Propósito**: Enviar mensagem WhatsApp via Evolution API
 
-**Inputs**:
+**Entradas**:
 - `instance_name`
-- `remote_jid` (phone number)
+- `remote_jid` (número de telefone)
 - `message_text`
 
-**Outputs**:
-- Delivery status
+**Saídas**:
+- Status de entrega
 
 ---
 
 ##### `telegram-notify-tool.json`
-**Purpose**: Send notification to staff via Telegram
+**Propósito**: Enviar notificação para equipe via Telegram
 
-**Inputs**:
+**Entradas**:
 - `chat_id`
 - `message`
 - `notification_type` (info, warning, error)
 
-**Outputs**:
-- Message sent confirmation
+**Saídas**:
+- Confirmação de envio de mensagem
 
 ---
 
 ##### `message-formatter-tool.json`
-**Purpose**: Format messages for WhatsApp markdown
+**Propósito**: Formatar mensagens para markdown do WhatsApp
 
-**Inputs**:
-- `raw_text` (from AI agent)
+**Entradas**:
+- `raw_text` (do agente de IA)
 
-**Outputs**:
-- `formatted_text` (** → *, remove #)
+**Saídas**:
+- `formatted_text` (** → *, remover #)
 
 ---
 
-#### **AI Processing Tools**
+#### **Ferramentas de Processamento de IA**
 
 ##### `image-ocr-tool.json`
-**Purpose**: Extract text from images using Google Gemini Vision
+**Propósito**: Extrair texto de imagens usando Google Gemini Vision
 
-**Inputs**:
+**Entradas**:
 - `image_url`
 
-**Outputs**:
+**Saídas**:
 - `transcribed_text`
 - `image_description`
 
-**Use Cases**:
-- Medical prescriptions
-- Lab results
-- Handwritten notes
+**Casos de Uso**:
+- Receitas médicas
+- Resultados de exames
+- Notas manuscritas
 
 ---
 
 ##### `audio-transcription-tool.json`
-**Purpose**: Transcribe audio messages
+**Propósito**: Transcrever mensagens de áudio
 
-**Inputs**:
-- `audio_binary` (from Evolution API)
+**Entradas**:
+- `audio_binary` (da Evolution API)
 
-**Outputs**:
+**Saídas**:
 - `transcribed_text`
 
-**Flow**:
-1. Download audio from Evolution API
-2. Convert to binary
-3. Transcribe with Google Gemini Audio
-4. Return text
+**Fluxo**:
+1. Baixar áudio da Evolution API
+2. Converter para binário
+3. Transcrever com Google Gemini Audio
+4. Retornar texto
 
 ---
 
 ##### `text-analysis-tool.json`
-**Purpose**: Analyze and interpret text for context
+**Propósito**: Analisar e interpretar texto para contexto
 
-**Inputs**:
-- `text` (from OCR or transcription)
+**Entradas**:
+- `text` (de OCR ou transcrição)
 
-**Outputs**:
+**Saídas**:
 - `interpretation`
 - `suggested_response`
 
 ---
 
-#### **Escalation Tools**
+#### **Ferramentas de Escalonamento**
 
 ##### `call-to-human-tool.json`
-**Purpose**: Escalate conversation to human operator
+**Propósito**: Escalonar conversa para operador humano
 
-**Inputs**:
+**Entradas**:
 - `patient_name`
 - `phone_number`
 - `last_message`
-- `reason` (urgency, dissatisfaction, out-of-scope)
+- `reason` (urgência, insatisfação, fora do escopo)
 
-**Outputs**:
-- Notification sent to staff
-- Patient informed of escalation
+**Saídas**:
+- Notificação enviada à equipe
+- Paciente informado do escalonamento
 
-**Triggers**:
-- Medical urgency keywords
-- Patient requests human contact
-- Extreme dissatisfaction detected
-- Out-of-scope topics
+**Gatilhos**:
+- Palavras-chave de urgência médica
+- Paciente solicita contato humano
+- Insatisfação extrema detectada
+- Tópicos fora do escopo
 
 ---
 
-## Agent Configuration
+## Configuração de Agentes
 
-### Environment Variables in System Messages
-All hardcoded values should be replaced with expressions referencing environment variables:
+### Variáveis de Ambiente nas Mensagens do Sistema
+Todos os valores hardcoded devem ser substituídos por expressões referenciando variáveis de ambiente:
 
-**Examples**:
+**Exemplos**:
 ```javascript
-// Replace hardcoded phone numbers
+// Substituir números de telefone hardcoded
 "5511111111111@s.whatsapp.net" 
 → 
 "{{ $env.CLINIC_PHONE }}@s.whatsapp.net"
 
-// Replace calendar links
+// Substituir links de calendário
 "https://calendar.google.com/calendar/embed?src=..."
 →
 "{{ $env.CLINIC_CALENDAR_PUBLIC_LINK }}"
 
-// Replace business hours
+// Substituir horário comercial
 "Seg–Sáb: 08h–19h"
 →
 "{{ $env.CLINIC_DAYS_OPEN }}: {{ $env.CLINIC_HOURS_START }}–{{ $env.CLINIC_HOURS_END }}"
 
-// Replace clinic address
+// Substituir endereço da clínica
 "Rua Rio Casca, 417 – Belo Horizonte, MG"
 →
 "{{ $env.CLINIC_ADDRESS }}"
@@ -296,113 +297,112 @@ All hardcoded values should be replaced with expressions referencing environment
 
 ---
 
-## Data Flow Examples
+## Exemplos de Fluxo de Dados
 
-### Example 1: Patient Schedules Appointment via WhatsApp
-
-```
-1. Patient → WhatsApp → Evolution API → n8n Webhook
-2. Webhook → Parse Message → Switch (text type)
-3. Text → Patient Assistant Agent
-4. Agent uses MCP Calendar Tool → Check availability
-5. Patient chooses time → Agent uses MCP Calendar Tool → Create event
-6. Agent → Message Formatter Tool → Format response
-7. Formatted message → WhatsApp Send Tool → Patient
-```
-
----
-
-### Example 2: Staff Reschedules Patient via Telegram
+### Exemplo 1: Paciente Agenda Consulta via WhatsApp
 
 ```
-1. Staff → Telegram → n8n Telegram Trigger
-2. Internal Assistant Agent receives command
-3. Agent uses MCP Calendar Tool → Find patient appointment
-4. Agent uses MCP Calendar Tool → Update event
-5. Agent uses WhatsApp Send Tool → Notify patient
-6. Agent → Telegram → Confirm to staff
+1. Paciente → WhatsApp → Evolution API → Webhook n8n
+2. Webhook → Analisar Mensagem → Switch (tipo texto)
+3. Texto → Agente Assistente de Paciente
+4. Agente usa Ferramenta Calendário MCP → Verificar disponibilidade
+5. Paciente escolhe horário → Agente usa Ferramenta Calendário MCP → Criar evento
+6. Agente → Ferramenta Formatador de Mensagem → Formatar resposta
+7. Mensagem formatada → Ferramenta Envio WhatsApp → Paciente
 ```
 
 ---
 
-### Example 3: Daily Appointment Confirmations
+### Exemplo 2: Equipe Reagenda Paciente via Telegram
 
 ```
-1. Cron Trigger → 8 AM daily
-2. Confirmation Assistant Agent activates
-3. Agent uses MCP Calendar Tool → Get tomorrow's appointments
-4. Loop through appointments:
-   a. Extract patient phone from description
-   b. Agent uses WhatsApp Send Tool → Send confirmation request
-5. Complete and log results
+1. Equipe → Telegram → Gatilho Telegram n8n
+2. Agente Assistente Interno recebe comando
+3. Agente usa Ferramenta Calendário MCP → Localizar consulta do paciente
+4. Agente usa Ferramenta Calendário MCP → Atualizar evento
+5. Agente usa Ferramenta Envio WhatsApp → Notificar paciente
+6. Agente → Telegram → Confirmar para equipe
 ```
 
 ---
 
-## Benefits of Modular Architecture
+### Exemplo 3: Confirmações Diárias de Consultas
 
-### 1. **Maintainability**
-- Each workflow has a clear purpose
-- Easy to locate and fix bugs
-- Changes in one area don't affect others
-
-### 2. **Scalability**
-- Add new tools without modifying main workflows
-- Easy to extend functionality
-- Can be load-balanced or distributed
-
-### 3. **Testability**
-- Tools can be tested independently
-- Mock inputs/outputs for debugging
-- Easier to validate behavior
-
-### 4. **Reusability**
-- WhatsApp Send Tool used by multiple workflows
-- Calendar operations centralized
-- Consistent behavior across system
-
-### 5. **Team Collaboration**
-- Multiple developers can work on different tools
-- Clear interfaces between components
-- Easier code reviews
+```
+1. Gatilho Cron → 8h diariamente
+2. Agente Assistente de Confirmação ativa
+3. Agente usa Ferramenta Calendário MCP → Obter consultas de amanhã
+4. Loop através de consultas:
+   a. Extrair telefone do paciente da descrição
+   b. Agente usa Ferramenta Envio WhatsApp → Enviar solicitação de confirmação
+5. Completar e registrar resultados
+```
 
 ---
 
-## Migration Strategy
+## Benefícios da Arquitetura Modular
 
-### Phase 1: Extract Tools
-1. Create tool workflows from existing nodes
-2. Test each tool independently
-3. Document inputs/outputs
+### 1. **Manutenibilidade**
+- Cada workflow tem propósito claro
+- Fácil localizar e corrigir bugs
+- Mudanças em uma área não afetam outras
 
-### Phase 2: Refactor Main Workflows
-1. Replace inline logic with tool calls
-2. Simplify main workflow structure
-3. Add error handling
+### 2. **Escalabilidade**
+- Adicionar novas ferramentas sem modificar workflows principais
+- Fácil estender funcionalidade
+- Pode ser balanceado em carga ou distribuído
 
-### Phase 3: Parameterize Configuration
-1. Replace hardcoded values with env vars
-2. Update system messages
-3. Centralize configuration
+### 3. **Testabilidade**
+- Ferramentas podem ser testadas independentemente
+- Simular entradas/saídas para depuração
+- Mais fácil validar comportamento
 
-### Phase 4: Testing & Validation
-1. End-to-end testing of each flow
-2. Performance testing
-3. User acceptance testing
+### 4. **Reutilização**
+- Ferramenta de Envio WhatsApp usada por múltiplos workflows
+- Operações de calendário centralizadas
+- Comportamento consistente em todo o sistema
 
----
-
-## Next Steps
-
-1. ✅ Architecture documented
-2. ⏳ Create tool workflow JSON files
-3. ⏳ Refactor main workflow JSON files
-4. ⏳ Update system messages with env vars
-5. ⏳ Test and validate all flows
+### 5. **Colaboração em Equipe**
+- Múltiplos desenvolvedores podem trabalhar em ferramentas diferentes
+- Interfaces claras entre componentes
+- Revisões de código mais fáceis
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2026-01-01  
-**Author**: n8n Automation Team
+## Estratégia de Migração
 
+### Fase 1: Extrair Ferramentas
+1. Criar workflows de ferramentas dos nós existentes
+2. Testar cada ferramenta independentemente
+3. Documentar entradas/saídas
+
+### Fase 2: Refatorar Workflows Principais
+1. Substituir lógica inline por chamadas de ferramentas
+2. Simplificar estrutura de workflow principal
+3. Adicionar tratamento de erros
+
+### Fase 3: Parametrizar Configuração
+1. Substituir valores hardcoded por variáveis de ambiente
+2. Atualizar mensagens do sistema
+3. Centralizar configuração
+
+### Fase 4: Testes e Validação
+1. Testes end-to-end de cada fluxo
+2. Testes de performance
+3. Testes de aceitação do usuário
+
+---
+
+## Próximos Passos
+
+1. ✅ Arquitetura documentada
+2. ⏳ Criar arquivos JSON de workflow de ferramentas
+3. ⏳ Refatorar arquivos JSON de workflows principais
+4. ⏳ Atualizar mensagens do sistema com variáveis de ambiente
+5. ⏳ Testar e validar todos os fluxos
+
+---
+
+**Versão do Documento**: 1.0  
+**Última Atualização**: 2026-01-01  
+**Autor**: Equipe de Automação n8n
