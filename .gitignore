@@ -1,22 +1,126 @@
-### AL ###
-#Template for AL projects for Dynamics 365 Business Central
-#launch.json folder
+# ====================================
+# n8n Clinic Multi-Agent System
+# Professional .gitignore
+# ====================================
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+
+# n8n Data & Credentials
+.n8n/
+n8n_data/
+*.n8n
+credentials.json
+credentials/
+
+# Docker Volumes & Data
+postgres_data/
+redis_data/
+evolution_store/
+evolution_instances/
+volumes/
+docker-volumes/
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.pnpm-store/
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE & Editor Files
 .vscode/
-#Cache folder
-.alcache/
-#Symbols folder
-.alpackages/
-#Snapshots folder
-.snapshots/
-#Testing Output folder
-.output/
-#Extension App-file
-*.app
-#Rapid Application Development File
-rad.json
-#Translation Base-file
-*.g.xlf
-#License-file
-*.flf
-#Test results file
-TestResults.xml
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+.history/
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.orig
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+
+# Backup Files
+*.backup
+backup/
+backups/
+
+# Test Coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Production Build
+dist/
+build/
+out/
+
+# Secrets & Keys
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+secrets/
+.secrets/
+
+# Local Development
+.local/
+local/
+dev/
+
+# CI/CD
+.github/workflows/*.local.yml
+
+# Misc
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.vercel/
