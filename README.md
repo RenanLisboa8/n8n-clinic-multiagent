@@ -1,6 +1,6 @@
-# 🏥 n8n Clinic Multi-Agent System
+# 🏥 Sistema Multi-Agente n8n para Clínicas
 
-> **Professional multi-agent automation system for clinic management with WhatsApp, Telegram, and AI-powered assistants**
+> **Sistema profissional de automação multi-agente para gestão de clínicas com WhatsApp, Telegram e assistentes com IA**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![n8n](https://img.shields.io/badge/n8n-latest-orange)](https://n8n.io)
@@ -8,650 +8,650 @@
 
 ---
 
-## 📋 Table of Contents
+## 📋 Índice
 
-- [Overview](#overview)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [Agents & Tools](#agents--tools)
+- [Visão Geral](#visão-geral)
+- [Funcionalidades](#funcionalidades)
+- [Arquitetura](#arquitetura)
+- [Pré-requisitos](#pré-requisitos)
+- [Instalação](#instalação)
+- [Configuração](#configuração)
+- [Utilização](#utilização)
+- [Agentes e Ferramentas](#agentes-e-ferramentas)
 - [Workflows](#workflows)
-- [Maintenance](#maintenance)
-- [Troubleshooting](#troubleshooting)
-- [Security](#security)
-- [Contributing](#contributing)
-- [License](#license)
+- [Manutenção](#manutenção)
+- [Resolução de Problemas](#resolução-de-problemas)
+- [Segurança](#segurança)
+- [Contribuindo](#contribuindo)
+- [Licença](#licença)
 
 ---
 
-## 🎯 Overview
+## 🎯 Visão Geral
 
-The **n8n Clinic Multi-Agent System** is a production-ready automation platform designed for healthcare clinics. It provides intelligent, AI-powered patient interaction through WhatsApp, internal staff management via Telegram, and automated appointment confirmations.
+O **Sistema Multi-Agente n8n para Clínicas** é uma plataforma de automação pronta para produção, projetada para clínicas de saúde. Oferece interação inteligente com pacientes através de IA pelo WhatsApp, gestão interna da equipe via Telegram e confirmações automáticas de consultas.
 
-### Key Capabilities
+### Principais Capacidades
 
-- 🤖 **AI-Powered Patient Assistant** - Handles appointment scheduling, rescheduling, and clinic inquiries
-- 📱 **WhatsApp Integration** - Seamless patient communication via Evolution API
-- 💬 **Internal Telegram Bot** - Staff tool for administrative tasks
-- 📅 **Google Calendar Integration** - Automated schedule management
-- 🔔 **Daily Appointment Confirmations** - Proactive patient engagement
-- 🎤 **Multimedia Support** - Process text, images (OCR), and audio (transcription)
-- 🚨 **Smart Escalation** - Routes urgent cases to human operators
-- 🧠 **Contextual Memory** - Maintains conversation history per patient
-
----
-
-## ✨ Features
-
-### Patient-Facing Features
-- ✅ Schedule appointments with natural language
-- ✅ Reschedule or cancel existing appointments
-- ✅ Check appointment availability
-- ✅ Receive appointment confirmations and reminders
-- ✅ Send images (prescriptions, exams) for analysis
-- ✅ Send voice messages for transcription
-- ✅ Automatic escalation for urgent situations
-
-### Staff-Facing Features
-- ✅ Manage patient schedules via Telegram
-- ✅ Bulk rescheduling capabilities
-- ✅ Shopping list management (Google Tasks)
-- ✅ Cancellation notifications
-- ✅ Real-time alerts for escalated cases
-
-### Technical Features
-- ✅ Modular workflow architecture
-- ✅ Production-ready Docker setup
-- ✅ Health checks and logging
-- ✅ PostgreSQL with Redis caching
-- ✅ Encrypted credentials storage
-- ✅ Environment-based configuration
-- ✅ Containerized deployment
+- 🤖 **Assistente de Pacientes com IA** - Gerencia agendamentos, reagendamentos e consultas sobre a clínica
+- 📱 **Integração com WhatsApp** - Comunicação perfeita com pacientes via Evolution API
+- 💬 **Bot Telegram Interno** - Ferramenta para equipe realizar tarefas administrativas
+- 📅 **Integração com Google Calendar** - Gestão automatizada de agendas
+- 🔔 **Confirmações Diárias de Consultas** - Engajamento proativo com pacientes
+- 🎤 **Suporte Multimídia** - Processa texto, imagens (OCR) e áudio (transcrição)
+- 🚨 **Escalonamento Inteligente** - Encaminha casos urgentes para operadores humanos
+- 🧠 **Memória Contextual** - Mantém histórico de conversas por paciente
 
 ---
 
-## 🏗️ Architecture
+## ✨ Funcionalidades
 
-The system follows a **modular, multi-agent architecture** with clear separation of concerns:
+### Funcionalidades para Pacientes
+- ✅ Agendar consultas com linguagem natural
+- ✅ Reagendar ou cancelar consultas existentes
+- ✅ Verificar disponibilidade de horários
+- ✅ Receber confirmações e lembretes de consultas
+- ✅ Enviar imagens (receitas, exames) para análise
+- ✅ Enviar mensagens de voz para transcrição
+- ✅ Escalonamento automático para situações urgentes
+
+### Funcionalidades para Equipe
+- ✅ Gerenciar agenda de pacientes via Telegram
+- ✅ Capacidade de reagendamento em massa
+- ✅ Gestão de lista de compras (Google Tasks)
+- ✅ Notificações de cancelamentos
+- ✅ Alertas em tempo real para casos escalonados
+
+### Funcionalidades Técnicas
+- ✅ Arquitetura modular de workflows
+- ✅ Configuração Docker pronta para produção
+- ✅ Health checks e logging
+- ✅ PostgreSQL com cache Redis
+- ✅ Armazenamento criptografado de credenciais
+- ✅ Configuração baseada em variáveis de ambiente
+- ✅ Implantação containerizada
+
+---
+
+## 🏗️ Arquitetura
+
+O sistema segue uma **arquitetura modular multi-agente** com clara separação de responsabilidades:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     External Interfaces                      │
+│                   Interfaces Externas                        │
 ├──────────────┬──────────────┬──────────────┬────────────────┤
-│   WhatsApp   │   Telegram   │    Google    │      AI/LLM    │
-│  (Patients)  │    (Staff)   │   Calendar   │   (Gemini)     │
+│   WhatsApp   │   Telegram   │    Google    │      IA/LLM    │
+│  (Pacientes) │   (Equipe)   │   Calendar   │   (Gemini)     │
 └──────┬───────┴──────┬───────┴──────┬───────┴────────┬───────┘
        │              │              │                │
 ┌──────▼──────────────▼──────────────▼────────────────▼───────┐
-│                      n8n Workflows                           │
+│                     Workflows n8n                            │
 ├──────────────────────────────────────────────────────────────┤
-│  Main Workflows:                                             │
+│  Workflows Principais:                                       │
 │  • 01-whatsapp-patient-handler.json                          │
 │  • 02-telegram-internal-assistant.json                       │
 │  • 03-appointment-confirmation-scheduler.json                │
 │                                                              │
-│  Tool Workflows:                                             │
-│  • Calendar Tools (MCP integration)                          │
-│  • Communication Tools (WhatsApp, Telegram)                  │
-│  • AI Processing (OCR, Transcription)                        │
-│  • Escalation Tools (Human handoff)                          │
+│  Workflows de Ferramentas:                                   │
+│  • Ferramentas de Calendário (integração MCP)                │
+│  • Ferramentas de Comunicação (WhatsApp, Telegram)           │
+│  • Processamento IA (OCR, Transcrição)                       │
+│  • Ferramentas de Escalonamento (Repasse humano)             │
 └──────┬───────────────────┬───────────────────┬──────────────┘
        │                   │                   │
 ┌──────▼───────┐  ┌────────▼────────┐  ┌──────▼──────────┐
 │  PostgreSQL  │  │      Redis      │  │  Evolution API  │
-│  (Database)  │  │     (Cache)     │  │   (WhatsApp)    │
+│ (Banco Dados)│  │     (Cache)     │  │   (WhatsApp)    │
 └──────────────┘  └─────────────────┘  └─────────────────┘
 ```
 
-### Core Components
+### Componentes Principais
 
-| Component | Technology | Purpose |
+| Componente | Tecnologia | Propósito |
 |-----------|-----------|---------|
-| **n8n** | Workflow Automation | Orchestrates all automation logic |
-| **Evolution API** | WhatsApp Gateway | Handles WhatsApp communication |
-| **PostgreSQL** | Database | Stores workflows, executions, chat history |
-| **Redis** | Cache | Improves performance and session management |
-| **Google Gemini** | AI/LLM | Powers intelligent agents |
-| **MCP Protocol** | Model Context Protocol | Calendar and email integrations |
+| **n8n** | Automação de Workflow | Orquestra toda a lógica de automação |
+| **Evolution API** | Gateway WhatsApp | Gerencia comunicação via WhatsApp |
+| **PostgreSQL** | Banco de Dados | Armazena workflows, execuções, histórico de chat |
+| **Redis** | Cache | Melhora performance e gestão de sessões |
+| **Google Gemini** | IA/LLM | Alimenta os agentes inteligentes |
+| **Protocolo MCP** | Model Context Protocol | Integrações de calendário e email |
 
-For detailed architecture documentation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Para documentação detalhada da arquitetura, veja [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
-## 📦 Prerequisites
+## 📦 Pré-requisitos
 
-### Required
+### Obrigatório
 
-- **Docker** (20.10+) and **Docker Compose** (v2.0+)
-- **Google Account** with:
-  - Calendar API enabled
-  - Tasks API enabled
-  - Gemini API key
-- **Telegram Bot** (create via [@BotFather](https://t.me/botfather))
-- **Evolution API** instance or self-hosted setup
+- **Docker** (20.10+) e **Docker Compose** (v2.0+)
+- **Conta Google** com:
+  - API do Calendar habilitada
+  - API do Tasks habilitada
+  - Chave API do Gemini
+- **Bot do Telegram** (crie via [@BotFather](https://t.me/botfather))
+- **Instância Evolution API** ou configuração self-hosted
 
-### Recommended
+### Recomendado
 
-- **Domain name** with SSL certificate (for production)
-- **Minimum server specs**:
-  - 2 CPU cores
+- **Nome de domínio** com certificado SSL (para produção)
+- **Especificações mínimas do servidor**:
+  - 2 núcleos de CPU
   - 4GB RAM
-  - 20GB storage
-  - Ubuntu 22.04 LTS or similar
+  - 20GB armazenamento
+  - Ubuntu 22.04 LTS ou similar
 
-### Knowledge Requirements
+### Conhecimentos Necessários
 
-- Basic Docker and Docker Compose
-- Familiarity with environment variables
-- Understanding of webhook concepts
-- Basic n8n workflow knowledge
+- Docker e Docker Compose básico
+- Familiaridade com variáveis de ambiente
+- Entendimento de conceitos de webhook
+- Conhecimento básico de workflows n8n
 
 ---
 
-## 🚀 Installation
+## 🚀 Instalação
 
-### Step 1: Clone the Repository
+### Passo 1: Clonar o Repositório
 
 ```bash
-git clone https://github.com/yourusername/n8n-clinic-multiagent.git
+git clone https://github.com/seuusuario/n8n-clinic-multiagent.git
 cd n8n-clinic-multiagent
 ```
 
-### Step 2: Configure Environment Variables
+### Passo 2: Configurar Variáveis de Ambiente
 
-Copy the example environment file and fill in your values:
+Copie o arquivo de exemplo e preencha seus valores:
 
 ```bash
 cp env.example .env
 ```
 
-**Critical: Generate secure keys**
+**Crítico: Gere chaves seguras**
 
 ```bash
-# Generate encryption key for n8n
+# Gere chave de criptografia para n8n
 openssl rand -base64 32
 
-# Generate JWT secret
+# Gere segredo JWT
 openssl rand -base64 32
 
-# Generate database password
+# Gere senha do banco de dados
 openssl rand -base64 32
 
-# Generate Redis password
+# Gere senha do Redis
 openssl rand -hex 32
 
-# Generate Evolution API key
+# Gere chave API do Evolution
 openssl rand -hex 32
 ```
 
-Edit `.env` and fill in all `<REQUIRED>` fields. See [Configuration](#configuration) section for details.
+Edite `.env` e preencha todos os campos `<REQUIRED>`. Veja a seção [Configuração](#configuração) para detalhes.
 
-### Step 3: Start the Services
+### Passo 3: Iniciar os Serviços
 
 ```bash
 docker-compose up -d
 ```
 
-This will start:
-- PostgreSQL (port 5432)
-- Redis (port 6379)
-- Evolution API (port 8080)
-- n8n (port 5678)
+Isso iniciará:
+- PostgreSQL (porta 5432)
+- Redis (porta 6379)
+- Evolution API (porta 8080)
+- n8n (porta 5678)
 
-### Step 4: Verify Installation
+### Passo 4: Verificar Instalação
 
-Check that all services are healthy:
+Verifique se todos os serviços estão saudáveis:
 
 ```bash
 docker-compose ps
 ```
 
-All services should show `healthy` status.
+Todos os serviços devem mostrar status `healthy`.
 
-### Step 5: Access n8n
+### Passo 5: Acessar n8n
 
-Open your browser and navigate to:
+Abra seu navegador e navegue para:
 
 ```
 http://localhost:5678
 ```
 
-Create your n8n admin account on first access.
+Crie sua conta de administrador do n8n no primeiro acesso.
 
-### Step 6: Import Workflows
+### Passo 6: Importar Workflows
 
-1. In n8n UI, go to **Workflows** → **Import from File**
-2. Import workflows in this order:
-   - Tool workflows first (from `workflows/tools/`)
-   - Main workflows second (from `workflows/main/`)
+1. Na interface do n8n, vá em **Workflows** → **Import from File**
+2. Importe workflows nesta ordem:
+   - Workflows de ferramentas primeiro (de `workflows/tools/`)
+   - Workflows principais depois (de `workflows/main/`)
 
-### Step 7: Configure Credentials
+### Passo 7: Configurar Credenciais
 
-Set up the following credentials in n8n:
+Configure as seguintes credenciais no n8n:
 
-1. **Evolution API** - Add your Evolution API URL and key
-2. **Google Calendar OAuth2** - Connect your Google account
-3. **Google Tasks OAuth2** - Connect your Google account
-4. **Telegram Bot** - Add your bot token
-5. **Google Gemini API** - Add your API key
-6. **PostgreSQL** - Connection is auto-configured
+1. **Evolution API** - Adicione sua URL e chave da Evolution API
+2. **Google Calendar OAuth2** - Conecte sua conta Google
+3. **Google Tasks OAuth2** - Conecte sua conta Google
+4. **Bot Telegram** - Adicione seu token do bot
+5. **API Google Gemini** - Adicione sua chave API
+6. **PostgreSQL** - Conexão é auto-configurada
 
-### Step 8: Activate Workflows
+### Passo 8: Ativar Workflows
 
-Enable the main workflows:
+Habilite os workflows principais:
 - ✅ `01-whatsapp-patient-handler`
 - ✅ `02-telegram-internal-assistant`
 - ✅ `03-appointment-confirmation-scheduler`
 
 ---
 
-## ⚙️ Configuration
+## ⚙️ Configuração
 
-### Essential Environment Variables
+### Variáveis de Ambiente Essenciais
 
-#### Database Configuration
+#### Configuração do Banco de Dados
 
 ```env
 POSTGRES_USER=n8n_clinic
-POSTGRES_PASSWORD=<generate_strong_password>
+POSTGRES_PASSWORD=<gere_senha_forte>
 POSTGRES_DB=n8n_clinic_db
 ```
 
-#### n8n Configuration
+#### Configuração do n8n
 
 ```env
-N8N_ENCRYPTION_KEY=<generate_with_openssl>
-N8N_JWT_SECRET=<generate_with_openssl>
-N8N_WEBHOOK_URL=https://your-domain.com/
+N8N_ENCRYPTION_KEY=<gere_com_openssl>
+N8N_JWT_SECRET=<gere_com_openssl>
+N8N_WEBHOOK_URL=https://seu-dominio.com/
 ```
 
-#### Evolution API Configuration
+#### Configuração da Evolution API
 
 ```env
-EVOLUTION_BASE_URL=http://your-domain.com:8080
-EVOLUTION_API_KEY=<generate_api_key>
+EVOLUTION_BASE_URL=http://seu-dominio.com:8080
+EVOLUTION_API_KEY=<gere_chave_api>
 ```
 
-#### Google Services
+#### Serviços Google
 
 ```env
-GOOGLE_CALENDAR_ID=your-calendar-id@group.calendar.google.com
-GOOGLE_GEMINI_API_KEY=<your_gemini_api_key>
+GOOGLE_CALENDAR_ID=seu-calendar-id@group.calendar.google.com
+GOOGLE_GEMINI_API_KEY=<sua_chave_api_gemini>
 ```
 
-Get your Gemini API key from: [Google AI Studio](https://makersuite.google.com/app/apikey)
+Obtenha sua chave API do Gemini em: [Google AI Studio](https://makersuite.google.com/app/apikey)
 
-#### Telegram Bot
+#### Bot do Telegram
 
 ```env
 TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
-TELEGRAM_INTERNAL_CHAT_ID=<your_chat_id>
+TELEGRAM_INTERNAL_CHAT_ID=<seu_chat_id>
 ```
 
-Get your chat ID by messaging [@userinfobot](https://t.me/userinfobot)
+Obtenha seu chat ID enviando mensagem para [@userinfobot](https://t.me/userinfobot)
 
-#### Clinic Business Info
+#### Informações da Clínica
 
 ```env
-CLINIC_NAME=Your Clinic Name
-CLINIC_ADDRESS=Your Full Address
+CLINIC_NAME=Nome da Sua Clínica
+CLINIC_ADDRESS=Seu Endereço Completo
 CLINIC_PHONE=+5511999999999
 CLINIC_HOURS_START=08:00
 CLINIC_HOURS_END=19:00
 ```
 
-For complete configuration options, see `env.example`.
+Para opções completas de configuração, veja `env.example`.
 
 ---
 
-## 🎮 Usage
+## 🎮 Utilização
 
-### For Patients (WhatsApp)
+### Para Pacientes (WhatsApp)
 
-Patients can interact naturally via WhatsApp:
+Os pacientes podem interagir naturalmente via WhatsApp:
 
-**Schedule an appointment:**
+**Agendar uma consulta:**
 ```
-Patient: "Hi, I'd like to schedule a consultation"
-Bot: "Hello! I'd be happy to help. Could you provide your full name?"
-Patient: "Maria Silva"
-Bot: "Great, Maria. What is your date of birth?"
+Paciente: "Oi, gostaria de agendar uma consulta"
+Bot: "Olá! Ficarei feliz em ajudar. Poderia me informar seu nome completo?"
+Paciente: "Maria Silva"
+Bot: "Ótimo, Maria. Qual sua data de nascimento?"
 ...
 ```
 
-**Reschedule:**
+**Reagendar:**
 ```
-Patient: "I need to reschedule my appointment"
-Bot: "No problem! Let me look up your appointment..."
-```
-
-**Check availability:**
-```
-Patient: "Do you have openings next week?"
-Bot: "Let me check the schedule for next week..."
+Paciente: "Preciso reagendar minha consulta"
+Bot: "Sem problema! Deixe-me localizar sua consulta..."
 ```
 
-### For Staff (Telegram)
-
-Staff can manage operations via Telegram:
-
-**Reschedule a patient:**
+**Verificar disponibilidade:**
 ```
-Staff: "Reschedule João Silva from tomorrow to next Monday"
-Bot: "I'll check João's appointment and available slots..."
+Paciente: "Vocês têm horários disponíveis na próxima semana?"
+Bot: "Deixe-me verificar a agenda para a próxima semana..."
 ```
 
-**Add to shopping list:**
+### Para Equipe (Telegram)
+
+A equipe pode gerenciar operações via Telegram:
+
+**Reagendar um paciente:**
 ```
-Staff: "Add 5 boxes of gloves to the shopping list"
-Bot: "Added to Google Tasks: 5 boxes of gloves"
+Equipe: "Reagendar João Silva de amanhã para segunda-feira que vem"
+Bot: "Vou verificar a consulta do João e horários disponíveis..."
 ```
 
-### Appointment Confirmations
+**Adicionar à lista de compras:**
+```
+Equipe: "Adicionar 5 caixas de luvas à lista de compras"
+Bot: "Adicionado ao Google Tasks: 5 caixas de luvas"
+```
 
-The system automatically sends confirmation requests daily at 8 AM for next-day appointments:
+### Confirmações de Consultas
+
+O sistema envia automaticamente solicitações de confirmação diariamente às 8h para consultas do dia seguinte:
 
 ```
-Bot: "Hi Maria! You have an appointment tomorrow at 10:00 AM. 
-Please reply 'Confirm' to confirm or 'Reschedule' to change."
+Bot: "Oi Maria! Você tem uma consulta amanhã às 10:00. 
+Por favor, responda 'Confirmar' para confirmar ou 'Reagendar' para alterar."
 ```
 
 ---
 
-## 🤖 Agents & Tools
+## 🤖 Agentes e Ferramentas
 
-### Main Agents
+### Agentes Principais
 
-#### 1. **Patient Assistant** (`Assistente Clínica`)
-- **Role**: Patient-facing WhatsApp assistant
-- **Capabilities**:
-  - Schedule/reschedule/cancel appointments
-  - Check availability
-  - Answer clinic questions
-  - Process images and audio
-  - Escalate urgent situations
-- **Memory**: Maintains conversation context per patient
-- **Language Model**: Google Gemini 2.0 Flash
+#### 1. **Assistente de Pacientes** (`Assistente Clínica`)
+- **Função**: Assistente WhatsApp voltado para pacientes
+- **Capacidades**:
+  - Agendar/reagendar/cancelar consultas
+  - Verificar disponibilidade
+  - Responder perguntas sobre a clínica
+  - Processar imagens e áudio
+  - Escalonar situações urgentes
+- **Memória**: Mantém contexto de conversação por paciente
+- **Modelo de Linguagem**: Google Gemini 2.0 Flash
 
-#### 2. **Internal Assistant** (`Assistente Clínica Interno`)
-- **Role**: Staff-facing Telegram bot
-- **Capabilities**:
-  - Manage patient schedules
-  - Send rescheduling notifications
-  - Manage shopping lists
-  - Administrative tasks
-- **Memory**: Maintains staff conversation context
-- **Language Model**: Google Gemini 2.0 Flash
+#### 2. **Assistente Interno** (`Assistente Clínica Interno`)
+- **Função**: Bot Telegram voltado para equipe
+- **Capacidades**:
+  - Gerenciar agendas de pacientes
+  - Enviar notificações de reagendamento
+  - Gerenciar listas de compras
+  - Tarefas administrativas
+- **Memória**: Mantém contexto de conversação da equipe
+- **Modelo de Linguagem**: Google Gemini 2.0 Flash
 
-#### 3. **Confirmation Assistant** (`Assistente de Confirmação`)
-- **Role**: Automated appointment confirmation
-- **Capabilities**:
-  - Fetch next-day appointments
-  - Send confirmation requests
-  - Log confirmation status
-- **Trigger**: Daily at 8 AM (Mon-Fri)
-- **Language Model**: Google Gemini 2.0 Flash
+#### 3. **Assistente de Confirmação** (`Assistente de Confirmação`)
+- **Função**: Confirmação automática de consultas
+- **Capacidades**:
+  - Buscar consultas do dia seguinte
+  - Enviar solicitações de confirmação
+  - Registrar status de confirmação
+- **Gatilho**: Diariamente às 8h (Seg-Sex)
+- **Modelo de Linguagem**: Google Gemini 2.0 Flash
 
-### Tool Workflows
+### Workflows de Ferramentas
 
-| Tool | Purpose | Used By |
+| Ferramenta | Propósito | Usado Por |
 |------|---------|---------|
-| **MCP Calendar** | Google Calendar operations | All agents |
-| **WhatsApp Send** | Send WhatsApp messages | All workflows |
-| **Telegram Notify** | Send Telegram notifications | Patient assistant |
-| **Message Formatter** | Format for WhatsApp markdown | All workflows |
-| **Image OCR** | Extract text from images | Patient assistant |
-| **Audio Transcription** | Transcribe voice messages | Patient assistant |
-| **Call to Human** | Escalate to human operator | Patient assistant |
+| **MCP Calendar** | Operações do Google Calendar | Todos os agentes |
+| **WhatsApp Send** | Enviar mensagens WhatsApp | Todos os workflows |
+| **Telegram Notify** | Enviar notificações Telegram | Assistente de pacientes |
+| **Message Formatter** | Formatar para markdown WhatsApp | Todos os workflows |
+| **Image OCR** | Extrair texto de imagens | Assistente de pacientes |
+| **Audio Transcription** | Transcrever mensagens de voz | Assistente de pacientes |
+| **Call to Human** | Escalonar para operador humano | Assistente de pacientes |
 
 ---
 
 ## 📂 Workflows
 
-### Main Workflows
+### Workflows Principais
 
 #### `01-whatsapp-patient-handler.json`
-**Trigger**: Webhook from Evolution API  
-**Purpose**: Handle all patient WhatsApp interactions  
-**Flow**: Receive → Parse → Process (text/image/audio) → Agent Response → Format → Send
+**Gatilho**: Webhook da Evolution API  
+**Propósito**: Gerenciar todas as interações WhatsApp com pacientes  
+**Fluxo**: Receber → Analisar → Processar (texto/imagem/áudio) → Resposta do Agente → Formatar → Enviar
 
 #### `02-telegram-internal-assistant.json`
-**Trigger**: Telegram message from staff  
-**Purpose**: Internal staff assistant  
-**Flow**: Receive → Agent Process → Execute Tools → Respond
+**Gatilho**: Mensagem Telegram da equipe  
+**Propósito**: Assistente interno da equipe  
+**Fluxo**: Receber → Processar Agente → Executar Ferramentas → Responder
 
 #### `03-appointment-confirmation-scheduler.json`
-**Trigger**: Cron schedule (daily 8 AM)  
-**Purpose**: Send next-day appointment confirmations  
-**Flow**: Fetch Appointments → Loop → Extract Contact → Send Confirmation
+**Gatilho**: Agendamento Cron (diário 8h)  
+**Propósito**: Enviar confirmações de consultas do dia seguinte  
+**Fluxo**: Buscar Consultas → Loop → Extrair Contato → Enviar Confirmação
 
-### Tool Workflows
+### Workflows de Ferramentas
 
-Located in `workflows/tools/` subdirectories. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for details.
+Localizados em subdiretórios de `workflows/tools/`. Veja [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) para detalhes.
 
 ---
 
-## 🔧 Maintenance
+## 🔧 Manutenção
 
-### Viewing Logs
+### Visualizar Logs
 
 ```bash
-# All services
+# Todos os serviços
 docker-compose logs -f
 
-# Specific service
+# Serviço específico
 docker-compose logs -f n8n
 docker-compose logs -f evolution_api
 docker-compose logs -f postgres
 ```
 
-### Database Backup
+### Backup do Banco de Dados
 
 ```bash
-# Manual backup
+# Backup manual
 docker-compose exec postgres pg_dump -U n8n_clinic n8n_clinic_db > backup_$(date +%Y%m%d).sql
 
-# Restore
+# Restaurar
 docker-compose exec -T postgres psql -U n8n_clinic n8n_clinic_db < backup_20260101.sql
 ```
 
-### Update Services
+### Atualizar Serviços
 
 ```bash
-# Pull latest images
+# Baixar imagens mais recentes
 docker-compose pull
 
-# Restart services
+# Reiniciar serviços
 docker-compose up -d
 ```
 
-### Clean Up Old Data
+### Limpar Dados Antigos
 
-n8n automatically prunes execution data older than `N8N_DATA_MAX_AGE` (default: 7 days).
+O n8n remove automaticamente dados de execução mais antigos que `N8N_DATA_MAX_AGE` (padrão: 7 dias).
 
 ### Health Checks
 
 ```bash
-# Check service health
+# Verificar saúde dos serviços
 docker-compose ps
 
-# Test n8n API
+# Testar API do n8n
 curl http://localhost:5678/healthz
 
-# Test Evolution API
+# Testar Evolution API
 curl http://localhost:8080/health
 ```
 
 ---
 
-## 🐛 Troubleshooting
+## 🐛 Resolução de Problemas
 
-### Common Issues
+### Problemas Comuns
 
-#### Services Won't Start
+#### Serviços Não Iniciam
 
 ```bash
-# Check logs
+# Verificar logs
 docker-compose logs
 
-# Verify .env file
+# Verificar arquivo .env
 cat .env | grep REQUIRED
 
-# Check port conflicts
+# Verificar conflitos de porta
 sudo lsof -i :5678
 sudo lsof -i :8080
 ```
 
-#### Evolution API Connection Issues
+#### Problemas de Conexão com Evolution API
 
-1. Check DNS settings in docker-compose.yaml
-2. Verify `EVOLUTION_API_KEY` matches in both services
-3. Check firewall rules
+1. Verificar configurações de DNS no docker-compose.yaml
+2. Verificar se `EVOLUTION_API_KEY` corresponde em ambos serviços
+3. Verificar regras de firewall
 
-#### n8n Webhook Not Receiving Data
+#### n8n Webhook Não Recebe Dados
 
-1. Verify `N8N_WEBHOOK_URL` is publicly accessible
-2. Check Evolution API webhook configuration
-3. Test webhook manually with curl
+1. Verificar se `N8N_WEBHOOK_URL` está publicamente acessível
+2. Verificar configuração de webhook da Evolution API
+3. Testar webhook manualmente com curl
 
-#### Database Connection Errors
+#### Erros de Conexão com Banco de Dados
 
 ```bash
-# Test PostgreSQL connection
+# Testar conexão PostgreSQL
 docker-compose exec postgres psql -U n8n_clinic -d n8n_clinic_db -c "SELECT 1;"
 
-# Check credentials
+# Verificar credenciais
 echo $POSTGRES_PASSWORD
 ```
 
-#### Agent Not Responding
+#### Agente Não Responde
 
-1. Check if workflow is active
-2. Verify Google Gemini API key is valid
-3. Check rate limits on AI API
-4. Review execution logs in n8n UI
+1. Verificar se o workflow está ativo
+2. Verificar se a chave API do Google Gemini é válida
+3. Verificar limites de taxa na API de IA
+4. Revisar logs de execução na interface do n8n
 
-### Getting Help
+### Obtendo Ajuda
 
-1. Check [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system design
-2. Review workflow execution logs in n8n UI
-3. Check Docker logs for service errors
-4. Open an issue on GitHub with:
-   - Error messages
-   - Relevant logs
-   - Steps to reproduce
+1. Consulte [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) para o design do sistema
+2. Revise os logs de execução de workflow na interface do n8n
+3. Verifique logs do Docker para erros de serviço
+4. Abra uma issue no GitHub com:
+   - Mensagens de erro
+   - Logs relevantes
+   - Passos para reproduzir
 
 ---
 
-## 🔒 Security
+## 🔒 Segurança
 
-### Best Practices
+### Melhores Práticas
 
-✅ **DO**:
-- Use strong passwords (32+ characters)
-- Enable HTTPS with SSL certificate
-- Restrict access with firewall rules
-- Regularly update Docker images
-- Backup encryption keys offline
-- Use environment variables for secrets
-- Enable rate limiting
+✅ **FAÇA**:
+- Use senhas fortes (32+ caracteres)
+- Habilite HTTPS com certificado SSL
+- Restrinja acesso com regras de firewall
+- Atualize imagens Docker regularmente
+- Faça backup de chaves de criptografia offline
+- Use variáveis de ambiente para segredos
+- Habilite limitação de taxa
 
-❌ **DON'T**:
-- Commit `.env` to version control
-- Expose ports directly to internet
-- Use default passwords
-- Share API keys
-- Disable security features
+❌ **NÃO FAÇA**:
+- Commitar `.env` para controle de versão
+- Expor portas diretamente para internet
+- Usar senhas padrão
+- Compartilhar chaves API
+- Desabilitar funcionalidades de segurança
 
-### Production Checklist
+### Checklist de Produção
 
-- [ ] SSL certificate configured
-- [ ] Firewall rules in place
-- [ ] Strong passwords set
-- [ ] Backup strategy implemented
-- [ ] Monitoring alerts configured
-- [ ] Rate limiting enabled
-- [ ] Docker images updated
-- [ ] Encryption keys backed up
-- [ ] Access logs reviewed regularly
+- [ ] Certificado SSL configurado
+- [ ] Regras de firewall implementadas
+- [ ] Senhas fortes definidas
+- [ ] Estratégia de backup implementada
+- [ ] Alertas de monitoramento configurados
+- [ ] Limitação de taxa habilitada
+- [ ] Imagens Docker atualizadas
+- [ ] Chaves de criptografia com backup
+- [ ] Logs de acesso revisados regularmente
 
-### Encrypting Sensitive Data
+### Criptografando Dados Sensíveis
 
-n8n encrypts credentials using `N8N_ENCRYPTION_KEY`. **Never lose this key** or you'll lose access to all stored credentials.
+O n8n criptografa credenciais usando `N8N_ENCRYPTION_KEY`. **Nunca perca esta chave** ou você perderá acesso a todas as credenciais armazenadas.
 
-Store a backup copy:
+Armazene uma cópia de backup:
 ```bash
-# Save to secure location
-echo $N8N_ENCRYPTION_KEY > /secure/backup/n8n-encryption-key.txt
-chmod 400 /secure/backup/n8n-encryption-key.txt
+# Salvar em local seguro
+echo $N8N_ENCRYPTION_KEY > /backup/seguro/n8n-encryption-key.txt
+chmod 400 /backup/seguro/n8n-encryption-key.txt
 ```
 
 ---
 
-## 📊 Monitoring
+## 📊 Monitoramento
 
-### Key Metrics to Monitor
+### Métricas Principais para Monitorar
 
-- Workflow execution success rate
-- WhatsApp message delivery rate
-- Database size and performance
-- Redis memory usage
-- Evolution API uptime
-- Agent response time
+- Taxa de sucesso de execução de workflows
+- Taxa de entrega de mensagens WhatsApp
+- Tamanho e performance do banco de dados
+- Uso de memória do Redis
+- Uptime da Evolution API
+- Tempo de resposta dos agentes
 
-### Recommended Tools
+### Ferramentas Recomendadas
 
-- **Prometheus + Grafana** for metrics visualization
-- **Sentry** for error tracking
-- **UptimeRobot** for service availability
-- **Docker stats** for resource monitoring
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these guidelines:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Setup
-
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for local development instructions.
+- **Prometheus + Grafana** para visualização de métricas
+- **Sentry** para rastreamento de erros
+- **UptimeRobot** para disponibilidade de serviços
+- **Docker stats** para monitoramento de recursos
 
 ---
 
-## 📄 License
+## 🤝 Contribuindo
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Contribuições são bem-vindas! Por favor, siga estas diretrizes:
 
----
+1. Faça fork do repositório
+2. Crie uma branch de feature (`git checkout -b feature/recurso-incrivel`)
+3. Commit suas mudanças (`git commit -m 'Adiciona recurso incrível'`)
+4. Push para a branch (`git push origin feature/recurso-incrivel`)
+5. Abra um Pull Request
 
-## 🙏 Acknowledgments
+### Configuração para Desenvolvimento
 
-- [n8n](https://n8n.io) - Workflow automation platform
-- [Evolution API](https://evolution-api.com) - WhatsApp API
-- [Google Gemini](https://ai.google.dev) - AI/LLM capabilities
-- PostgreSQL, Redis, Docker communities
-
----
-
-## 📧 Support
-
-For questions and support:
-
-- 📖 Documentation: [docs/](docs/)
-- 🐛 Issues: [GitHub Issues](https://github.com/yourusername/n8n-clinic-multiagent/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/yourusername/n8n-clinic-multiagent/discussions)
+Veja [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) para instruções de desenvolvimento local.
 
 ---
 
-**Made with ❤️ for modern healthcare clinics**
+## 📄 Licença
 
-*Last updated: 2026-01-01*
+Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
+
+---
+
+## 🙏 Agradecimentos
+
+- [n8n](https://n8n.io) - Plataforma de automação de workflow
+- [Evolution API](https://evolution-api.com) - API do WhatsApp
+- [Google Gemini](https://ai.google.dev) - Capacidades de IA/LLM
+- Comunidades PostgreSQL, Redis e Docker
+
+---
+
+## 📧 Suporte
+
+Para perguntas e suporte:
+
+- 📖 Documentação: [docs/](docs/)
+- 🐛 Issues: [GitHub Issues](https://github.com/seuusuario/n8n-clinic-multiagent/issues)
+- 💬 Discussões: [GitHub Discussions](https://github.com/seuusuario/n8n-clinic-multiagent/discussions)
+
+---
+
+**Feito com ❤️ para clínicas modernas de saúde**
+
+*Última atualização: 2026-01-01*
