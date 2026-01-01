@@ -1,0 +1,17 @@
+{
+  "body": {
+    "instance": "clinic_example_instance",
+    "data": {
+      "message": {
+        "messageType": "conversation",
+        "conversation": "Qual o horário de funcionamento?"
+      },
+      "key": {
+        "remoteJid": "5511999999999@s.whatsapp.net",
+        "id": "test_faq_hours_001"
+      },
+      "pushName": "Test User - FAQ Hours"
+    }
+  }
+}
+

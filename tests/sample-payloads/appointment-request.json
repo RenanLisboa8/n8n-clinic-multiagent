@@ -1,0 +1,17 @@
+{
+  "body": {
+    "instance": "clinic_example_instance",
+    "data": {
+      "message": {
+        "messageType": "conversation",
+        "conversation": "Quero agendar uma consulta para minha mãe, Maria Silva, data de nascimento 15/03/1960, telefone (11) 98888-7777, para próxima terça-feira às 14h"
+      },
+      "key": {
+        "remoteJid": "5511988887777@s.whatsapp.net",
+        "id": "test_appt_complex_001"
+      },
+      "pushName": "João Silva"
+    }
+  }
+}
+

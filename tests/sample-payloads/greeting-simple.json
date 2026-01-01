@@ -1,0 +1,17 @@
+{
+  "body": {
+    "instance": "clinic_example_instance",
+    "data": {
+      "message": {
+        "messageType": "conversation",
+        "conversation": "Oi"
+      },
+      "key": {
+        "remoteJid": "5511999999997@s.whatsapp.net",
+        "id": "test_greeting_001"
+      },
+      "pushName": "Test User - Greeting"
+    }
+  }
+}
+

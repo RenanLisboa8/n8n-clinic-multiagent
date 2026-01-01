@@ -1,0 +1,17 @@
+{
+  "body": {
+    "instance": "clinic_example_instance",
+    "data": {
+      "message": {
+        "messageType": "conversation",
+        "conversation": "Qual o endereço da clínica?"
+      },
+      "key": {
+        "remoteJid": "5511999999998@s.whatsapp.net",
+        "id": "test_faq_location_001"
+      },
+      "pushName": "Test User - FAQ Location"
+    }
+  }
+}
+
