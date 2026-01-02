@@ -328,3 +328,4 @@ BEGIN
     RAISE NOTICE 'Next steps: Run seed data script (002_seed_tenant_data.sql)';
 END $$;
 
+

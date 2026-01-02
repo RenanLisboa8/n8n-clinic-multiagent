@@ -199,3 +199,4 @@ COMMENT ON COLUMN tenant_faq.question_normalized IS 'Lowercase normalized versio
 COMMENT ON COLUMN tenant_faq.view_count IS 'Tracks popularity - higher count = more likely to be useful';
 COMMENT ON COLUMN tenant_faq.keywords IS 'Array of keywords for fuzzy matching via GIN index';
 
+
