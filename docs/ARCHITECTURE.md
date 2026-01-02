@@ -1,100 +1,100 @@
-# System Architecture
+# Arquitetura do Sistema
 
-> **Proprietary Documentation**  
-> Copyright © 2026. All Rights Reserved.  
-> This document is confidential and intended for authorized clients only.
-
----
-
-## Overview
-
-The **Clinic Management Multi-Agent System** is a containerized, AI-powered automation platform designed for healthcare clinics. It provides intelligent patient communication via WhatsApp, internal staff tools via Telegram, and automated appointment management—all orchestrated through n8n workflows.
+> **Documentação Proprietária**  
+> Copyright © 2026. Todos os Direitos Reservados.  
+> Este documento é confidencial e destinado apenas a clientes autorizados.
 
 ---
 
-## Technology Stack
+## Visão Geral
 
-### Core Components
-
-| Component | Technology | Version | Purpose |
-|-----------|-----------|---------|---------|
-| **Orchestration Engine** | n8n | latest | Workflow automation and AI agent orchestration |
-| **Database** | PostgreSQL | 14+ | Persistent storage for configurations, chat history, FAQ cache |
-| **Cache Layer** | Redis | 7+ | Session management and performance optimization |
-| **WhatsApp Gateway** | Evolution API | latest | WhatsApp message sending/receiving |
-| **AI/LLM** | Google Gemini 2.0 Flash | latest | Natural language understanding and generation |
-| **Calendar** | Google Calendar + MCP | - | Appointment scheduling and availability |
-| **Containerization** | Docker Compose | - | Multi-container orchestration |
+O **Sistema Multi-Agente de Gestão de Clínicas** é uma plataforma de automação containerizada e alimentada por IA, projetada para clínicas de saúde. Ele fornece comunicação inteligente com pacientes via WhatsApp, ferramentas internas para a equipe via Telegram e gerenciamento automatizado de agendamentos—tudo orquestrado através de workflows n8n.
 
 ---
 
-## C4 Context Diagram
+## Stack Tecnológico
 
-The following diagram illustrates how the system interacts with external actors and services:
+### Componentes Principais
+
+| Componente | Tecnologia | Versão | Propósito |
+|------------|------------|--------|-----------|
+| **Motor de Orquestração** | n8n | latest | Automação de workflows e orquestração de agentes IA |
+| **Banco de Dados** | PostgreSQL | 14+ | Armazenamento persistente para configurações, histórico de chat, cache de FAQ |
+| **Camada de Cache** | Redis | 7+ | Gerenciamento de sessões e otimização de performance |
+| **Gateway WhatsApp** | Evolution API | latest | Envio/recebimento de mensagens WhatsApp |
+| **IA/LLM** | Google Gemini 2.0 Flash | latest | Compreensão e geração de linguagem natural |
+| **Calendário** | Google Calendar + MCP | - | Agendamento e disponibilidade de consultas |
+| **Containerização** | Docker Compose | - | Orquestração multi-container |
+
+---
+
+## Diagrama de Contexto C4
+
+O diagrama a seguir ilustra como o sistema interage com atores externos e serviços:
 
 ```mermaid
 C4Context
-    title System Context Diagram - Clinic Management Multi-Agent System
+    title Diagrama de Contexto - Sistema Multi-Agente de Gestão de Clínicas
 
-    Person(patient, "Patient", "Clinic patient using WhatsApp")
-    Person(staff, "Clinic Staff", "Internal team using Telegram")
-    Person(manager, "Clinic Manager", "System administrator")
+    Person(patient, "Paciente", "Paciente da clínica usando WhatsApp")
+    Person(staff, "Equipe da Clínica", "Equipe interna usando Telegram")
+    Person(manager, "Gerente da Clínica", "Administrador do sistema")
 
-    System_Boundary(clinic_system, "Clinic Management System") {
-        System(n8n, "n8n Workflow Engine", "Orchestrates all automation logic, AI agents, and integrations")
+    System_Boundary(clinic_system, "Sistema de Gestão da Clínica") {
+        System(n8n, "Motor de Workflow n8n", "Orquestra toda lógica de automação, agentes IA e integrações")
     }
 
-    System_Ext(whatsapp, "WhatsApp", "Patient communication channel")
-    System_Ext(telegram, "Telegram", "Internal staff communication")
-    System_Ext(evolution, "Evolution API", "WhatsApp gateway service")
-    System_Ext(gemini, "Google Gemini AI", "Natural language processing and generation")
-    System_Ext(gcal, "Google Calendar", "Appointment scheduling")
-    System_Ext(gtasks, "Google Tasks", "Task management")
+    System_Ext(whatsapp, "WhatsApp", "Canal de comunicação com pacientes")
+    System_Ext(telegram, "Telegram", "Comunicação interna da equipe")
+    System_Ext(evolution, "Evolution API", "Serviço gateway WhatsApp")
+    System_Ext(gemini, "Google Gemini AI", "Processamento e geração de linguagem natural")
+    System_Ext(gcal, "Google Calendar", "Agendamento de consultas")
+    System_Ext(gtasks, "Google Tasks", "Gerenciamento de tarefas")
 
-    Rel(patient, whatsapp, "Sends messages via", "WhatsApp")
-    Rel(whatsapp, evolution, "Messages forwarded to")
-    Rel(evolution, n8n, "Webhook triggers", "HTTPS")
+    Rel(patient, whatsapp, "Envia mensagens via", "WhatsApp")
+    Rel(whatsapp, evolution, "Mensagens encaminhadas para")
+    Rel(evolution, n8n, "Dispara webhook", "HTTPS")
     
-    Rel(n8n, gemini, "AI processing", "API")
-    Rel(n8n, gcal, "Manages appointments", "API")
-    Rel(n8n, gtasks, "Manages tasks", "API")
-    Rel(n8n, evolution, "Sends responses", "API")
-    Rel(evolution, whatsapp, "Delivers to")
+    Rel(n8n, gemini, "Processamento IA", "API")
+    Rel(n8n, gcal, "Gerencia agendamentos", "API")
+    Rel(n8n, gtasks, "Gerencia tarefas", "API")
+    Rel(n8n, evolution, "Envia respostas", "API")
+    Rel(evolution, whatsapp, "Entrega para")
     
-    Rel(staff, telegram, "Interacts via")
-    Rel(telegram, n8n, "Bot triggers", "Webhook")
-    Rel(n8n, telegram, "Sends notifications", "Bot API")
+    Rel(staff, telegram, "Interage via")
+    Rel(telegram, n8n, "Dispara bot", "Webhook")
+    Rel(n8n, telegram, "Envia notificações", "Bot API")
     
-    Rel(manager, n8n, "Configures system", "Web UI")
+    Rel(manager, n8n, "Configura sistema", "Web UI")
 
     UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
 ```
 
 ---
 
-## Container Architecture
+## Arquitetura de Containers
 
 ```mermaid
 graph TB
-    subgraph "Docker Network: clinic_network"
-        subgraph "Application Layer"
-            N8N[n8n Container<br/>Port 5678<br/>Workflow Engine]
+    subgraph "Rede Docker: clinic_network"
+        subgraph "Camada de Aplicação"
+            N8N[Container n8n<br/>Porta 5678<br/>Motor de Workflow]
         end
         
-        subgraph "Data Layer"
-            PG[(PostgreSQL<br/>Port 5432<br/>Primary Database)]
-            REDIS[(Redis<br/>Port 6379<br/>Cache & Sessions)]
+        subgraph "Camada de Dados"
+            PG[(PostgreSQL<br/>Porta 5432<br/>Banco Principal)]
+            REDIS[(Redis<br/>Porta 6379<br/>Cache & Sessões)]
         end
         
-        subgraph "Gateway Layer"
-            EVO[Evolution API<br/>Port 8080<br/>WhatsApp Gateway]
+        subgraph "Camada de Gateway"
+            EVO[Evolution API<br/>Porta 8080<br/>Gateway WhatsApp]
         end
     end
     
-    subgraph "External Services"
+    subgraph "Serviços Externos"
         WA[WhatsApp<br/>Cloud]
         TG[Telegram<br/>Cloud]
-        GM[Google Gemini<br/>AI API]
+        GM[Google Gemini<br/>API IA]
         GC[Google Calendar<br/>API]
     end
     
@@ -114,16 +114,16 @@ graph TB
 
 ---
 
-## Data Architecture
+## Arquitetura de Dados
 
-### Database Schema Overview
+### Visão Geral do Schema do Banco
 
 ```mermaid
 erDiagram
-    TENANT_CONFIG ||--o{ TENANT_FAQ : has
-    TENANT_CONFIG ||--o{ TENANT_SECRETS : has
-    TENANT_CONFIG ||--o{ TENANT_ACTIVITY_LOG : has
-    TENANT_CONFIG ||--o{ CHAT_MEMORY : has
+    TENANT_CONFIG ||--o{ TENANT_FAQ : possui
+    TENANT_CONFIG ||--o{ TENANT_SECRETS : possui
+    TENANT_CONFIG ||--o{ TENANT_ACTIVITY_LOG : possui
+    TENANT_CONFIG ||--o{ CHAT_MEMORY : possui
     
     TENANT_CONFIG {
         uuid tenant_id PK
@@ -169,29 +169,29 @@ erDiagram
     }
 ```
 
-### Multi-Tenant Isolation Strategy
+### Estratégia de Isolamento Multi-Tenant
 
-1. **Configuration Isolation**: Each tenant has a unique `tenant_id` and `evolution_instance_name`
-2. **Data Isolation**: All queries filtered by `tenant_id` via tenant-config-loader sub-workflow
-3. **Memory Isolation**: Chat sessions prefixed with `{tenant_id}_{user_phone}`
-4. **FAQ Isolation**: FAQ cache scoped per tenant with dedicated indexes
-5. **Optional**: Row-Level Security (RLS) policies for additional database-level isolation
+1. **Isolamento de Configuração**: Cada tenant possui um `tenant_id` e `evolution_instance_name` únicos
+2. **Isolamento de Dados**: Todas as consultas filtradas por `tenant_id` via sub-workflow tenant-config-loader
+3. **Isolamento de Memória**: Sessões de chat prefixadas com `{tenant_id}_{telefone_usuario}`
+4. **Isolamento de FAQ**: Cache de FAQ com escopo por tenant com índices dedicados
+5. **Opcional**: Políticas Row-Level Security (RLS) para isolamento adicional em nível de banco
 
 ---
 
-## Workflow Architecture
+## Arquitetura de Workflows
 
-### Main Workflows
+### Workflows Principais
 
 ```mermaid
 graph LR
-    subgraph "Entry Points"
-        WH[WhatsApp<br/>Webhook]
-        TH[Telegram<br/>Webhook]
-        CRON[Schedule<br/>Trigger]
+    subgraph "Pontos de Entrada"
+        WH[Webhook<br/>WhatsApp]
+        TH[Webhook<br/>Telegram]
+        CRON[Trigger<br/>Agendado]
     end
     
-    subgraph "Main Workflows"
+    subgraph "Workflows Principais"
         WF1[01-whatsapp-patient<br/>-handler-optimized]
         WF2[02-telegram-internal<br/>-assistant]
         WF3[03-appointment<br/>-confirmation]
@@ -202,11 +202,11 @@ graph LR
         SUB[tenant-config<br/>-loader]
     end
     
-    subgraph "Tool Workflows"
-        T1[Calendar Tools]
-        T2[Communication Tools]
-        T3[AI Processing Tools]
-        T4[Escalation Tools]
+    subgraph "Workflows de Ferramentas"
+        T1[Ferramentas de Calendário]
+        T2[Ferramentas de Comunicação]
+        T3[Ferramentas de Processamento IA]
+        T4[Ferramentas de Escalonamento]
     end
     
     WH --> WF1
@@ -225,9 +225,9 @@ graph LR
     WF2 --> T1
     WF2 --> T2
     
-    WF1 -.error.-> WF4
-    WF2 -.error.-> WF4
-    WF3 -.error.-> WF4
+    WF1 -.erro.-> WF4
+    WF2 -.erro.-> WF4
+    WF3 -.erro.-> WF4
     
     style WF1 fill:#ff6b6b
     style WF2 fill:#4ecdc4
@@ -235,27 +235,27 @@ graph LR
     style WF4 fill:#ffd93d
 ```
 
-### AI Optimization Layer
+### Camada de Otimização de IA
 
-The system includes an intelligent routing mechanism that reduces AI API costs by 70-75%:
+O sistema inclui um mecanismo de roteamento inteligente que reduz custos de API de IA em 70-75%:
 
 ```mermaid
 flowchart TD
-    START([User Message]) --> PARSE[Parse Webhook]
-    PARSE --> LOAD[Load Tenant Config]
-    LOAD --> INTENT[Intent Classifier<br/>Pattern Matching]
+    START([Mensagem do Usuário]) --> PARSE[Processar Webhook]
+    PARSE --> LOAD[Carregar Config Tenant]
+    LOAD --> INTENT[Classificador de Intenção<br/>Pattern Matching]
     
-    INTENT --> CACHE{FAQ Cache<br/>Check}
+    INTENT --> CACHE{Verificação de<br/>Cache FAQ}
     
-    CACHE -->|Hit 65-80%| CACHED[Use Cached Answer<br/>Cost: $0.001<br/>Time: 50ms]
-    CACHE -->|Miss 20-35%| AI[AI Agent Processing<br/>Cost: $0.012<br/>Time: 1.5s]
+    CACHE -->|Acerto 65-80%| CACHED[Usar Resposta em Cache<br/>Custo: $0.001<br/>Tempo: 50ms]
+    CACHE -->|Erro 20-35%| AI[Processamento Agente IA<br/>Custo: $0.012<br/>Tempo: 1.5s]
     
-    AI --> LEARN[Cache Answer<br/>for Future Use]
-    LEARN --> FORMAT[Format Message]
+    AI --> LEARN[Cachear Resposta<br/>para Uso Futuro]
+    LEARN --> FORMAT[Formatar Mensagem]
     CACHED --> FORMAT
     
-    FORMAT --> SEND[Send WhatsApp Response]
-    SEND --> END([Complete])
+    FORMAT --> SEND[Enviar Resposta WhatsApp]
+    SEND --> END([Completo])
     
     style INTENT fill:#ffe66d
     style CACHE fill:#4ecdc4
@@ -264,116 +264,116 @@ flowchart TD
     style LEARN fill:#a8e6cf
 ```
 
-**Cost Impact**:
-- **Before Optimization**: $0.015 per message (2 AI calls)
-- **After Optimization**: $0.004 per message average (0.3 AI calls)
-- **Savings**: 70-75% reduction in AI costs
+**Impacto nos Custos**:
+- **Antes da Otimização**: $0.015 por mensagem (2 chamadas IA)
+- **Após Otimização**: $0.004 por mensagem em média (0.3 chamadas IA)
+- **Economia**: Redução de 70-75% nos custos de IA
 
 ---
 
-## Message Flow
+## Fluxo de Mensagens
 
-### Patient Communication Flow
+### Fluxo de Comunicação com Paciente
 
 ```mermaid
 sequenceDiagram
     autonumber
     
-    participant P as Patient
+    participant P as Paciente
     participant W as WhatsApp
     participant E as Evolution API
-    participant N as n8n Engine
+    participant N as Motor n8n
     participant DB as PostgreSQL
     participant AI as Gemini AI
     participant GC as Google Calendar
     
-    P->>W: Sends message
-    W->>E: Forwards message
-    E->>N: Webhook trigger
+    P->>W: Envia mensagem
+    W->>E: Encaminha mensagem
+    E->>N: Dispara webhook
     
-    N->>DB: Load tenant config
-    DB-->>N: Tenant settings
+    N->>DB: Carrega config tenant
+    DB-->>N: Configurações tenant
     
-    N->>N: Intent classification
-    N->>DB: Check FAQ cache
+    N->>N: Classificação de intenção
+    N->>DB: Verifica cache FAQ
     
-    alt Cache Hit (65-80%)
-        DB-->>N: Cached answer
-    else Cache Miss (20-35%)
-        N->>AI: Process with LLM
-        AI-->>N: Generated response
+    alt Acerto no Cache (65-80%)
+        DB-->>N: Resposta em cache
+    else Erro no Cache (20-35%)
+        N->>AI: Processa com LLM
+        AI-->>N: Resposta gerada
         
-        opt If appointment-related
-            N->>GC: Check availability
-            GC-->>N: Available slots
+        opt Se relacionado a agendamento
+            N->>GC: Verifica disponibilidade
+            GC-->>N: Horários disponíveis
         end
         
-        N->>DB: Cache answer
+        N->>DB: Cacheia resposta
     end
     
-    N->>N: Format for WhatsApp
-    N->>E: Send response
-    E->>W: Deliver message
-    W->>P: Receives response
+    N->>N: Formata para WhatsApp
+    N->>E: Envia resposta
+    E->>W: Entrega mensagem
+    W->>P: Recebe resposta
 ```
 
-### Internal Staff Flow
+### Fluxo da Equipe Interna
 
 ```mermaid
 sequenceDiagram
     autonumber
     
-    participant S as Staff Member
+    participant S as Membro da Equipe
     participant T as Telegram
-    participant N as n8n Engine
+    participant N as Motor n8n
     participant AI as Gemini AI
     participant GC as Google Calendar
     participant GT as Google Tasks
     participant E as Evolution API
-    participant P as Patient
+    participant P as Paciente
     
-    S->>T: Sends command<br/>(e.g., "Remarcar João para 14h")
-    T->>N: Bot webhook
+    S->>T: Envia comando<br/>(ex: "Remarcar João para 14h")
+    T->>N: Webhook do bot
     
-    N->>AI: Parse intent + extract data
-    AI-->>N: Action: Reschedule + Patient: João + Time: 14h
+    N->>AI: Extrai intenção + dados
+    AI-->>N: Ação: Remarcar + Paciente: João + Horário: 14h
     
-    N->>GC: Update appointment
-    GC-->>N: Confirmation
+    N->>GC: Atualiza agendamento
+    GC-->>N: Confirmação
     
-    N->>E: Send WhatsApp to patient
+    N->>E: Envia WhatsApp para paciente
     E->>P: "Sua consulta foi remarcada para 14h"
     
-    N->>T: Confirm to staff
+    N->>T: Confirma para equipe
     T->>S: "✅ Remarcado com sucesso"
 ```
 
 ---
 
-## Security Architecture
+## Arquitetura de Segurança
 
-### Authentication & Authorization
+### Autenticação e Autorização
 
 ```mermaid
 graph TD
-    subgraph "External Access"
-        WH[WhatsApp Webhook<br/>Evolution API Key]
-        TH[Telegram Webhook<br/>Bot Token]
-        UI[n8n Web UI<br/>Basic Auth]
+    subgraph "Acesso Externo"
+        WH[Webhook WhatsApp<br/>Chave Evolution API]
+        TH[Webhook Telegram<br/>Token do Bot]
+        UI[Interface Web n8n<br/>Autenticação Básica]
     end
     
-    subgraph "Service Access"
-        N8N[n8n Engine]
+    subgraph "Acesso a Serviços"
+        N8N[Motor n8n]
     end
     
-    subgraph "Credential Management"
-        CRED[n8n Credentials Store<br/>Encrypted at Rest]
+    subgraph "Gerenciamento de Credenciais"
+        CRED[Armazenamento de Credenciais n8n<br/>Criptografado em Repouso]
     end
     
-    subgraph "External APIs"
-        GEMINI[Google Gemini<br/>API Key]
+    subgraph "APIs Externas"
+        GEMINI[Google Gemini<br/>Chave API]
         GCAL[Google Calendar<br/>OAuth2]
-        EVO[Evolution API<br/>API Key]
+        EVO[Evolution API<br/>Chave API]
     end
     
     WH --> N8N
@@ -389,43 +389,43 @@ graph TD
     style N8N fill:#4ecdc4
 ```
 
-### Data Protection
+### Proteção de Dados
 
-1. **Encryption at Rest**: PostgreSQL with encrypted volumes
-2. **Encryption in Transit**: HTTPS/TLS for all external API calls
-3. **Credential Storage**: n8n encrypted credentials vault
-4. **Secret Management**: Optional `tenant_secrets` table with encrypted values
-5. **Network Isolation**: Docker internal network, only necessary ports exposed
-6. **Access Control**: Evolution API instance name acts as tenant identifier
+1. **Criptografia em Repouso**: PostgreSQL com volumes criptografados
+2. **Criptografia em Trânsito**: HTTPS/TLS para todas as chamadas de API externas
+3. **Armazenamento de Credenciais**: Cofre de credenciais criptografadas do n8n
+4. **Gerenciamento de Secrets**: Tabela `tenant_secrets` opcional com valores criptografados
+5. **Isolamento de Rede**: Rede interna Docker, apenas portas necessárias expostas
+6. **Controle de Acesso**: Nome da instância Evolution API atua como identificador do tenant
 
 ---
 
-## Scalability Considerations
+## Considerações de Escalabilidade
 
-### Current Architecture
+### Arquitetura Atual
 
-- **Single-Server Deployment**: All containers on one host
-- **Vertical Scaling**: Increase CPU/RAM for n8n container
-- **Database**: Single PostgreSQL instance with connection pooling
+- **Implantação em Servidor Único**: Todos os containers em um host
+- **Escalamento Vertical**: Aumentar CPU/RAM para container n8n
+- **Banco de Dados**: Instância única PostgreSQL com connection pooling
 
-### Scale-Out Strategy (Future)
+### Estratégia de Scale-Out (Futuro)
 
 ```mermaid
 graph TB
-    subgraph "Load Balancer"
+    subgraph "Balanceador de Carga"
         LB[NGINX/Traefik]
     end
     
-    subgraph "n8n Cluster"
-        N1[n8n Instance 1]
-        N2[n8n Instance 2]
-        N3[n8n Instance 3]
+    subgraph "Cluster n8n"
+        N1[Instância n8n 1]
+        N2[Instância n8n 2]
+        N3[Instância n8n 3]
     end
     
-    subgraph "Data Layer"
-        PG_PRIMARY[(PostgreSQL<br/>Primary)]
-        PG_REPLICA[(PostgreSQL<br/>Read Replica)]
-        REDIS_CLUSTER[(Redis Cluster)]
+    subgraph "Camada de Dados"
+        PG_PRIMARY[(PostgreSQL<br/>Primário)]
+        PG_REPLICA[(PostgreSQL<br/>Réplica de Leitura)]
+        REDIS_CLUSTER[(Cluster Redis)]
     end
     
     LB --> N1
@@ -445,152 +445,152 @@ graph TB
     N3 --> REDIS_CLUSTER
 ```
 
-**Current Capacity** (Single Server - 4 vCPU, 8GB RAM):
+**Capacidade Atual** (Servidor Único - 4 vCPU, 8GB RAM):
 - ~10-20 tenants
-- ~50,000 messages/month total
-- ~100 concurrent conversations
+- ~50.000 mensagens/mês total
+- ~100 conversas simultâneas
 
-**Recommended Scaling Triggers**:
-- CPU usage > 70% sustained
-- Database connections > 80% of pool
-- Response time > 3s P95
-- More than 20 active tenants
+**Gatilhos de Escalamento Recomendados**:
+- Uso de CPU > 70% sustentado
+- Conexões de banco > 80% do pool
+- Tempo de resposta > 3s P95
+- Mais de 20 tenants ativos
 
 ---
 
-## Monitoring & Observability
+## Monitoramento e Observabilidade
 
-### Key Metrics
+### Métricas Principais
 
-| Metric | Target | Alert Threshold |
-|--------|--------|----------------|
-| Response Time (P95) | < 2s | > 5s |
-| Error Rate | < 1% | > 5% |
-| FAQ Cache Hit Rate | > 60% | < 40% |
-| AI API Cost/Message | < $0.005 | > $0.015 |
-| Database Connection Pool | < 80% | > 90% |
-| Disk Usage | < 70% | > 85% |
+| Métrica | Meta | Limiar de Alerta |
+|---------|------|------------------|
+| Tempo de Resposta (P95) | < 2s | > 5s |
+| Taxa de Erro | < 1% | > 5% |
+| Taxa de Acerto Cache FAQ | > 60% | < 40% |
+| Custo API IA/Mensagem | < $0.005 | > $0.015 |
+| Pool de Conexões do Banco | < 80% | > 90% |
+| Uso de Disco | < 70% | > 85% |
 
-### Logging Strategy
+### Estratégia de Logs
 
 ```mermaid
 graph LR
-    N8N[n8n Executions] --> JSON[JSON Logs]
-    PG[PostgreSQL] --> PGLOG[Query Logs]
+    N8N[Execuções n8n] --> JSON[Logs JSON]
+    PG[PostgreSQL] --> PGLOG[Logs de Query]
     REDIS[Redis] --> REDISLOG[Slow Log]
-    EVO[Evolution API] --> EVOLOG[Access Logs]
+    EVO[Evolution API] --> EVOLOG[Logs de Acesso]
     
-    JSON --> AGENT[Log Aggregator<br/>Optional: Loki/ELK]
+    JSON --> AGENT[Agregador de Logs<br/>Opcional: Loki/ELK]
     PGLOG --> AGENT
     REDISLOG --> AGENT
     EVOLOG --> AGENT
     
-    AGENT --> DASH[Grafana Dashboard]
+    AGENT --> DASH[Dashboard Grafana]
     
     style DASH fill:#4ecdc4
 ```
 
 ---
 
-## Disaster Recovery
+## Recuperação de Desastres
 
-### Backup Strategy
+### Estratégia de Backup
 
-1. **Database**: Automated daily backups via `pg_dump`
-2. **n8n Data**: Volume snapshots of `/home/node/.n8n`
-3. **Environment Configs**: `.env` file backup
-4. **Retention**: 7 daily, 4 weekly, 12 monthly
+1. **Banco de Dados**: Backups diários automatizados via `pg_dump`
+2. **Dados n8n**: Snapshots de volume de `/home/node/.n8n`
+3. **Configurações de Ambiente**: Backup do arquivo `.env`
+4. **Retenção**: 7 diários, 4 semanais, 12 mensais
 
-### Recovery Procedure
+### Procedimento de Recuperação
 
 ```bash
-# 1. Restore database
+# 1. Restaurar banco de dados
 psql $DATABASE_URL < backup_YYYYMMDD.sql
 
-# 2. Restore n8n data
+# 2. Restaurar dados n8n
 docker cp backup_n8n_data.tar n8n:/home/node/.n8n
 
-# 3. Restart services
+# 3. Reiniciar serviços
 docker-compose restart
 
-# 4. Verify health
+# 4. Verificar saúde
 curl http://localhost:5678/healthz
 ```
 
-**Recovery Time Objective (RTO)**: < 1 hour  
-**Recovery Point Objective (RPO)**: < 24 hours
+**Objetivo de Tempo de Recuperação (RTO)**: < 1 hora  
+**Objetivo de Ponto de Recuperação (RPO)**: < 24 horas
 
 ---
 
-## Performance Optimization
+## Otimização de Performance
 
-### Database Indexes
+### Índices do Banco de Dados
 
-All critical query paths are indexed:
-- `tenant_config.evolution_instance_name` (unique)
-- `tenant_faq.tenant_id, question_normalized` (composite)
-- `tenant_faq.keywords` (GIN index for array matching)
-- `langchain_pg_memory.tenant_id, session_id` (composite)
+Todos os caminhos críticos de consulta são indexados:
+- `tenant_config.evolution_instance_name` (único)
+- `tenant_faq.tenant_id, question_normalized` (composto)
+- `tenant_faq.keywords` (índice GIN para correspondência de array)
+- `langchain_pg_memory.tenant_id, session_id` (composto)
 
-### Caching Strategy
+### Estratégia de Cache
 
-1. **FAQ Cache**: PostgreSQL-backed (persistent)
-2. **Session Data**: Redis (ephemeral)
-3. **Tenant Config**: Loaded per workflow execution (minimal overhead)
+1. **Cache FAQ**: Baseado em PostgreSQL (persistente)
+2. **Dados de Sessão**: Redis (efêmero)
+3. **Config Tenant**: Carregada por execução de workflow (overhead mínimo)
 
-### Query Optimization
+### Otimização de Queries
 
-- Tenant config: Single query with all fields (1 DB hit)
-- FAQ lookup: Indexed query with ILIKE (< 5ms)
-- Chat memory: Window-based retrieval (last 5 messages)
-
----
-
-## Technology Choices - Rationale
-
-| Decision | Rationale |
-|----------|-----------|
-| **n8n vs Zapier** | Self-hosted, no per-execution cost, full workflow control, AI agent support |
-| **PostgreSQL vs MongoDB** | ACID compliance critical for appointments, strong indexing, jsonb for flexibility |
-| **Redis vs Memcached** | Richer data structures, persistence options, pub/sub capabilities |
-| **Evolution API vs Twilio** | WhatsApp Cloud API support, self-hosted option, Brazil-friendly |
-| **Gemini vs OpenAI** | Lower cost, faster responses, multimodal support (vision + audio) |
-| **Docker Compose vs Kubernetes** | Simpler operations, sufficient for 10-20 tenant scale, lower overhead |
+- Config tenant: Query única com todos os campos (1 acesso ao banco)
+- Busca FAQ: Query indexada com ILIKE (< 5ms)
+- Memória de chat: Recuperação baseada em janela (últimas 5 mensagens)
 
 ---
 
-## Compliance & Data Privacy
+## Escolhas Tecnológicas - Justificativas
 
-### LGPD/GDPR Considerations
-
-1. **Data Minimization**: Only essential patient data stored
-2. **Right to Erasure**: Cascade delete on tenant removal
-3. **Data Portability**: PostgreSQL dump per tenant
-4. **Consent Management**: Tracked via WhatsApp opt-in
-5. **Audit Trail**: `tenant_activity_log` table
-
-### PHI/PII Handling
-
-- **Patient Names**: Stored in chat memory (encrypted at rest)
-- **Phone Numbers**: Hashed for session keys
-- **Medical Data**: NOT stored (appointment metadata only)
-- **Location**: Clinic address only (no patient addresses)
+| Decisão | Justificativa |
+|---------|---------------|
+| **n8n vs Zapier** | Self-hosted, sem custo por execução, controle total de workflow, suporte a agente IA |
+| **PostgreSQL vs MongoDB** | Conformidade ACID crítica para agendamentos, indexação forte, jsonb para flexibilidade |
+| **Redis vs Memcached** | Estruturas de dados mais ricas, opções de persistência, capacidades pub/sub |
+| **Evolution API vs Twilio** | Suporte a WhatsApp Cloud API, opção self-hosted, compatível com Brasil |
+| **Gemini vs OpenAI** | Menor custo, respostas mais rápidas, suporte multimodal (visão + áudio) |
+| **Docker Compose vs Kubernetes** | Operações mais simples, suficiente para escala de 10-20 tenants, menor overhead |
 
 ---
 
-## Support & Maintenance
+## Conformidade e Privacidade de Dados
 
-### Update Strategy
+### Considerações LGPD/GDPR
 
-1. **n8n Updates**: Monthly review, staging test, production deploy
-2. **Workflow Updates**: Versioned via git, deployed via import
-3. **Database Migrations**: Incremental scripts in `scripts/migrations/`
-4. **Dependency Updates**: Quarterly security patches
+1. **Minimização de Dados**: Apenas dados essenciais de pacientes armazenados
+2. **Direito ao Esquecimento**: Delete em cascata na remoção de tenant
+3. **Portabilidade de Dados**: Dump PostgreSQL por tenant
+4. **Gerenciamento de Consentimento**: Rastreado via opt-in WhatsApp
+5. **Trilha de Auditoria**: Tabela `tenant_activity_log`
 
-### Health Checks
+### Tratamento de PHI/PII
+
+- **Nomes de Pacientes**: Armazenados na memória de chat (criptografados em repouso)
+- **Números de Telefone**: Hash para chaves de sessão
+- **Dados Médicos**: NÃO armazenados (apenas metadados de agendamento)
+- **Localização**: Apenas endereço da clínica (sem endereços de pacientes)
+
+---
+
+## Suporte e Manutenção
+
+### Estratégia de Atualizações
+
+1. **Atualizações n8n**: Revisão mensal, teste em staging, deploy em produção
+2. **Atualizações de Workflows**: Versionados via git, implantados via importação
+3. **Migrações de Banco**: Scripts incrementais em `scripts/migrations/`
+4. **Atualizações de Dependências**: Patches de segurança trimestrais
+
+### Verificações de Saúde
 
 ```bash
-# n8n health
+# Saúde n8n
 curl http://localhost:5678/healthz
 
 # PostgreSQL
@@ -605,6 +605,6 @@ curl http://localhost:8080/instance/connectionState/clinic_instance
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2026-01-01  
-**Classification**: Proprietary & Confidential
+**Versão do Documento**: 1.0  
+**Última Atualização**: 01-01-2026  
+**Classificação**: Proprietário e Confidencial
