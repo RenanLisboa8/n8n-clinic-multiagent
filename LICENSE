@@ -1,0 +1,371 @@
+# PROPRIETARY SOFTWARE LICENSE
+
+**Copyright © 2026. All Rights Reserved.**
+
+---
+
+## 1. Definitions
+
+**"Software"** refers to the Clinic Management Multi-Agent System, including all source code, workflows, documentation, scripts, and related materials contained in this repository.
+
+**"Licensor"** refers to the copyright holder and owner of the Software.
+
+**"Licensee"** refers to the individual or entity that has purchased a valid license to use the Software.
+
+**"License Key"** refers to the unique identifier provided to Licensee upon purchase, granting authorized use of the Software.
+
+---
+
+## 2. Grant of License
+
+Subject to the terms and conditions of this Agreement, Licensor grants Licensee a **non-exclusive, non-transferable, revocable** license to:
+
+- **Install** the Software on Licensee's infrastructure
+- **Use** the Software for Licensee's internal business operations only
+- **Modify** configuration files and environment variables for Licensee's specific deployment
+- **Create backups** of the Software for disaster recovery purposes
+
+---
+
+## 3. Restrictions
+
+Licensee shall **NOT**, under any circumstances:
+
+### 3.1 Prohibited Actions
+
+- ❌ **Redistribute** the Software in any form (source code, compiled, or modified)
+- ❌ **Sublicense** or transfer the license to any third party
+- ❌ **Reverse engineer**, decompile, or disassemble any part of the Software
+- ❌ **Remove** or modify any copyright notices, proprietary marks, or license files
+- ❌ **Share** the License Key with unauthorized parties
+- ❌ **Host** the Software as a service for third parties without explicit written permission
+- ❌ **Publish** the Software on public repositories (GitHub, GitLab, etc.)
+- ❌ **Create derivative works** for commercial distribution
+
+### 3.2 Modification Limitations
+
+- ✅ **Permitted**: Configuration changes, environment variables, tenant-specific prompts
+- ❌ **Prohibited**: Modifying core workflow logic for resale or redistribution
+
+---
+
+## 4. Ownership
+
+### 4.1 Intellectual Property
+
+The Software, including but not limited to:
+- Source code and workflow JSON files
+- Database schemas and migration scripts
+- Documentation and user guides
+- Visual assets and diagrams
+- Algorithms and business logic
+
+...is and shall remain the **exclusive property** of Licensor. This Agreement does not convey any ownership rights to Licensee.
+
+### 4.2 Confidentiality
+
+The Software is **confidential** and **proprietary**. Licensee agrees to:
+- Treat the Software as trade secrets
+- Implement reasonable security measures to prevent unauthorized access
+- Not disclose the Software to competitors or third parties
+- Limit access to employees/contractors with legitimate need-to-know
+
+---
+
+## 5. License Types
+
+### 5.1 Single-Instance License
+
+- **Deployment**: One (1) production instance
+- **Tenants**: Up to 5 clinic tenants
+- **Support**: Email support (48-hour response)
+- **Updates**: Minor updates included for 1 year
+
+### 5.2 Multi-Instance License
+
+- **Deployment**: Up to 5 production instances
+- **Tenants**: Up to 25 clinic tenants
+- **Support**: Priority email + phone support (24-hour response)
+- **Updates**: All updates included for 1 year
+- **Custom Features**: 10 hours/year of customization included
+
+### 5.3 Enterprise License
+
+- **Deployment**: Unlimited instances
+- **Tenants**: Unlimited clinic tenants
+- **Support**: 24/7 dedicated support
+- **Updates**: Lifetime updates
+- **Custom Features**: Unlimited customization
+- **Source Code Escrow**: Optional (additional fee)
+
+---
+
+## 6. Payment & Renewal
+
+### 6.1 Fees
+
+- License fees are due upon purchase
+- Annual renewal required to maintain access to updates and support
+- Failure to renew results in license downgrade to maintenance-only mode
+
+### 6.2 Renewal Terms
+
+- Renewal must occur within 30 days of expiration
+- Prices subject to change with 60 days' notice
+- Grace period: 14 days post-expiration
+
+---
+
+## 7. Support & Maintenance
+
+### 7.1 Included Support
+
+- Email support during business hours (Monday-Friday, 9 AM - 6 PM BRT)
+- Access to documentation and knowledge base
+- Security patches and critical bug fixes
+
+### 7.2 Excluded Support
+
+- Custom feature development (unless Enterprise License)
+- Third-party integration issues (Google, Telegram, etc.)
+- Infrastructure setup and DevOps (consult separately)
+- Training beyond provided documentation
+
+---
+
+## 8. Warranty Disclaimer
+
+**THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.**
+
+Licensor **does not warrant** that:
+- The Software will be error-free or uninterrupted
+- All defects will be corrected
+- The Software will meet Licensee's specific requirements
+- The Software will be compatible with future third-party services
+
+**Licensee assumes all risks** associated with the use of the Software, including but not limited to:
+- Data loss
+- Service interruptions
+- Business impact from bugs or errors
+
+---
+
+## 9. Limitation of Liability
+
+**TO THE MAXIMUM EXTENT PERMITTED BY LAW**, Licensor's total liability for any claims arising from this Agreement shall not exceed the amount paid by Licensee for the license in the 12 months preceding the claim.
+
+Licensor shall **NOT be liable** for:
+- Indirect, incidental, or consequential damages
+- Loss of profits, revenue, or business opportunities
+- Data loss or corruption (beyond contractual backup obligations)
+- Third-party claims arising from Licensee's use of the Software
+
+---
+
+## 10. Indemnification
+
+Licensee agrees to **indemnify and hold harmless** Licensor from any claims, damages, or expenses (including legal fees) arising from:
+- Licensee's unauthorized use or distribution of the Software
+- Breach of this Agreement by Licensee
+- Claims by Licensee's customers or end users
+- Violation of third-party rights by Licensee's modifications
+
+---
+
+## 11. Termination
+
+### 11.1 Termination by Licensor
+
+Licensor may terminate this license **immediately** if Licensee:
+- Breaches any term of this Agreement
+- Fails to pay license fees within 30 days of due date
+- Engages in unauthorized distribution or sublicensing
+- Files for bankruptcy or ceases business operations
+
+### 11.2 Effect of Termination
+
+Upon termination:
+- Licensee must **immediately cease** all use of the Software
+- Licensee must **destroy** all copies of the Software and related materials
+- Licensor may **remotely deactivate** the License Key
+- No refunds will be issued for pre-paid license fees
+
+### 11.3 Survival
+
+Sections 4 (Ownership), 8 (Warranty Disclaimer), 9 (Limitation of Liability), 10 (Indemnification), and 12 (Governing Law) shall **survive termination**.
+
+---
+
+## 12. Governing Law
+
+This Agreement shall be governed by the laws of **[Your Jurisdiction]**, without regard to conflict of laws principles.
+
+Any disputes arising from this Agreement shall be resolved through:
+1. Good-faith negotiation (30 days)
+2. Binding arbitration in **[Your City]**
+3. Arbitration conducted in Portuguese (or English if agreed)
+
+---
+
+## 13. Audit Rights
+
+Licensor reserves the right to **audit** Licensee's use of the Software upon 30 days' written notice to ensure compliance with this Agreement.
+
+Audits may include:
+- Review of deployment instances
+- Verification of tenant counts
+- Inspection of License Key usage
+- Review of access logs
+
+If audit reveals under-licensing, Licensee must:
+- Pay for additional licenses retroactively
+- Pay audit costs (if under-licensing exceeds 10%)
+
+---
+
+## 14. Updates & Versioning
+
+### 14.1 Update Policy
+
+- **Security Patches**: Provided free during active license period
+- **Bug Fixes**: Included in maintenance
+- **Minor Updates** (1.x to 1.y): Included for 1 year from purchase
+- **Major Updates** (1.x to 2.x): Requires license renewal or upgrade fee
+
+### 14.2 Backward Compatibility
+
+Licensor will make **reasonable efforts** to maintain backward compatibility but does not guarantee it for major version updates.
+
+---
+
+## 15. Miscellaneous
+
+### 15.1 Entire Agreement
+
+This Agreement constitutes the **entire agreement** between Licensor and Licensee, superseding all prior negotiations, understandings, or agreements.
+
+### 15.2 Amendments
+
+This Agreement may only be modified by written amendment signed by both parties.
+
+### 15.3 Severability
+
+If any provision is found invalid or unenforceable, the remaining provisions shall remain in full effect.
+
+### 15.4 No Waiver
+
+Failure to enforce any provision does not constitute a waiver of that provision.
+
+### 15.5 Assignment
+
+Licensee may not assign this license without prior written consent from Licensor. Licensor may assign freely.
+
+---
+
+## 16. Contact Information
+
+**For licensing inquiries:**
+- Email: sales@your-company.com
+- Phone: +XX XX XXXX-XXXX
+- Website: https://your-company.com
+
+**For technical support:**
+- Email: support@your-company.com
+- Portal: https://support.your-company.com
+
+---
+
+## 17. Acceptance
+
+**BY INSTALLING, COPYING, OR USING THE SOFTWARE, LICENSEE AGREES TO BE BOUND BY THE TERMS OF THIS AGREEMENT.**
+
+If you do not agree to these terms, **DO NOT** install or use the Software.
+
+---
+
+**License Version**: 1.0  
+**Effective Date**: January 1, 2026  
+**Last Updated**: January 1, 2026
+
+---
+
+## Exhibit A: Authorized Use Cases
+
+### ✅ PERMITTED USES
+
+1. **Internal Business Operations**
+   - Operating clinic(s) owned or managed by Licensee
+   - Internal staff communication and automation
+   - Patient communication for Licensee's clinics
+
+2. **Configuration & Customization**
+   - Modifying `.env` files for deployment
+   - Creating custom system prompts
+   - Adding clinic-specific FAQs
+   - Adjusting workflow schedules
+
+3. **White-Label Deployment** (Enterprise Only)
+   - Rebranding UI with Licensee's logo
+   - Custom domain names
+   - Licensee-branded documentation
+
+### ❌ PROHIBITED USES
+
+1. **Resale or Sublicensing**
+   - Selling access to the Software
+   - Offering "white-label" versions to clients (except Enterprise)
+   - Creating competing products based on the Software
+
+2. **Public Distribution**
+   - Uploading source code to GitHub/GitLab (public repos)
+   - Sharing workflow JSON files on forums or communities
+   - Publishing detailed implementation guides
+
+3. **Unauthorized Service Delivery**
+   - Operating as a SaaS provider for third-party clinics (without Multi-Instance or Enterprise license)
+   - Charging per-tenant fees based on this Software
+
+---
+
+## Exhibit B: Copyright Notices
+
+All source code files, workflows, and documentation must retain the following header:
+
+```
+/**
+ * Clinic Management Multi-Agent System
+ * Copyright (c) 2026 [Your Company Name]. All Rights Reserved.
+ * 
+ * This software is proprietary and confidential.
+ * Unauthorized copying, distribution, or use is strictly prohibited.
+ * Licensed under Proprietary Software License v1.0.
+ * 
+ * License Key Required for Use.
+ * Contact: sales@your-company.com
+ */
+```
+
+For SQL files:
+
+```sql
+-- ========================================
+-- Clinic Management Multi-Agent System
+-- Copyright (c) 2026 [Your Company Name]
+-- All Rights Reserved - Proprietary
+-- ========================================
+```
+
+For JSON/Configuration files:
+
+```json
+{
+  "_copyright": "Copyright (c) 2026 [Your Company Name]. All Rights Reserved.",
+  "_license": "Proprietary - Licensed Use Only",
+  ...
+}
+```
+
+---
+
+**END OF LICENSE AGREEMENT**
+
