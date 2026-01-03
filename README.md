@@ -249,11 +249,29 @@ docker compose up -d
 
 ## 📚 Documentação
 
+### Documentação Técnica
+
 | Documento | Descrição | Público |
 |-----------|-----------|---------|
-| **[Guia de Arquitetura](docs/ARCHITECTURE.md)** | Visão técnica, diagramas, pilha tecnológica | Engenheiros, Arquitetos |
+| **[Guia de Arquitetura](docs/ARCHITECTURE.md)** | Visão técnica, diagramas, pilha tecnológica, custos | Engenheiros, Arquitetos |
 | **[Guia de Implantação](docs/DEPLOYMENT.md)** | Configuração de produção passo a passo | DevOps, Equipes de TI |
 | **[Guia do Usuário](docs/USER_GUIDE.md)** | Operações diárias, gerenciamento de FAQ | Gerentes, Equipe |
+| **[Arquitetura Multi-Profissional](docs/MULTI_PROVIDER_ARCHITECTURE.md)** | Design para múltiplos profissionais por clínica | Engenheiros |
+| **[Arquitetura Service Resolver](docs/SERVICE_RESOLVER_ARCHITECTURE.md)** | Serviços com duração e preços dinâmicos | Engenheiros |
+
+### Documentação de Negócio
+
+| Documento | Descrição | Público |
+|-----------|-----------|---------|
+| **[Visão Executiva](docs/EXECUTIVE_OVERVIEW.md)** | Resumo visual do sistema e ROI | Executivos, Vendas |
+| **[Guia de Monetização](docs/MONETIZATION.md)** | Modelos de receita, precificação, projeções | Founders, Vendas |
+| **[Guia de Escalabilidade](docs/SCALING.md)** | Arquitetura para crescimento, custos por escala | CTO, DevOps |
+| **[Cenários de Negócio](docs/BUSINESS_SCENARIOS.md)** | Casos de uso por tipo de clínica | Vendas, Implementação |
+
+### Documentação Legal
+
+| Documento | Descrição | Público |
+|-----------|-----------|---------|
 | **[LICENÇA](LICENSE)** | Termos da licença proprietária | Jurídico, Compras |
 
 ---
