@@ -14,19 +14,21 @@ Este documento apresenta estratégias comprovadas para monetizar o Sistema Multi
 
 ```mermaid
 quadrantChart
-    title Posicionamento Competitivo
-    x-axis Baixo Custo --> Alto Custo
-    y-axis Funcionalidade Limitada --> Funcionalidade Completa
-    quadrant-1 Líderes Premium
-    quadrant-2 Especialistas
-    quadrant-3 Soluções Básicas
-    quadrant-4 Alto Custo/Baixo Valor
-    "Nosso Sistema": [0.35, 0.85]
-    "Sistemas ERP": [0.8, 0.9]
-    "WhatsApp Manual": [0.1, 0.15]
-    "Chatbots Genéricos": [0.4, 0.3]
-    "Sistemas Legados": [0.7, 0.4]
+    title Competitive Positioning
+    x-axis Low Cost --> High Cost
+    y-axis Limited Features --> Full Features
+    quadrant-1 Premium Leaders
+    quadrant-2 Specialists
+    quadrant-3 Basic Solutions
+    quadrant-4 High Cost Low Value
+    Our System: [0.35, 0.85]
+    ERP Systems: [0.8, 0.9]
+    Manual WhatsApp: [0.1, 0.15]
+    Generic Chatbots: [0.4, 0.3]
+    Legacy Systems: [0.7, 0.4]
 ```
+
+> **Legenda**: Nosso Sistema posicionado como alta funcionalidade com baixo custo relativo.
 
 ---
 
@@ -168,12 +170,14 @@ flowchart LR
 
 ```mermaid
 xychart-beta
-    title "Projeção de MRR - 24 Meses"
+    title "MRR Projection - 24 Months"
     x-axis [M1, M3, M6, M9, M12, M15, M18, M21, M24]
-    y-axis "MRR (R$ mil)" 0 --> 500
+    y-axis "MRR (R$ thousands)" 0 --> 500
     bar [5, 15, 40, 80, 120, 170, 230, 320, 450]
     line [5, 18, 45, 90, 140, 200, 270, 360, 480]
 ```
+
+> **Projeção de MRR**: Barras mostram MRR realizado, linha mostra projeção otimista.
 
 | Métrica | Mês 6 | Mês 12 | Mês 24 |
 |---------|-------|--------|--------|
@@ -237,23 +241,25 @@ flowchart TB
 
 ```mermaid
 journey
-    title Jornada do Cliente Premium
-    section Descoberta
-      Diagnóstico Gratuito: 5: Cliente
-      Proposta Comercial: 4: Vendas
-    section Implantação
-      Setup Infraestrutura: 3: TI
-      Configuração Sistema: 4: Implementação
-      Migração de Dados: 3: Implementação
-    section Treinamento
-      Equipe Técnica: 4: Treinamento
-      Equipe Operacional: 5: Treinamento
-      Gestores: 5: Treinamento
-    section Operação
-      Go-Live Assistido: 4: Suporte
-      Suporte Contínuo: 5: Suporte
-      Otimização Mensal: 4: Consultoria
+    title Premium Customer Journey
+    section Discovery
+      Free Diagnosis: 5: Customer
+      Commercial Proposal: 4: Sales
+    section Implementation
+      Infrastructure Setup: 3: IT
+      System Configuration: 4: Implementation
+      Data Migration: 3: Implementation
+    section Training
+      Technical Team: 4: Training
+      Operations Team: 5: Training
+      Managers: 5: Training
+    section Operations
+      Assisted Go-Live: 4: Support
+      Ongoing Support: 5: Support
+      Monthly Optimization: 4: Consulting
 ```
+
+> **Jornada do Cliente Premium**: Descoberta → Implantação → Treinamento → Operação
 
 ### Precificação de Pacotes
 
@@ -272,14 +278,16 @@ journey
 
 ```mermaid
 pie showData
-    title "Distribuição de Custos Operacionais"
-    "Infraestrutura (Servidores)" : 15
-    "APIs (Gemini, Evolution)" : 25
-    "Suporte ao Cliente" : 20
-    "Desenvolvimento/Manutenção" : 25
-    "Marketing/Vendas" : 10
-    "Administrativo" : 5
+    title "Operational Cost Distribution"
+    "Infrastructure Servers" : 15
+    "APIs Gemini Evolution" : 25
+    "Customer Support" : 20
+    "Development Maintenance" : 25
+    "Marketing Sales" : 10
+    "Administrative" : 5
 ```
+
+> **Distribuição de Custos Operacionais**: APIs (25%), Desenvolvimento (25%), Suporte (20%), Infra (15%), Marketing (10%), Admin (5%)
 
 ### Breakdown de Custos por Cliente (Mensal)
 
@@ -400,28 +408,30 @@ flowchart LR
 
 ```mermaid
 gantt
-    title Roadmap de Monetização - 12 Meses
+    title Monetization Roadmap - 12 Months
     dateFormat  YYYY-MM
-    section Fase 1 - Fundação
-    Definir Pricing           :done, p1, 2026-01, 1M
-    Setup Infraestrutura      :done, p2, 2026-01, 1M
-    Documentação Comercial    :done, p3, 2026-02, 1M
+    section Phase 1 - Foundation
+    Define Pricing           :done, p1, 2026-01, 1M
+    Infrastructure Setup     :done, p2, 2026-01, 1M
+    Commercial Documentation :done, p3, 2026-02, 1M
     
-    section Fase 2 - Validação
-    Primeiros 5 Clientes      :active, v1, 2026-02, 2M
-    Feedback e Ajustes        :v2, 2026-03, 1M
-    Case Studies              :v3, 2026-04, 1M
+    section Phase 2 - Validation
+    First 5 Customers        :active, v1, 2026-02, 2M
+    Feedback and Adjustments :v2, 2026-03, 1M
+    Case Studies             :v3, 2026-04, 1M
     
-    section Fase 3 - Escala
-    Marketing Digital         :s1, 2026-04, 3M
-    Programa de Parceiros     :s2, 2026-05, 2M
-    Expansão Time Vendas      :s3, 2026-06, 2M
+    section Phase 3 - Scale
+    Digital Marketing        :s1, 2026-04, 3M
+    Partner Program          :s2, 2026-05, 2M
+    Sales Team Expansion     :s3, 2026-06, 2M
     
-    section Fase 4 - Crescimento
-    50 Clientes Ativos        :g1, 2026-07, 3M
-    Lançamento SaaS           :g2, 2026-08, 2M
-    Internacionalização       :g3, 2026-10, 3M
+    section Phase 4 - Growth
+    50 Active Customers      :g1, 2026-07, 3M
+    SaaS Launch              :g2, 2026-08, 2M
+    Internationalization     :g3, 2026-10, 3M
 ```
+
+> **Roadmap de Monetização**: Fase 1 (Fundação) → Fase 2 (Validação) → Fase 3 (Escala) → Fase 4 (Crescimento)
 
 ---
 
@@ -471,12 +481,14 @@ gantt
 
 ```mermaid
 xychart-beta
-    title "Projeção de ARR - 3 Anos"
-    x-axis ["Ano 1", "Ano 2", "Ano 3"]
-    y-axis "ARR (R$ Milhões)" 0 --> 20
-    bar "Conservador" [0.54, 1.8, 5.4]
-    bar "Otimista" [1.44, 5.4, 18]
+    title "ARR Projection - 3 Years"
+    x-axis ["Year 1", "Year 2", "Year 3"]
+    y-axis "ARR (R$ Millions)" 0 --> 20
+    bar "Conservative" [0.54, 1.8, 5.4]
+    bar "Optimistic" [1.44, 5.4, 18]
 ```
+
+> **Projeção de ARR**: Cenário Conservador vs Otimista em milhões de reais.
 
 ---
 

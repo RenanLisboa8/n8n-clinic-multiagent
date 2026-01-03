@@ -68,13 +68,15 @@ graph TB
 
 ```mermaid
 xychart-beta
-    title "Requisitos de Recursos por Número de Tenants"
+    title "Resource Requirements by Number of Tenants"
     x-axis ["5", "20", "50", "100", "200", "500"]
-    y-axis "Recursos (unidades relativas)" 0 --> 100
+    y-axis "Resources (relative units)" 0 --> 100
     bar "CPU (vCPU)" [4, 8, 16, 32, 64, 128]
     bar "RAM (GB)" [8, 16, 32, 64, 128, 256]
-    line "Custo (R$ mil/mês)" [0.5, 2, 5, 10, 20, 50]
+    line "Cost (R$ k/month)" [0.5, 2, 5, 10, 20, 50]
 ```
+
+> **Requisitos de Recursos**: CPU, RAM e Custo escalam conforme número de tenants.
 
 ---
 
@@ -521,13 +523,15 @@ FOR VALUES WITH (MODULUS 4, REMAINDER 3);
 
 ```mermaid
 xychart-beta
-    title "Tempo de Query por Número de Registros"
+    title "Query Time by Number of Records"
     x-axis ["10K", "100K", "1M", "10M", "100M"]
-    y-axis "Tempo (ms)" 0 --> 1000
-    bar "Sem Índice" [5, 50, 500, 5000, 50000]
-    bar "Com Índice" [1, 2, 5, 15, 50]
-    bar "Particionado" [1, 1, 2, 5, 15]
+    y-axis "Time (ms)" 0 --> 1000
+    bar "No Index" [5, 50, 500, 5000, 50000]
+    bar "With Index" [1, 2, 5, 15, 50]
+    bar "Partitioned" [1, 1, 2, 5, 15]
 ```
+
+> **Tempo de Query**: Comparativo entre sem índice, com índice e particionado.
 
 ---
 
@@ -739,13 +743,15 @@ flowchart TB
 
 ```mermaid
 xychart-beta
-    title "Custo de Infraestrutura vs Receita (R$ mil/mês)"
+    title "Infrastructure Cost vs Revenue (R$ k/month)"
     x-axis ["5 tenants", "20 tenants", "50 tenants", "100 tenants", "500 tenants"]
-    y-axis "R$ mil" 0 --> 300
-    bar "Custo Infra" [0.5, 2, 5, 15, 50]
-    bar "Receita" [2.5, 10, 35, 100, 250]
-    line "Margem" [2, 8, 30, 85, 200]
+    y-axis "R$ thousands" 0 --> 300
+    bar "Infra Cost" [0.5, 2, 5, 15, 50]
+    bar "Revenue" [2.5, 10, 35, 100, 250]
+    line "Margin" [2, 8, 30, 85, 200]
 ```
+
+> **Custo vs Receita**: Infraestrutura, Receita e Margem por escala de tenants.
 
 | Escala | Custo Infra | Receita Potencial | Margem |
 |--------|-------------|-------------------|--------|

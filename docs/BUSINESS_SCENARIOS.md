@@ -495,12 +495,14 @@ flowchart TB
 
 ```mermaid
 xychart-beta
-    title "Performance por Unidade - Janeiro/2026"
+    title "Performance by Unit - January 2026"
     x-axis ["Paulista", "Moema", "Pinheiros", "Campinas", "Santos"]
-    y-axis "Agendamentos" 0 --> 1000
-    bar "Agendamentos" [850, 720, 680, 540, 490]
-    line "Meta" [700, 700, 700, 500, 500]
+    y-axis "Appointments" 0 --> 1000
+    bar "Appointments" [850, 720, 680, 540, 490]
+    line "Target" [700, 700, 700, 500, 500]
 ```
+
+> **Performance por Unidade**: Agendamentos realizados vs Meta por filial.
 
 | Unidade | Mensagens | Agendamentos | Conversão | Custo IA |
 |---------|-----------|--------------|-----------|----------|
@@ -634,13 +636,15 @@ Até segunda! 🩺
 
 ```mermaid
 xychart-beta
-    title "Complexidade vs Volume por Cenário"
-    x-axis ["Individual", "Multi-Prof", "Odonto", "Estética", "Rede", "Hospital"]
-    y-axis "Score (1-10)" 0 --> 10
+    title "Complexity vs Volume by Scenario"
+    x-axis ["Individual", "Multi-Prof", "Dental", "Aesthetic", "Network", "Hospital"]
+    y-axis "Score 1-10" 0 --> 10
     bar "Volume" [2, 5, 4, 3, 8, 10]
-    bar "Complexidade Config" [2, 5, 6, 4, 7, 9]
-    line "ROI Potencial" [3, 6, 5, 7, 9, 8]
+    bar "Config Complexity" [2, 5, 6, 4, 7, 9]
+    line "Potential ROI" [3, 6, 5, 7, 9, 8]
 ```
+
+> **Complexidade vs Volume**: Individual, Multi-Profissional, Odonto, Estética, Rede, Hospital
 
 | Cenário | Mensalidade Sugerida | Setup | ROI Típico |
 |---------|---------------------|-------|------------|

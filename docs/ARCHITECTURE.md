@@ -33,42 +33,53 @@ O **Sistema Multi-Agente de Gestão de Clínicas** é uma plataforma de automaç
 O diagrama a seguir ilustra como o sistema interage com atores externos e serviços:
 
 ```mermaid
-C4Context
-    title Diagrama de Contexto - Sistema Multi-Agente de Gestão de Clínicas
-
-    Person(patient, "Paciente", "Paciente da clínica usando WhatsApp")
-    Person(staff, "Equipe da Clínica", "Equipe interna usando Telegram")
-    Person(manager, "Gerente da Clínica", "Administrador do sistema")
-
-    System_Boundary(clinic_system, "Sistema de Gestão da Clínica") {
-        System(n8n, "Motor de Workflow n8n", "Orquestra toda lógica de automação, agentes IA e integrações")
-    }
-
-    System_Ext(whatsapp, "WhatsApp", "Canal de comunicação com pacientes")
-    System_Ext(telegram, "Telegram", "Comunicação interna da equipe")
-    System_Ext(evolution, "Evolution API", "Serviço gateway WhatsApp")
-    System_Ext(gemini, "Google Gemini AI", "Processamento e geração de linguagem natural")
-    System_Ext(gcal, "Google Calendar", "Agendamento de consultas")
-    System_Ext(gtasks, "Google Tasks", "Gerenciamento de tarefas")
-
-    Rel(patient, whatsapp, "Envia mensagens via", "WhatsApp")
-    Rel(whatsapp, evolution, "Mensagens encaminhadas para")
-    Rel(evolution, n8n, "Dispara webhook", "HTTPS")
+graph TB
+    subgraph USERS["External Users"]
+        patient["👤 Patient<br/>WhatsApp User"]
+        staff["👥 Clinic Staff<br/>Telegram User"]
+        manager["👔 Manager<br/>System Admin"]
+    end
     
-    Rel(n8n, gemini, "Processamento IA", "API")
-    Rel(n8n, gcal, "Gerencia agendamentos", "API")
-    Rel(n8n, gtasks, "Gerencia tarefas", "API")
-    Rel(n8n, evolution, "Envia respostas", "API")
-    Rel(evolution, whatsapp, "Entrega para")
+    subgraph CHANNELS["Communication Channels"]
+        whatsapp["📱 WhatsApp"]
+        telegram["💬 Telegram"]
+    end
     
-    Rel(staff, telegram, "Interage via")
-    Rel(telegram, n8n, "Dispara bot", "Webhook")
-    Rel(n8n, telegram, "Envia notificações", "Bot API")
+    subgraph GATEWAY["Gateway Layer"]
+        evolution["Evolution API<br/>WhatsApp Gateway"]
+    end
     
-    Rel(manager, n8n, "Configura sistema", "Web UI")
-
-    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
+    subgraph SYSTEM["Clinic Management System"]
+        n8n["⚙️ n8n Workflow Engine<br/>Multi-Agent Orchestrator"]
+    end
+    
+    subgraph EXTERNAL["External Services"]
+        gemini["🤖 Google Gemini AI"]
+        gcal["📅 Google Calendar"]
+        gtasks["✅ Google Tasks"]
+    end
+    
+    patient --> whatsapp
+    whatsapp --> evolution
+    evolution --> n8n
+    
+    staff --> telegram
+    telegram --> n8n
+    
+    manager --> n8n
+    
+    n8n --> gemini
+    n8n --> gcal
+    n8n --> gtasks
+    n8n --> evolution
+    n8n --> telegram
+    
+    style SYSTEM fill:#ff6b6b,color:#fff
+    style GATEWAY fill:#4ecdc4,color:#fff
+    style EXTERNAL fill:#95e1d3
 ```
+
+> **Diagrama de Contexto**: Pacientes (WhatsApp) e Equipe (Telegram) interagem com o Sistema via Evolution API, que orquestra IA, Calendar e Tasks.
 
 ---
 
@@ -611,13 +622,15 @@ curl http://localhost:8080/instance/connectionState/clinic_instance
 
 ```mermaid
 pie showData
-    title "Distribuição de Custos Mensais (Base: R$ 500)"
+    title "Monthly Cost Distribution (Base: R$ 500)"
     "Google Gemini API" : 200
-    "Infraestrutura (VPS)" : 150
+    "Infrastructure VPS" : 150
     "Evolution API" : 80
-    "Backup/Storage" : 40
-    "Monitoramento" : 30
+    "Backup Storage" : 40
+    "Monitoring" : 30
 ```
+
+> **Distribuição de Custos Mensais**: Gemini API (40%), Infraestrutura (30%), Evolution (16%), Backup (8%), Monitoramento (6%)
 
 ### Custo por Mensagem Processada
 
@@ -650,11 +663,13 @@ flowchart LR
 
 ```mermaid
 xychart-beta
-    title "Custo por 1.000 Mensagens (R$)"
-    x-axis ["Tradicional", "Com Cache 50%", "Com Cache 70%", "Com Cache 80%"]
-    y-axis "Custo (R$)" 0 --> 80
+    title "Cost per 1000 Messages (R$)"
+    x-axis ["Traditional", "Cache 50%", "Cache 70%", "Cache 80%"]
+    y-axis "Cost (R$)" 0 --> 80
     bar [60, 33, 21, 15]
 ```
+
+> **Custo por 1.000 Mensagens**: Tradicional R$60 → Com Cache 80% apenas R$15 (75% economia)
 
 | Cenário | % Cache | Custo IA | Custo Cache | **Total** | **Economia** |
 |---------|---------|----------|-------------|-----------|--------------|
@@ -667,13 +682,15 @@ xychart-beta
 
 ```mermaid
 xychart-beta
-    title "Custo Mensal por Volume de Mensagens"
+    title "Monthly Cost by Message Volume"
     x-axis ["1K", "5K", "10K", "25K", "50K", "100K"]
-    y-axis "Custo (R$)" 0 --> 2500
-    bar "Custo IA" [15, 75, 150, 375, 750, 1500]
-    bar "Infra Base" [150, 200, 300, 500, 800, 1200]
+    y-axis "Cost (R$)" 0 --> 2500
+    bar "AI Cost" [15, 75, 150, 375, 750, 1500]
+    bar "Base Infra" [150, 200, 300, 500, 800, 1200]
     line "Total" [165, 275, 450, 875, 1550, 2700]
 ```
+
+> **Custo Mensal por Volume**: Custo de IA + Infraestrutura base por volume de mensagens.
 
 ### Breakdown Detalhado de Custos
 
@@ -699,29 +716,31 @@ xychart-beta
 
 ```mermaid
 gantt
-    title Tempo de Processamento por Tipo de Mensagem
+    title Processing Time by Message Type
     dateFormat X
     axisFormat %L ms
     
-    section Cache FAQ
-    Busca DB + Formato    :0, 50
+    section FAQ Cache
+    DB Search + Format   :0, 50
     
-    section IA Simples
-    Classificação         :0, 100
-    Gemini API           :100, 1200
-    Formatação           :1200, 1300
+    section Simple AI
+    Classification       :0, 100
+    Gemini API          :100, 1200
+    Formatting          :1200, 1300
     
-    section IA + Calendário
-    Classificação         :0, 100
-    Gemini API           :100, 1200
-    Google Calendar      :1200, 1800
-    Formatação           :1800, 2000
+    section AI + Calendar
+    Classification       :0, 100
+    Gemini API          :100, 1200
+    Google Calendar     :1200, 1800
+    Formatting          :1800, 2000
     
-    section Mídia (Áudio)
-    Transcrição          :0, 2000
-    Gemini API          :2000, 3200
-    Formatação          :3200, 3500
+    section Media Audio
+    Transcription       :0, 2000
+    Gemini API         :2000, 3200
+    Formatting         :3200, 3500
 ```
+
+> **Tempo de Processamento**: Cache FAQ (~50ms), IA Simples (~1.3s), IA + Calendário (~2s), Mídia/Áudio (~3.5s)
 
 ### SLA por Tier de Licença
 

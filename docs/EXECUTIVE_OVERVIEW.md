@@ -10,28 +10,30 @@
 
 ```mermaid
 mindmap
-  root((Sistema de<br/>Gestão de<br/>Clínicas))
-    📱 Canais
+  root((Clinic Management System))
+    Channels
       WhatsApp
       Telegram
-      Web (futuro)
-    🤖 IA
+      Web future
+    AI
       Google Gemini
-      Cache Inteligente
-      70% economia
-    📅 Integrações
+      Smart Cache
+      70pct savings
+    Integrations
       Google Calendar
       Google Tasks
       Evolution API
-    💰 Valor
-      24/7 automatizado
-      -70% custos IA
-      +30% agendamentos
-    🏥 Multi-Tenant
-      Múltiplas clínicas
-      Isolamento dados
-      Config individual
+    Value
+      24x7 automated
+      minus70pct AI costs
+      plus30pct bookings
+    MultiTenant
+      Multiple clinics
+      Data isolation
+      Individual config
 ```
+
+> **Sistema de Gestão de Clínicas**: Canais (WhatsApp, Telegram), IA com Cache Inteligente (70% economia), Integrações (Calendar, Tasks), Multi-Tenant com isolamento de dados.
 
 ---
 
@@ -105,12 +107,14 @@ graph TB
 
 ```mermaid
 pie showData
-    title "Distribuição de Economia Mensal"
-    "Redução Pessoal" : 40
-    "Aumento Conversão" : 35
-    "Redução Custos IA" : 15
-    "Tempo Economizado" : 10
+    title "Monthly Savings Distribution"
+    "Staff Reduction" : 40
+    "Conversion Increase" : 35
+    "AI Cost Reduction" : 15
+    "Time Saved" : 10
 ```
+
+> **Distribuição de Economia Mensal**: Redução de Pessoal (40%), Aumento de Conversão (35%), Redução de IA (15%), Tempo (10%)
 
 ### Números que Importam
 
@@ -130,22 +134,24 @@ pie showData
 
 ```mermaid
 journey
-    title Jornada do Paciente com o Sistema
-    section Primeiro Contato
-      Paciente envia "Oi" no WhatsApp: 5: Paciente
-      Bot responde em 3 segundos: 5: Sistema
-    section Informações
-      Pergunta sobre horários: 5: Paciente
-      Resposta instantânea do cache: 5: Sistema
-    section Agendamento
-      Solicita consulta para amanhã: 4: Paciente
-      IA verifica calendário em tempo real: 5: Sistema
-      Oferece 3 horários disponíveis: 5: Sistema
-      Paciente escolhe 14h: 5: Paciente
-    section Confirmação
-      Consulta agendada + confirmação: 5: Sistema
-      Lembrete 24h antes automático: 5: Sistema
+    title Patient Journey with the System
+    section First Contact
+      Patient sends Hi on WhatsApp: 5: Patient
+      Bot responds in 3 seconds: 5: System
+    section Information
+      Asks about hours: 5: Patient
+      Instant response from cache: 5: System
+    section Scheduling
+      Requests appointment for tomorrow: 4: Patient
+      AI checks calendar in real time: 5: System
+      Offers 3 available slots: 5: System
+      Patient chooses 2pm: 5: Patient
+    section Confirmation
+      Appointment scheduled confirmed: 5: System
+      Automatic 24h reminder: 5: System
 ```
+
+> **Jornada do Paciente**: Primeiro Contato → Informações → Agendamento → Confirmação
 
 ### Fluxo Técnico Simplificado
 
@@ -235,20 +241,22 @@ graph TB
 
 ```mermaid
 quadrantChart
-    title Posicionamento no Mercado
-    x-axis Baixo Custo --> Alto Custo
-    y-axis Baixa Funcionalidade --> Alta Funcionalidade
+    title Market Positioning
+    x-axis Low Cost --> High Cost
+    y-axis Low Features --> High Features
     quadrant-1 Premium
-    quadrant-2 Especializado
-    quadrant-3 Básico
-    quadrant-4 Caro/Limitado
-    "Nosso Sistema": [0.3, 0.9]
-    "ERPs Tradicionais": [0.8, 0.7]
-    "Chatbots Genéricos": [0.4, 0.3]
-    "Soluções Manuais": [0.2, 0.2]
-    "Concorrente A": [0.6, 0.5]
-    "Concorrente B": [0.5, 0.4]
+    quadrant-2 Specialized
+    quadrant-3 Basic
+    quadrant-4 Expensive Limited
+    Our System: [0.3, 0.9]
+    Traditional ERPs: [0.8, 0.7]
+    Generic Chatbots: [0.4, 0.3]
+    Manual Solutions: [0.2, 0.2]
+    Competitor A: [0.6, 0.5]
+    Competitor B: [0.5, 0.4]
 ```
+
+> **Posicionamento**: Nosso Sistema oferece alta funcionalidade com baixo custo comparado aos concorrentes.
 
 ### Por que Somos Diferentes
 
@@ -271,22 +279,24 @@ quadrantChart
 timeline
     title Roadmap 2026
     section Q1
-        Jan-Mar : Lançamento v1.0
-                : Multi-tenant completo
-                : Cache inteligente
+        Jan-Mar : v1.0 Launch
+                : Full multi-tenant
+                : Smart cache
     section Q2
-        Abr-Jun : Dashboard analytics
-                : App mobile equipe
-                : Multi-idioma (PT/EN/ES)
+        Apr-Jun : Analytics dashboard
+                : Staff mobile app
+                : Multi-language PT EN ES
     section Q3
-        Jul-Set : Integração pagamentos
-                : Prontuário eletrônico
-                : Telemedicina
+        Jul-Sep : Payment integration
+                : Electronic records
+                : Telemedicine
     section Q4
-        Out-Dez : IA preditiva
-                : Marketplace integrações
-                : Expansão LATAM
+        Oct-Dec : Predictive AI
+                : Integration marketplace
+                : LATAM expansion
 ```
+
+> **Roadmap 2026**: Q1 Lançamento → Q2 Analytics/Mobile → Q3 Pagamentos/Telemedicina → Q4 IA Preditiva/LATAM
 
 ---
 
