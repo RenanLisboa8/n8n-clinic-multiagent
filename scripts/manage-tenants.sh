@@ -16,11 +16,9 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Database connection from environment
-DB_HOST="${POSTGRES_HOST:-localhost}"
-DB_PORT="${POSTGRES_PORT:-5432}"
-DB_NAME="${POSTGRES_DB:-n8n}"
-DB_USER="${POSTGRES_USER:-n8n}"
-DB_PASSWORD="${POSTGRES_PASSWORD}"
+DB_NAME="${POSTGRES_DB:-n8n_clinic_db}"
+DB_USER="${POSTGRES_USER:-n8n_clinic}"
+CONTAINER_NAME="${POSTGRES_CONTAINER:-clinic_postgres}"
 
 # ============================================================================
 # HELPER FUNCTIONS
@@ -42,9 +40,16 @@ log_warning() {
     echo -e "${YELLOW}⚠${NC} $1"
 }
 
+# Execute SQL via Docker container
 execute_sql() {
     local sql="$1"
-    PGPASSWORD=$DB_PASSWORD psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "$sql"
+    docker exec -i "$CONTAINER_NAME" psql -U "$DB_USER" -d "$DB_NAME" -t -c "$sql"
+}
+
+# Execute SQL with formatted output via Docker
+execute_sql_formatted() {
+    local sql="$1"
+    docker exec -i "$CONTAINER_NAME" psql -U "$DB_USER" -d "$DB_NAME" -c "$sql"
 }
 
 # ============================================================================
@@ -55,7 +60,7 @@ list_tenants() {
     log_info "Listing all tenants..."
     echo ""
     
-    PGPASSWORD=$DB_PASSWORD psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "
+    execute_sql_formatted "
         SELECT 
             tenant_name,
             evolution_instance_name,
@@ -81,7 +86,7 @@ show_tenant() {
     log_info "Fetching details for: $instance_name"
     echo ""
     
-    PGPASSWORD=$DB_PASSWORD psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "
+    execute_sql_formatted "
         SELECT 
             tenant_name,
             evolution_instance_name,
@@ -166,7 +171,7 @@ check_health() {
     
     # Check for tenants without calendar config
     echo "Tenants missing calendar configuration:"
-    PGPASSWORD=$DB_PASSWORD psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "
+    execute_sql_formatted "
         SELECT tenant_name, evolution_instance_name
         FROM tenant_config
         WHERE is_active = true
@@ -175,7 +180,7 @@ check_health() {
     
     echo ""
     echo "Tenants exceeding quota:"
-    PGPASSWORD=$DB_PASSWORD psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "
+    execute_sql_formatted "
         SELECT 
             tenant_name,
             current_message_count,
@@ -216,8 +221,10 @@ EOF
 # MAIN
 # ============================================================================
 
-if [ -z "$DB_PASSWORD" ]; then
-    log_error "POSTGRES_PASSWORD environment variable not set"
+# Check if Docker container is running
+if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    log_error "PostgreSQL container '$CONTAINER_NAME' is not running"
+    log_info "Start it with: docker compose up -d postgres"
     exit 1
 fi
 
