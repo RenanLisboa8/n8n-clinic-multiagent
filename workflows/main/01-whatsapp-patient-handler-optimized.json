@@ -10,7 +10,10 @@
       "id": "webhook-trigger",
       "name": "WhatsApp Webhook",
       "type": "n8n-nodes-base.webhook",
-      "position": [240, 400],
+      "position": [
+        240,
+        400
+      ],
       "typeVersion": 2,
       "webhookId": "whatsapp-patient-handler-opt"
     },
@@ -22,76 +25,26 @@
       "id": "load-tenant-config",
       "name": "Load Tenant Config",
       "type": "n8n-nodes-base.executeWorkflow",
-      "position": [460, 400],
+      "position": [
+        460,
+        400
+      ],
       "typeVersion": 1.2,
       "notes": "🔑 Loads tenant-specific configuration from database"
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "message_type",
-              "name": "message_type",
-              "type": "string",
-              "value": "={{ $json.body.data.message.messageType }}"
-            },
-            {
-              "id": "remote_jid",
-              "name": "remote_jid",
-              "type": "string",
-              "value": "={{ $json.body.data.key.remoteJid }}"
-            },
-            {
-              "id": "message_text",
-              "name": "message_text",
-              "type": "string",
-              "value": "={{ $json.body.data.message.conversation || $json.body.data.message.extendedTextMessage?.text || '' }}"
-            },
-            {
-              "id": "message_id",
-              "name": "message_id",
-              "type": "string",
-              "value": "={{ $json.body.data.key.id }}"
-            },
-            {
-              "id": "push_name",
-              "name": "push_name",
-              "type": "string",
-              "value": "={{ $json.body.data.pushName }}"
-            },
-            {
-              "id": "image_url",
-              "name": "image_url",
-              "type": "string",
-              "value": "={{ $json.body.data.message.imageMessage?.url || '' }}"
-            },
-            {
-              "id": "audio_url",
-              "name": "audio_url",
-              "type": "string",
-              "value": "={{ $json.body.data.message.audioMessage?.url || '' }}"
-            },
-            {
-              "id": "tenant_config",
-              "name": "tenant_config",
-              "type": "object",
-              "value": "={{ $json.tenant_config }}"
-            },
-            {
-              "id": "tenant_id",
-              "name": "tenant_id",
-              "type": "string",
-              "value": "={{ $json.tenant_id }}"
-            }
-          ]
-        }
+        "jsCode": "// Parse webhook data and detect message type intelligently\n// Handle different payload structures from Evolution API and Tenant Config Loader\nconst body = $json.body || $json;\nconst data = body?.data || body;\n\n// Try multiple paths to find message structure\nconst messageObj = body?.data?.message || body?.message || data?.message || {};\nconst keyObj = body?.data?.key || body?.key || data?.key || {};\n\n// Detect message type based on available fields\nlet messageType = body?.data?.messageType || data?.messageType || messageObj?.messageType || null;\n\n// If messageType not found, infer from message structure\nif (!messageType) {\n  if (messageObj.conversation || messageObj.extendedTextMessage?.text) {\n    messageType = 'conversation';\n  } else if (messageObj.imageMessage || body?.data?.message?.imageMessage) {\n    messageType = 'imageMessage';\n  } else if (messageObj.audioMessage || body?.data?.message?.audioMessage) {\n    messageType = 'audioMessage';\n  } else if (messageObj.videoMessage) {\n    messageType = 'videoMessage';\n  } else if (messageObj.documentMessage) {\n    messageType = 'documentMessage';\n  } else {\n    // Default to conversation if we have message_text or any text content\n    messageType = 'conversation';\n  }\n}\n\n// Extract message text (try multiple paths)\nconst messageText = messageObj.conversation\n  || messageObj.extendedTextMessage?.text\n  || body?.data?.message?.conversation\n  || body?.data?.message?.extendedTextMessage?.text\n  || messageObj.imageMessage?.caption\n  || '';\n\n// Extract remote JID (handle different formats)\nconst remoteJid = keyObj.remoteJid\n  || data?.remoteJid\n  || body?.remoteJid\n  || body?.from\n  || body?.data?.key?.remoteJid\n  || '';\n\n// Extract image URL\nconst imageMessage = messageObj.imageMessage || body?.data?.message?.imageMessage || {};\nconst imageUrl = imageMessage.url || imageMessage.directPath || '';\n\n// Extract audio URL\nconst audioMessage = messageObj.audioMessage || body?.data?.message?.audioMessage || {};\nconst audioUrl = audioMessage.url || audioMessage.directPath || '';\n\nreturn {\n  message_type: messageType,\n  remote_jid: remoteJid,\n  message_text: messageText,\n  message_id: keyObj.id || data?.id || body?.id || body?.data?.key?.id || '',\n  push_name: data?.pushName || body?.pushName || body?.senderName || data?.push_name || body?.data?.pushName || 'Paciente',\n  image_url: imageUrl,\n  audio_url: audioUrl,\n  tenant_config: $json.tenant_config,\n  tenant_id: $json.tenant_id,\n  services_catalog: $json.services_catalog,\n  // Preserve original for debugging\n  original_body: body,\n  original_data: data\n};"
       },
       "id": "parse-webhook",
       "name": "Parse Webhook Data",
-      "type": "n8n-nodes-base.set",
-      "position": [680, 400],
-      "typeVersion": 3.4
+      "type": "n8n-nodes-base.code",
+      "position": [
+        680,
+        400
+      ],
+      "typeVersion": 2,
+      "notes": "🔧 Intelligently detects message type and parses webhook data"
     },
     {
       "parameters": {
@@ -172,7 +125,10 @@
       "id": "message-type-switch",
       "name": "Message Type Switch",
       "type": "n8n-nodes-base.switch",
-      "position": [900, 400],
+      "position": [
+        900,
+        400
+      ],
       "typeVersion": 3.2
     },
     {
@@ -192,7 +148,10 @@
       "id": "audio-transcription",
       "name": "Process Audio",
       "type": "n8n-nodes-base.executeWorkflow",
-      "position": [1120, 600],
+      "position": [
+        1120,
+        600
+      ],
       "typeVersion": 1.2
     },
     {
@@ -210,30 +169,39 @@
       "id": "image-ocr",
       "name": "Process Image",
       "type": "n8n-nodes-base.executeWorkflow",
-      "position": [1120, 500],
+      "position": [
+        1120,
+        500
+      ],
       "typeVersion": 1.2
     },
     {
       "parameters": {
-        "jsCode": "// ===================================\n// INTENT CLASSIFIER\n// Cost: ~$0 (no AI call)\n// Latency: ~10ms\n// ===================================\n\nconst text = ($json.message_text || $json.transcribed_text || '').toLowerCase();\nconst tenantId = $json.tenant_id;\n\n// Basic pattern matching for common intents\nconst patterns = {\n  greeting: /^(oi|olá|ola|bom dia|boa tarde|boa noite|hey|hello)/,\n  hours: /(horário|horario|hora|abre|fecha|aberto|funciona|atende)/,\n  location: /(endereço|endereco|onde|localização|localizacao|fica|chegar)/,\n  appointment: /(agendar|marcar|consulta|horário disponível|horario disponivel|vaga)/,\n  cancel: /(cancelar|desmarcar|não vou|nao vou)/,\n  reschedule: /(remarcar|mudar|alterar|trocar dia|trocar hora)/,\n  confirmation: /(sim|confirmo|confirmar|ok|tudo bem|pode ser)/,\n  help: /(ajuda|help|socorro|não entendi|nao entendi)/\n};\n\nlet intent = 'complex'; // Default to AI processing\nlet confidence = 0;\n\nfor (const [intentName, pattern] of Object.entries(patterns)) {\n  if (pattern.test(text)) {\n    intent = intentName;\n    confidence = 0.9;\n    break;\n  }\n}\n\n// Extract dates if present (simple regex for pt-BR)\nconst datePatterns = [\n  /\\d{1,2}[\\/\\-]\\d{1,2}(?:[\\/\\-]\\d{2,4})?/, // 10/01 or 10/01/2025\n  /(próxima|proxima|segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)/,\n  /(amanhã|amanha|hoje|depois de amanhã|depois de amanha)/\n];\n\nlet extractedDate = null;\nfor (const pattern of datePatterns) {\n  const match = text.match(pattern);\n  if (match) {\n    extractedDate = match[0];\n    break;\n  }\n}\n\nreturn {\n  ...$json,\n  intent,\n  confidence,\n  extracted_date: extractedDate,\n  requires_ai: intent === 'complex' || confidence < 0.8\n};"
+        "jsCode": "// ===================================\n// INTENT CLASSIFIER\n// Cost: ~$0 (no AI call)\n// Latency: ~10ms\n// ===================================\n\nconst text = ($json.message_text || $json.transcribed_text || '').toLowerCase();\nconst tenantId = $json.tenant_id;\n\n// Basic pattern matching for common intents\nconst patterns = {\n  greeting: /^(oi|olá|ola|bom dia|boa tarde|boa noite|hey|hello)/,\n  hours: /(horário|horario|hora|abre|fecha|aberto|funciona|atende)/,\n  location: /(endereço|endereco|onde|localização|localizacao|fica|chegar)/,\n  appointment: /(agendar|marcar|consulta|horário disponível|horario disponivel|vaga)/,\n  cancel: /(cancelar|desmarcar|não vou|nao vou)/,\n  reschedule: /(remarcar|mudar|alterar|trocar dia|trocar hora)/,\n  confirmation: /(sim|confirmo|confirmar|ok|tudo bem|pode ser)/,\n  help: /(ajuda|help|socorro|não entendi|nao entendi)/\n};\n\nlet intent = 'complex'; // Default to AI processing\nlet confidence = 0;\n\nfor (const [intentName, pattern] of Object.entries(patterns)) {\n  if (pattern.test(text)) {\n    intent = intentName;\n    confidence = 0.9;\n    break;\n  }\n}\n\n// Extract dates if present (simple regex for pt-BR)\nconst datePatterns = [\n  /\\d{1,2}[\\/\\-]\\d{1,2}(?:[\\/\\-]\\d{2,4})?/, // 10/01 or 10/01/2025\n  /(próxima|proxima|segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)/,\n  /(amanhã|amanha|hoje|depois de amanhã|depois de amanha)/\n];\n\nlet extractedDate = null;\nfor (const pattern of datePatterns) {\n  const match = text.match(pattern);\n  if (match) {\n    extractedDate = match[0];\n    break;\n  }\n}\n\nreturn {\n  ...$json,\n  intent,\n  confidence,\n  extracted_date: extractedDate,\n  requires_ai: intent === 'complex' || confidence < 0.8,\n  // Prepare normalized text for FAQ query\n  message_text_normalized: text.trim(),\n  intent_for_faq: intent || ''\n};"
       },
       "id": "intent-classifier",
       "name": "Intent Classifier",
       "type": "n8n-nodes-base.code",
-      "position": [1340, 200],
+      "position": [
+        1340,
+        200
+      ],
       "typeVersion": 2,
       "notes": "⚡ Fast intent classification without AI call"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=-- Check FAQ cache first\nSELECT \n  answer,\n  view_count\nFROM tenant_faq\nWHERE tenant_id = '{{ $json.tenant_id }}'\n  AND is_active = true\n  AND (\n    question_normalized ILIKE '%{{ $json.message_text.toLowerCase() }}%'\n    OR keywords @> ARRAY['{{ $json.intent }}']\n  )\nORDER BY view_count DESC\nLIMIT 1;",
+        "query": "=-- Check FAQ cache first\n-- Note: Returns empty if no match (workflow continues to AI)\n-- Uses message_text_normalized and intent_for_faq from Intent Classifier\n-- Falls back to message_text and intent if normalized fields not available\nSELECT \n  answer,\n  view_count,\n  question_original,\n  intent\nFROM tenant_faq\nWHERE tenant_id = '{{ $json.tenant_id }}'::UUID\n  AND is_active = true\n  AND (\n    question_normalized ILIKE '%{{ $json.message_text_normalized || ($json.message_text || \"\").toLowerCase() }}%'\n    OR ('{{ $json.intent_for_faq || $json.intent || \"\" }}' != '' AND keywords @> ARRAY['{{ $json.intent_for_faq || $json.intent || \"\" }}'])\n    OR ('{{ $json.intent_for_faq || $json.intent || \"\" }}' != '' AND intent = '{{ $json.intent_for_faq || $json.intent || \"\" }}')\n  )\nORDER BY view_count DESC, COALESCE(last_used_at, created_at) DESC\nLIMIT 1;",
         "options": {}
       },
       "id": "check-faq",
       "name": "Check FAQ Cache",
       "type": "n8n-nodes-base.postgres",
-      "position": [1340, 300],
+      "position": [
+        1340,
+        300
+      ],
       "typeVersion": 2.4,
       "credentials": {
         "postgres": {
@@ -241,7 +209,7 @@
           "name": "Postgres account"
         }
       },
-      "notes": "💾 Check if we can answer from cache"
+      "notes": "💾 Check if we can answer from cache - uses query parameters for safety"
     },
     {
       "parameters": {
@@ -276,21 +244,41 @@
       "id": "needs-ai-check",
       "name": "Needs AI?",
       "type": "n8n-nodes-base.if",
-      "position": [1560, 400],
+      "position": [
+        1560,
+        400
+      ],
       "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build dynamic system prompt with services catalog\nconst basePrompt = $json.tenant_config?.system_prompt_patient || '';\nconst servicesCatalog = $json.services_catalog || 'Nenhum serviço cadastrado.';\n\n// Replace {{ $json.services_catalog }} placeholder with actual catalog\nconst systemPrompt = basePrompt.replace(\n  /\\{\\{ \\$json\\.services_catalog \\}\\}/g,\n  servicesCatalog\n);\n\nreturn {\n  ...$json,\n  system_prompt_with_catalog: systemPrompt\n};"
+      },
+      "id": "build-prompt",
+      "name": "Build Prompt with Catalog",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1560,
+        300
+      ],
+      "typeVersion": 2,
+      "notes": "🔧 Injects services catalog into prompt dynamically"
     },
     {
       "parameters": {
         "promptType": "define",
         "text": "={{ $json.message_text || $json.transcribed_text || $json.extracted_text }}",
         "options": {
-          "systemMessage": "={{ $json.tenant_config.system_prompt_patient }}"
+          "systemMessage": "={{ $json.system_prompt_with_catalog || $json.tenant_config.system_prompt_patient }}"
         }
       },
       "id": "patient-agent",
       "name": "Patient Assistant Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
-      "position": [1780, 300],
+      "position": [
+        1780,
+        300
+      ],
       "typeVersion": 1.8,
       "notes": "🤖 Only called when FAQ doesn't have answer"
     },
@@ -307,7 +295,10 @@
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
-      "position": [1780, 500],
+      "position": [
+        1780,
+        500
+      ],
       "id": "gemini-model",
       "name": "Google Gemini Chat Model",
       "credentials": {
@@ -326,7 +317,10 @@
       "id": "chat-memory",
       "name": "Postgres Chat Memory",
       "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
-      "position": [1780, 600],
+      "position": [
+        1780,
+        600
+      ],
       "typeVersion": 1.3,
       "credentials": {
         "postgres": {
@@ -338,14 +332,88 @@
     },
     {
       "parameters": {
-        "sseEndpoint": "={{ $json.tenant_config.mcp_calendar_endpoint }}",
-        "options": {}
+        "name": "FindProfessionals",
+        "description": "Busca profissionais que oferecem um serviço específico. Use quando o cliente escolher um serviço para verificar quantos profissionais oferecem e seus preços/durações. Retorna lista de profissionais com calendar_id de cada um.",
+        "workflowId": {
+          "__rl": true,
+          "value": "{{ 'Find Professionals Tool' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $json.tenant_id }}",
+            "service_name": "={{ $fromAI('service_name', '', 'string') }}"
+          }
+        }
       },
-      "id": "calendar-tool",
-      "name": "MCP Calendar Tool",
-      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
-      "position": [1640, 700],
-      "typeVersion": 1
+      "id": "find-professionals-tool",
+      "name": "Find Professionals Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [
+        1640,
+        600
+      ],
+      "typeVersion": 2.1,
+      "notes": "🔍 Busca profissionais que oferecem um serviço"
+    },
+    {
+      "parameters": {
+        "name": "CheckCalendarAvailability",
+        "description": "Consulta horários disponíveis em um calendário do Google Calendar. Use quando o cliente escolher um profissional e data. Retorna lista de horários livres. IMPORTANTE: Use o calendar_id do profissional retornado por FindProfessionals.",
+        "workflowId": {
+          "__rl": true,
+          "value": "{{ 'Google Calendar Availability Tool' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "calendar_id": "={{ $fromAI('calendar_id', '', 'string') }}",
+            "start_time": "={{ $fromAI('start_time', '', 'string') }}",
+            "end_time": "={{ $fromAI('end_time', '', 'string') }}"
+          }
+        }
+      },
+      "id": "calendar-availability-tool",
+      "name": "Check Calendar Availability",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [
+        1640,
+        700
+      ],
+      "typeVersion": 2.1,
+      "notes": "📅 Consulta disponibilidade usando Google Calendar API"
+    },
+    {
+      "parameters": {
+        "name": "CreateCalendarEvent",
+        "description": "Cria um evento no Google Calendar. Use quando o cliente escolher um horário. IMPORTANTE: Use o calendar_id do profissional escolhido. Inclua na descrição: nome completo, data nascimento, telefone e serviço.",
+        "workflowId": {
+          "__rl": true,
+          "value": "{{ 'Google Calendar Create Event Tool' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "calendar_id": "={{ $fromAI('calendar_id', '', 'string') }}",
+            "summary": "={{ $fromAI('summary', '', 'string') }}",
+            "start": "={{ $fromAI('start', '', 'string') }}",
+            "end": "={{ $fromAI('end', '', 'string') }}",
+            "description": "={{ $fromAI('description', '', 'string') }}"
+          }
+        }
+      },
+      "id": "calendar-create-tool",
+      "name": "Create Calendar Event",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [
+        1640,
+        800
+      ],
+      "typeVersion": 2.1,
+      "notes": "📅 Cria evento usando Google Calendar API"
     },
     {
       "parameters": {
@@ -370,17 +438,23 @@
       "id": "escalation-tool",
       "name": "Human Escalation Tool",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "position": [1640, 800],
+      "position": [
+        1640,
+        800
+      ],
       "typeVersion": 2.1
     },
     {
       "parameters": {
-        "jsCode": "// ===================================\n// SIMPLE MESSAGE FORMATTER\n// Replaces AI-based formatter\n// Cost: ~$0 (no AI call)\n// Latency: ~5ms vs ~800ms\n// ===================================\n\nconst rawText = $json.output || $json.answer || $json.message_text;\n\nif (!rawText) {\n  return { formatted_text: 'Desculpe, ocorreu um erro. Por favor, tente novamente.' };\n}\n\n// Simple formatting rules for WhatsApp\nlet formatted = rawText\n  // Convert markdown bold ** to WhatsApp bold *\n  .replace(/\\*\\*(.+?)\\*\\*/g, '*$1*')\n  // Remove markdown headers #\n  .replace(/^#{1,6}\\s+/gm, '')\n  // Convert markdown lists\n  .replace(/^[-*]\\s+/gm, '• ')\n  // Clean up excessive newlines\n  .replace(/\\n{3,}/g, '\\n\\n')\n  // Trim whitespace\n  .trim();\n\nreturn {\n  ...$json,\n  formatted_text: formatted\n};"
+        "jsCode": "// ===================================\n// SIMPLE MESSAGE FORMATTER\n// Replaces AI-based formatter\n// Cost: ~$0 (no AI call)\n// Latency: ~5ms vs ~800ms\n// ===================================\n\n// Try multiple sources in order of priority:\n// 1. formatted_text (already formatted from Use FAQ Answer node)\n// 2. output (from Patient Assistant Agent - LangChain agent)\n// 3. answer (from Check FAQ Cache - raw database result)\n// 4. text (alternative agent output field)\n// 5. message_text (fallback)\nconst rawText = $json.formatted_text || $json.output || $json.answer || $json.text || $json.message_text || '';\n\n// If already formatted and not empty, ensure essential fields are preserved\nif ($json.formatted_text && $json.formatted_text.trim() !== '') {\n  return {\n    ...$json,\n    // Ensure essential fields for Update FAQ Cache are present\n    tenant_id: $json.tenant_id || $('Parse Webhook Data')?.first()?.json?.tenant_id,\n    message_text: $json.message_text || $json.message_text_normalized || $('Parse Webhook Data')?.first()?.json?.message_text || '',\n    intent: $json.intent || $json.intent_for_faq || $('Parse Webhook Data')?.first()?.json?.intent || ''\n  };\n}\n\n// Validate we have text to format\nif (!rawText || (typeof rawText === 'string' && rawText.trim() === '')) {\n  console.log('Format Message: No text found in:', Object.keys($json));\n  return {\n    ...$json,\n    formatted_text: 'Desculpe, ocorreu um erro. Por favor, tente novamente.'\n  };\n}\n\n// Convert to string if needed\nconst textToFormat = String(rawText);\n\n// Simple formatting rules for WhatsApp\nlet formatted = textToFormat\n  // Replace literal \\n with actual newlines (handle escaped newlines from DB)\n  .replace(/\\\\n/g, '\\n')\n  // Convert markdown bold ** to WhatsApp bold *\n  .replace(/\\*\\*(.+?)\\*\\*/g, '*$1*')\n  // Remove markdown headers #\n  .replace(/^#{1,6}\\s+/gm, '')\n  // Convert markdown lists to WhatsApp bullets\n  .replace(/^[-*]\\s+/gm, '• ')\n  // Clean up excessive newlines (3+ become 2)\n  .replace(/\\n{3,}/g, '\\n\\n')\n  // Trim whitespace\n  .trim();\n\n// Preserve all original fields and add formatted_text\nreturn {\n  ...$json,\n  formatted_text: formatted,\n  // Explicitly preserve essential fields for Update FAQ Cache (in case they were lost)\n  tenant_id: $json.tenant_id || $('Parse Webhook Data')?.first()?.json?.tenant_id,\n  message_text: $json.message_text || $json.message_text_normalized || $('Parse Webhook Data')?.first()?.json?.message_text || '',\n  intent: $json.intent || $json.intent_for_faq || $('Parse Webhook Data')?.first()?.json?.intent || ''\n};"
       },
       "id": "format-message-code",
       "name": "Format Message (Code)",
       "type": "n8n-nodes-base.code",
-      "position": [2000, 400],
+      "position": [
+        2000,
+        400
+      ],
       "typeVersion": 2,
       "notes": "⚡ Replaced AI formatter with simple code node"
     },
@@ -395,7 +469,10 @@
       "id": "send-whatsapp",
       "name": "Send WhatsApp Response",
       "type": "n8n-nodes-evolution-api.evolutionApi",
-      "position": [2220, 400],
+      "position": [
+        2220,
+        400
+      ],
       "typeVersion": 1,
       "credentials": {
         "evolutionApi": {
@@ -407,13 +484,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=-- Update FAQ view count or insert new FAQ\nINSERT INTO tenant_faq (\n  tenant_id,\n  question_original,\n  question_normalized,\n  answer,\n  keywords,\n  view_count\n) VALUES (\n  '{{ $json.tenant_id }}',\n  '{{ $json.message_text }}',\n  '{{ $json.message_text.toLowerCase() }}',\n  '{{ $json.formatted_text }}',\n  ARRAY['{{ $json.intent }}'],\n  1\n)\nON CONFLICT (tenant_id, question_normalized)\nDO UPDATE SET\n  view_count = tenant_faq.view_count + 1,\n  last_used_at = NOW();",
+        "query": "=-- Update FAQ view count or insert new FAQ\n-- Get tenant_id from current node, fallback to Parse Webhook Data if needed\n-- This will fail gracefully if tenant_id is empty (workflow will continue)\nINSERT INTO tenant_faq (\n  tenant_id,\n  question_original,\n  question_normalized,\n  answer,\n  keywords,\n  view_count\n) VALUES (\n  '{{ $json.tenant_id || $('Parse Webhook Data').first()?.json?.tenant_id }}'::UUID,\n  '{{ ($json.message_text || $('Parse Webhook Data').first()?.json?.message_text || \"unknown\").replace(/'/g, \"''\") }}',\n  LOWER('{{ ($json.message_text || $('Parse Webhook Data').first()?.json?.message_text || \"unknown\").replace(/'/g, \"''\") }}'),\n  '{{ ($json.formatted_text || \"no answer\").replace(/'/g, \"''\") }}',\n  ARRAY['{{ ($json.intent || $('Parse Webhook Data').first()?.json?.intent || \"unknown\").replace(/'/g, \"''\") }}'],\n  1\n)\nON CONFLICT (tenant_id, question_normalized)\nDO UPDATE SET\n  view_count = tenant_faq.view_count + 1,\n  last_used_at = NOW(),\n  answer = EXCLUDED.answer;",
         "options": {}
       },
       "id": "update-faq-cache",
       "name": "Update FAQ Cache",
       "type": "n8n-nodes-base.postgres",
-      "position": [2220, 600],
+      "position": [
+        2220,
+        600
+      ],
       "typeVersion": 2.4,
       "credentials": {
         "postgres": {
@@ -439,7 +519,10 @@
       "id": "use-faq-answer",
       "name": "Use FAQ Answer",
       "type": "n8n-nodes-base.set",
-      "position": [1780, 500],
+      "position": [
+        1780,
+        500
+      ],
       "typeVersion": 3.4,
       "notes": "✅ Skip AI entirely - use cached answer"
     },
@@ -453,7 +536,10 @@
       "id": "documentation",
       "name": "Sticky Note",
       "type": "n8n-nodes-base.stickyNote",
-      "position": [220, 80],
+      "position": [
+        220,
+        80
+      ],
       "typeVersion": 1
     }
   ],
@@ -565,7 +651,7 @@
       "main": [
         [
           {
-            "node": "Patient Assistant Agent",
+            "node": "Build Prompt with Catalog",
             "type": "main",
             "index": 0
           }
@@ -573,6 +659,17 @@
         [
           {
             "node": "Use FAQ Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt with Catalog": {
+      "main": [
+        [
+          {
+            "node": "Patient Assistant Agent",
             "type": "main",
             "index": 0
           }
@@ -639,7 +736,29 @@
         ]
       ]
     },
-    "MCP Calendar Tool": {
+    "Find Professionals Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Calendar Availability": {
+      "ai_tool": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Calendar Event": {
       "ai_tool": [
         [
           {
@@ -693,5 +812,3 @@
     }
   ]
 }
-
-
