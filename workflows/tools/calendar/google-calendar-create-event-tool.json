@@ -1,0 +1,177 @@
+{
+  "name": "Google Calendar Create Event Tool",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "workflow-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [240, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "calendar_id",
+              "name": "calendar_id",
+              "type": "string",
+              "value": "={{ $json.calendar_id || $json.google_calendar_id }}"
+            },
+            {
+              "id": "summary",
+              "name": "summary",
+              "type": "string",
+              "value": "={{ $json.summary || $json.title }}"
+            },
+            {
+              "id": "start",
+              "name": "start",
+              "type": "string",
+              "value": "={{ $json.start || $json.start_time }}"
+            },
+            {
+              "id": "end",
+              "name": "end",
+              "type": "string",
+              "value": "={{ $json.end || $json.end_time }}"
+            },
+            {
+              "id": "description",
+              "name": "description",
+              "type": "string",
+              "value": "={{ $json.description || $json.notes || '' }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-params",
+      "name": "Extract Parameters",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 300],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "calendar": "={{ $json.calendar_id }}",
+        "summary": "={{ $json.summary }}",
+        "start": "={{ $json.start }}",
+        "end": "={{ $json.end }}",
+        "description": "={{ $json.description }}",
+        "options": {
+          "sendUpdates": "none"
+        }
+      },
+      "id": "create-event",
+      "name": "Create Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "position": [680, 300],
+      "typeVersion": 1,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "{{GOOGLE_CALENDAR_CREDENTIAL_ID}}",
+          "name": "Google Calendar OAuth2"
+        }
+      },
+      "notes": "📅 Cria evento usando Google Calendar API direto"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "type": "boolean",
+              "value": "=true"
+            },
+            {
+              "id": "event_id",
+              "name": "event_id",
+              "type": "string",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "id": "event_link",
+              "name": "event_link",
+              "type": "string",
+              "value": "={{ $json.htmlLink }}"
+            },
+            {
+              "id": "calendar_id",
+              "name": "calendar_id",
+              "type": "string",
+              "value": "={{ $('Extract Parameters').item.json.calendar_id }}"
+            }
+          ]
+        }
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "position": [900, 300],
+      "typeVersion": 3.4
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Parameters": {
+      "main": [
+        [
+          {
+            "node": "Create Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Event": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "google-calendar-create-event-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "tool",
+      "id": "1"
+    },
+    {
+      "name": "calendar",
+      "id": "4"
+    },
+    {
+      "name": "google-api",
+      "id": "6"
+    }
+  ]
+}

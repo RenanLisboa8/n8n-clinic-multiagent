@@ -1,0 +1,135 @@
+{
+  "name": "Google Calendar List Events Tool",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "workflow-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [240, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "calendar_id",
+              "name": "calendar_id",
+              "type": "string",
+              "value": "={{ $json.calendar_id || $json.google_calendar_id }}"
+            },
+            {
+              "id": "time_min",
+              "name": "time_min",
+              "type": "string",
+              "value": "={{ $json.time_min || $json.start_time || $json.timeMin }}"
+            },
+            {
+              "id": "time_max",
+              "name": "time_max",
+              "type": "string",
+              "value": "={{ $json.time_max || $json.end_time || $json.timeMax }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-params",
+      "name": "Extract Parameters",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 300],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": "={{ $json.calendar_id }}",
+        "options": {
+          "timeMin": "={{ $json.time_min }}",
+          "timeMax": "={{ $json.time_max }}"
+        }
+      },
+      "id": "list-events",
+      "name": "List Events",
+      "type": "n8n-nodes-base.googleCalendar",
+      "position": [680, 300],
+      "typeVersion": 1,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "{{GOOGLE_CALENDAR_CREDENTIAL_ID}}",
+          "name": "Google Calendar OAuth2"
+        }
+      },
+      "notes": "📅 Lista eventos usando Google Calendar API direto"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format events list\nconst events = $input.all();\n\nreturn {\n  calendar_id: $('Extract Parameters').item.json.calendar_id,\n  event_count: events.length,\n  events: events.map(e => ({\n    event_id: e.json.id,\n    summary: e.json.summary,\n    start: e.json.start?.dateTime || e.json.start?.date,\n    end: e.json.end?.dateTime || e.json.end?.date,\n    description: e.json.description,\n    html_link: e.json.htmlLink\n  }))\n};"
+      },
+      "id": "format-events",
+      "name": "Format Events",
+      "type": "n8n-nodes-base.code",
+      "position": [900, 300],
+      "typeVersion": 2
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Parameters": {
+      "main": [
+        [
+          {
+            "node": "List Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Events": {
+      "main": [
+        [
+          {
+            "node": "Format Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "google-calendar-list-events-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "tool",
+      "id": "1"
+    },
+    {
+      "name": "calendar",
+      "id": "4"
+    },
+    {
+      "name": "google-api",
+      "id": "6"
+    }
+  ]
+}

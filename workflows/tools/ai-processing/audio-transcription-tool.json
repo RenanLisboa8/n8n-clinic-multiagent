@@ -60,8 +60,8 @@
       "position": [900, 300],
       "id": "transcribe-audio",
       "name": "Transcribe Audio",
-      "retryOnFail": true,
-      "waitBetweenTries": 5000,
+      "retryOnFail": false,
+      "notes": "⚠️ Retry desabilitado para evitar consumo de quota em erros 429",
       "credentials": {
         "googlePalmApi": {
           "id": "{{GOOGLE_GEMINI_CREDENTIAL_ID}}",
@@ -148,7 +148,7 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
@@ -164,6 +164,11 @@
     }
   ]
 }
+
+
+
+
+
 
 
 

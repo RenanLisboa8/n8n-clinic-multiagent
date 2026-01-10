@@ -1,0 +1,106 @@
+{
+  "name": "Find Professionals Tool",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "workflow-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [240, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and validate parameters from workflow trigger\n// Handle different input formats from ExecuteWorkflowTrigger (array or object)\nlet input = $json || {};\n\n// DEBUG: Log original input\nconsole.log('Find Professionals Tool - Original input:', JSON.stringify($json, null, 2));\n\n// Handle array input (when workflowInputs passes as array)\nif (Array.isArray(input) && input.length > 0) {\n  input = input[0];\n}\n\n// Handle if input is still an array after first item check\nif (Array.isArray(input)) {\n  // Get first non-null item\n  input = input.find(item => item && (item.tenant_id || item.service_name)) || input[0] || {};\n}\n\n// Try multiple paths to get tenant_id\nlet tenantId = input.tenant_id \n  || input.body?.tenant_id\n  || input.data?.tenant_id\n  || (typeof input === 'object' && input !== null ? Object.values(input).find(v => typeof v === 'string' && v && v.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) : null)\n  || null;\n\n// Try multiple paths to get service_name\nlet serviceName = input.service_name\n  || input.body?.service_name\n  || input.data?.service_name\n  || input.service_search_text\n  || input.body?.service_search_text\n  || input.data?.service_search_text\n  || (typeof input === 'object' && input !== null ? Object.entries(input).find(([k, v]) => k !== 'tenant_id' && typeof v === 'string' && v && v.trim().length > 0)?.[1] : null)\n  || null;\n\n// Convert null string or undefined to actual null\nif (tenantId === 'null' || tenantId === 'undefined' || tenantId === undefined) tenantId = null;\nif (serviceName === 'null' || serviceName === 'undefined' || serviceName === undefined) serviceName = null;\n\n// DEBUG: Log extracted values\nconsole.log('Extracted tenant_id:', tenantId, 'type:', typeof tenantId);\nconsole.log('Extracted service_name:', serviceName, 'type:', typeof serviceName);\n\n// Validate tenant_id\nif (!tenantId || tenantId === null || (typeof tenantId === 'string' && tenantId.trim() === '')) {\n  const errorMsg = `ERRO: tenant_id é obrigatório e não foi fornecido.\nInput recebido: ${JSON.stringify(input, null, 2)}\nTipo: ${typeof input}\nÉ array: ${Array.isArray(input)}`;\n  console.error(errorMsg);\n  throw new Error(errorMsg);\n}\n\n// Validate service_name\nif (!serviceName || serviceName === null || (typeof serviceName === 'string' && serviceName.trim() === '')) {\n  const errorMsg = `ERRO: service_name é obrigatório e não foi fornecido.\nInput recebido: ${JSON.stringify(input, null, 2)}`;\n  console.error(errorMsg);\n  throw new Error(errorMsg);\n}\n\n// Ensure tenant_id is a valid UUID string\nif (typeof tenantId !== 'string') {\n  throw new Error(`tenant_id deve ser uma string. Tipo recebido: ${typeof tenantId}, Valor: ${JSON.stringify(tenantId)}`);\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!tenantId.match(uuidRegex)) {\n  throw new Error(`tenant_id deve ser um UUID válido. Valor recebido: ${tenantId}`);\n}\n\nreturn {\n  tenant_id: tenantId.trim(),\n  service_name: String(serviceName).trim(),\n  // Preserve original for debugging\n  _original_input: input,\n  _input_type: Array.isArray($json) ? 'array' : typeof $json\n};"
+      },
+      "id": "extract-params",
+      "name": "Extract Parameters",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM find_professionals_for_service('{{ $json.tenant_id }}'::UUID, '{{ ($json.service_name || \"\").replace(/'/g, \"''\") }}');",
+        "options": {}
+      },
+      "id": "query-professionals",
+      "name": "Query Professionals",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 300],
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format professionals list for AI\nconst professionals = $input.all();\n\nif (professionals.length === 0) {\n  return {\n    success: false,\n    message: 'Nenhum profissional encontrado para este serviço.',\n    professionals: []\n  };\n}\n\n// Group by professional (same service might have multiple matches)\nconst professionalMap = new Map();\n\nprofessionals.forEach(prof => {\n  const key = prof.json.professional_id;\n  if (!professionalMap.has(key)) {\n    professionalMap.set(key, {\n      professional_id: prof.json.professional_id,\n      professional_name: prof.json.professional_name,\n      specialty: prof.json.specialty,\n      google_calendar_id: prof.json.google_calendar_id,\n      services: []\n    });\n  }\n  \n  professionalMap.get(key).services.push({\n    service_id: prof.json.service_id,\n    service_name: prof.json.service_name,\n    service_code: prof.json.service_code,\n    duration_minutes: prof.json.duration_minutes,\n    price_cents: prof.json.price_cents,\n    price_display: prof.json.price_display || `R$ ${(prof.json.price_cents / 100).toFixed(2).replace('.', ',')}`,\n    match_score: prof.json.match_score\n  });\n});\n\nconst result = Array.from(professionalMap.values());\n\n// Format for AI response\nconst formattedList = result.map((prof, index) => {\n  const service = prof.services[0]; // Get best match\n  const duration = service.duration_minutes < 60 \n    ? `${service.duration_minutes}min`\n    : service.duration_minutes === 60\n    ? '1h'\n    : `${Math.floor(service.duration_minutes / 60)}h${service.duration_minutes % 60}min`;\n    \n  return `${index + 1}. ${prof.professional_name} (${prof.specialty})\\n   • Duração: ${duration}\\n   • Valor: ${service.price_display}\\n   • Calendar ID: ${prof.google_calendar_id}`;\n}).join('\\n\\n');\n\nreturn {\n  success: true,\n  count: result.length,\n  message: result.length === 1 \n    ? `Serviço disponível com ${result[0].professional_name}.`\n    : `Encontrados ${result.length} profissionais para este serviço.`,\n  professionals: result,\n  formatted_list: formattedList,\n  single_professional: result.length === 1 ? result[0] : null\n};"
+      },
+      "id": "format-result",
+      "name": "Format Result",
+      "type": "n8n-nodes-base.code",
+      "position": [900, 300],
+      "typeVersion": 2
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Parameters": {
+      "main": [
+        [
+          {
+            "node": "Query Professionals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Professionals": {
+      "main": [
+        [
+          {
+            "node": "Format Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "find-professionals-tool-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "tool",
+      "id": "1"
+    },
+    {
+      "name": "service",
+      "id": "5"
+    }
+  ]
+}

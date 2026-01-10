@@ -537,11 +537,98 @@ BEGIN
         GRANT EXECUTE ON FUNCTION calculate_appointment_end_time(TIMESTAMPTZ, UUID, UUID) TO n8n_user;
         GRANT EXECUTE ON FUNCTION validate_slot_for_service(TIMESTAMPTZ, TIMESTAMPTZ, UUID, UUID) TO n8n_user;
         GRANT EXECUTE ON FUNCTION get_professional_services_list(UUID) TO n8n_user;
+        GRANT EXECUTE ON FUNCTION get_services_catalog_for_prompt(UUID) TO n8n_user;
     END IF;
 END $$;
 
 -- ============================================================================
--- 9. MIGRATION COMPLETE
+-- 9. SERVICE CATALOG PROMPT FORMATTING FUNCTION
+-- ============================================================================
+-- Function to format services catalog for AI prompts (token-efficient)
+
+CREATE OR REPLACE FUNCTION get_services_catalog_for_prompt(p_tenant_id UUID)
+RETURNS TEXT AS $$
+DECLARE
+    v_catalog TEXT := '';
+    v_current_category TEXT := '';
+    v_category_emoji TEXT;
+    rec RECORD;
+BEGIN
+    -- Build catalog grouped by category and professional
+    FOR rec IN 
+        SELECT 
+            sc.service_category,
+            p.professional_name,
+            p.professional_title,
+            p.specialty,
+            string_agg(
+                format('• %s: %s | %s',
+                    sc.service_name,
+                    CASE 
+                        WHEN ps.custom_duration_minutes < 60 THEN format('%smin', ps.custom_duration_minutes::TEXT)
+                        WHEN ps.custom_duration_minutes = 60 THEN '1h'
+                        ELSE format('%sh%smin', 
+                            (ps.custom_duration_minutes / 60)::TEXT,
+                            (ps.custom_duration_minutes % 60)::TEXT
+                        )
+                    END,
+                    COALESCE(ps.price_display, format('R$ %s', to_char(ps.custom_price_cents / 100.0, 'FM999999990.00')))
+                ),
+                E'\n' ORDER BY sc.display_order, sc.service_name
+            ) as services_list
+        FROM professionals p
+        JOIN professional_services ps ON p.professional_id = ps.professional_id
+        JOIN services_catalog sc ON ps.service_id = sc.service_id
+        WHERE p.tenant_id = p_tenant_id
+        AND p.is_active = true
+        AND ps.is_active = true
+        AND sc.is_active = true
+        GROUP BY sc.service_category, p.professional_name, p.professional_title, p.specialty, p.display_order
+        ORDER BY p.display_order, sc.service_category
+    LOOP
+        -- Add category header if changed
+        IF v_current_category IS DISTINCT FROM rec.service_category THEN
+            -- Map category to emoji
+            v_category_emoji := CASE rec.service_category
+                WHEN 'Odontologia' THEN '🦷'
+                WHEN 'Estética' THEN '💆'
+                WHEN 'Cardiologia' THEN '❤️'
+                WHEN 'Clínico Geral' THEN '👨‍⚕️'
+                ELSE '📋'
+            END;
+            
+            IF v_catalog != '' THEN
+                v_catalog := v_catalog || E'\n';
+            END IF;
+            
+            v_catalog := v_catalog || format('%s *%s* - %s %s (%s)',
+                v_category_emoji,
+                UPPER(rec.service_category),
+                COALESCE(rec.professional_title, ''),
+                rec.professional_name,
+                rec.specialty
+            );
+            v_current_category := rec.service_category;
+        END IF;
+        
+        -- Add services for this professional
+        v_catalog := v_catalog || E'\n' || rec.services_list;
+    END LOOP;
+    
+    RETURN COALESCE(v_catalog, 'Nenhum serviço cadastrado.');
+END;
+$$ LANGUAGE plpgsql;
+
+-- Grant permissions for the new function
+DO $$ 
+BEGIN
+    IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'n8n_user') THEN
+        GRANT EXECUTE ON FUNCTION get_services_catalog_for_prompt(UUID) TO n8n_user;
+    END IF;
+END $$;
+
+-- ============================================================================
+-- 10. MIGRATION COMPLETE
 -- ============================================================================
 
 DO $$
@@ -558,6 +645,7 @@ BEGIN
     RAISE NOTICE '  • find_professionals_for_service() - AI routing';
     RAISE NOTICE '  • calculate_appointment_end_time() - Dynamic end time';
     RAISE NOTICE '  • validate_slot_for_service() - Slot >= Duration check';
+    RAISE NOTICE '  • get_services_catalog_for_prompt() - Format catalog for AI';
     RAISE NOTICE '';
     RAISE NOTICE 'Next step: Run 005_seed_service_catalog_data.sql';
     RAISE NOTICE '════════════════════════════════════════════════════════════════';

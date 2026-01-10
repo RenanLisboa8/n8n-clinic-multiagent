@@ -177,7 +177,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ===================================\n// INTENT CLASSIFIER\n// Cost: ~$0 (no AI call)\n// Latency: ~10ms\n// ===================================\n\nconst text = ($json.message_text || $json.transcribed_text || '').toLowerCase();\nconst tenantId = $json.tenant_id;\n\n// Basic pattern matching for common intents\nconst patterns = {\n  greeting: /^(oi|olá|ola|bom dia|boa tarde|boa noite|hey|hello)/,\n  hours: /(horário|horario|hora|abre|fecha|aberto|funciona|atende)/,\n  location: /(endereço|endereco|onde|localização|localizacao|fica|chegar)/,\n  appointment: /(agendar|marcar|consulta|horário disponível|horario disponivel|vaga)/,\n  cancel: /(cancelar|desmarcar|não vou|nao vou)/,\n  reschedule: /(remarcar|mudar|alterar|trocar dia|trocar hora)/,\n  confirmation: /(sim|confirmo|confirmar|ok|tudo bem|pode ser)/,\n  help: /(ajuda|help|socorro|não entendi|nao entendi)/\n};\n\nlet intent = 'complex'; // Default to AI processing\nlet confidence = 0;\n\nfor (const [intentName, pattern] of Object.entries(patterns)) {\n  if (pattern.test(text)) {\n    intent = intentName;\n    confidence = 0.9;\n    break;\n  }\n}\n\n// Extract dates if present (simple regex for pt-BR)\nconst datePatterns = [\n  /\\d{1,2}[\\/\\-]\\d{1,2}(?:[\\/\\-]\\d{2,4})?/, // 10/01 or 10/01/2025\n  /(próxima|proxima|segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)/,\n  /(amanhã|amanha|hoje|depois de amanhã|depois de amanha)/\n];\n\nlet extractedDate = null;\nfor (const pattern of datePatterns) {\n  const match = text.match(pattern);\n  if (match) {\n    extractedDate = match[0];\n    break;\n  }\n}\n\nreturn {\n  ...$json,\n  intent,\n  confidence,\n  extracted_date: extractedDate,\n  requires_ai: intent === 'complex' || confidence < 0.8,\n  // Prepare normalized text for FAQ query\n  message_text_normalized: text.trim(),\n  intent_for_faq: intent || ''\n};"
+        "jsCode": "// ===================================\n// INTENT CLASSIFIER\n// Cost: ~$0 (no AI call)\n// Latency: ~10ms\n// ===================================\n\nconst text = ($json.message_text || $json.transcribed_text || '').trim();\nconst textLower = text.toLowerCase();\nconst tenantId = $json.tenant_id;\n\n// PRIORITY: Numbered menu options (1, 2, 3, 4) - handled first to avoid AI\n// These map directly to FAQ entries\nconst menuPatterns = {\n  '1': /^1$|^um$/i,\n  '2': /^2$|^dois$/i,\n  '3': /^3$|^tr[êe]s$/i,\n  '4': /^4$|^quatro$/i\n};\n\n// Check for menu number first (highest priority)\nlet intent = 'complex'; // Default to AI processing\nlet confidence = 0;\nlet menuNumber = null;\n\nfor (const [num, pattern] of Object.entries(menuPatterns)) {\n  if (pattern.test(text)) {\n    menuNumber = num;\n    // Map menu number to intent for FAQ lookup\n    const menuToIntent = {\n      '1': 'appointment',\n      '2': 'reschedule',\n      '3': 'info',\n      '4': 'hours_location'\n    };\n    intent = menuToIntent[num] || 'complex';\n    confidence = 0.95; // Very high confidence for menu selections\n    break;\n  }\n}\n\n// If not a menu number, check other patterns\nif (!menuNumber) {\n  const patterns = {\n    greeting: /^(oi|olá|ola|bom dia|boa tarde|boa noite|hey|hello)/,\n    hours: /(horário|horario|hora|abre|fecha|aberto|funciona|atende)/,\n    location: /(endereço|endereco|onde|localização|localizacao|fica|chegar)/,\n    appointment: /(agendar|marcar|consulta|horário disponível|horario disponivel|vaga)/,\n    cancel: /(cancelar|desmarcar|não vou|nao vou)/,\n    reschedule: /(remarcar|mudar|alterar|trocar dia|trocar hora)/,\n    confirmation: /(sim|confirmo|confirmar|ok|tudo bem|pode ser)/,\n    help: /(ajuda|help|socorro|não entendi|nao entendi)/\n  };\n\n  for (const [intentName, pattern] of Object.entries(patterns)) {\n    if (pattern.test(textLower)) {\n      intent = intentName;\n      confidence = 0.9;\n      break;\n    }\n  }\n}\n\n// Extract dates if present (simple regex for pt-BR)\nconst datePatterns = [\n  /\\d{1,2}[\\/\\-]\\d{1,2}(?:[\\/\\-]\\d{2,4})?/, // 10/01 or 10/01/2025\n  /(próxima|proxima|segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)/,\n  /(amanhã|amanha|hoje|depois de amanhã|depois de amanha)/\n];\n\nlet extractedDate = null;\nfor (const pattern of datePatterns) {\n  const match = textLower.match(pattern);\n  if (match) {\n    extractedDate = match[0];\n    break;\n  }\n}\n\nreturn {\n  ...$json,\n  intent,\n  confidence,\n  menu_number: menuNumber, // Store menu number if selected\n  extracted_date: extractedDate,\n  requires_ai: intent === 'complex' || confidence < 0.8,\n  // For FAQ query: use menu number directly if present, otherwise use normalized text\n  message_text_normalized: menuNumber ? menuNumber : textLower.trim(),\n  intent_for_faq: intent || ''\n};"
       },
       "id": "intent-classifier",
       "name": "Intent Classifier",
@@ -192,7 +192,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=-- Check FAQ cache first\n-- Note: Returns empty if no match (workflow continues to AI)\n-- Uses message_text_normalized and intent_for_faq from Intent Classifier\n-- Falls back to message_text and intent if normalized fields not available\nSELECT \n  answer,\n  view_count,\n  question_original,\n  intent\nFROM tenant_faq\nWHERE tenant_id = '{{ $json.tenant_id }}'::UUID\n  AND is_active = true\n  AND (\n    question_normalized ILIKE '%{{ $json.message_text_normalized || ($json.message_text || \"\").toLowerCase() }}%'\n    OR ('{{ $json.intent_for_faq || $json.intent || \"\" }}' != '' AND keywords @> ARRAY['{{ $json.intent_for_faq || $json.intent || \"\" }}'])\n    OR ('{{ $json.intent_for_faq || $json.intent || \"\" }}' != '' AND intent = '{{ $json.intent_for_faq || $json.intent || \"\" }}')\n  )\nORDER BY view_count DESC, COALESCE(last_used_at, created_at) DESC\nLIMIT 1;",
+        "query": "=-- Check FAQ cache first\n-- IMPORTANT: Always returns at least one row to keep workflow running\n-- Uses message_text_normalized and intent_for_faq from Intent Classifier\n-- Falls back to message_text and intent if normalized fields not available\nWITH faq_result AS (\n  SELECT \n    answer,\n    view_count,\n    question_original,\n    intent\n  FROM tenant_faq\n  WHERE tenant_id = '{{ $json.tenant_id }}'::UUID\n    AND is_active = true\n    AND (\n      question_normalized ILIKE '%{{ $json.message_text_normalized || ($json.message_text || \"\").toLowerCase() }}%'\n      OR ('{{ $json.intent_for_faq || $json.intent || \"\" }}' != '' AND keywords @> ARRAY['{{ $json.intent_for_faq || $json.intent || \"\" }}'])\n      OR ('{{ $json.intent_for_faq || $json.intent || \"\" }}' != '' AND intent = '{{ $json.intent_for_faq || $json.intent || \"\" }}')\n    )\n  ORDER BY view_count DESC, COALESCE(last_used_at, created_at) DESC\n  LIMIT 1\n)\nSELECT * FROM faq_result\nUNION ALL\nSELECT NULL::TEXT as answer, 0::INTEGER as view_count, NULL::TEXT as question_original, NULL::TEXT as intent\nWHERE NOT EXISTS (SELECT 1 FROM faq_result)\nLIMIT 1;",
         "options": {}
       },
       "id": "check-faq",
@@ -209,7 +209,23 @@
           "name": "Postgres account"
         }
       },
-      "notes": "💾 Check if we can answer from cache - uses query parameters for safety"
+      "notes": "💾 Check if we can answer from cache - uses query parameters for safety",
+      "continueOnFail": false,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge FAQ result with Intent Classifier data\n// PostgreSQL node replaces input data, so we need to restore fields from Intent Classifier\nconst intentClassifierData = $('Intent Classifier').first()?.json || {};\nconst faqResult = $json || {};\n\n// Merge: Intent Classifier fields + FAQ result fields\n// FAQ fields (answer, view_count, question_original, intent) take precedence over Intent Classifier\nreturn {\n  // Preserve all Intent Classifier fields\n  ...intentClassifierData,\n  // Override with FAQ result fields (if found)\n  answer: faqResult.answer || null,\n  faq_view_count: faqResult.view_count || 0,\n  faq_question_original: faqResult.question_original || null,\n  faq_intent: faqResult.intent || null,\n  // Preserve FAQ answer separately for easy access\n  ...(faqResult.answer ? { faq_found: true } : { faq_found: false })\n};"
+      },
+      "id": "merge-faq-result",
+      "name": "Merge FAQ Result",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1340,
+        400
+      ],
+      "typeVersion": 2,
+      "notes": "🔧 Merges FAQ result with Intent Classifier data"
     },
     {
       "parameters": {
@@ -230,7 +246,7 @@
               }
             },
             {
-              "leftValue": "={{ $('Check FAQ Cache').item.json.answer }}",
+              "leftValue": "={{ $json.answer || \"\" }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -252,7 +268,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build dynamic system prompt with services catalog\nconst basePrompt = $json.tenant_config?.system_prompt_patient || '';\nconst servicesCatalog = $json.services_catalog || 'Nenhum serviço cadastrado.';\n\n// Replace {{ $json.services_catalog }} placeholder with actual catalog\nconst systemPrompt = basePrompt.replace(\n  /\\{\\{ \\$json\\.services_catalog \\}\\}/g,\n  servicesCatalog\n);\n\nreturn {\n  ...$json,\n  system_prompt_with_catalog: systemPrompt\n};"
+        "jsCode": "// Build dynamic system prompt with services catalog\nconst basePrompt = $json.tenant_config?.system_prompt_patient || '';\nconst servicesCatalog = $json.services_catalog || 'Nenhum serviço cadastrado.';\n\n// Replace {{ $json.services_catalog }} placeholder with actual catalog\nconst systemPrompt = basePrompt.replace(\n  /\\{\\{ \\$json\\.services_catalog \\}\\}/g,\n  servicesCatalog\n);\n\n// CRITICAL: Preserve tenant_id and all essential fields for tools\nreturn {\n  ...$json,\n  system_prompt_with_catalog: systemPrompt,\n  // Explicitly preserve tenant_id (critical for tool workflows)\n  tenant_id: $json.tenant_id || $('Merge FAQ Result').item.json.tenant_id || $('Parse Webhook Data').item.json.tenant_id || null,\n  // Preserve tenant_config for reference\n  tenant_config: $json.tenant_config || $('Merge FAQ Result').item.json.tenant_config || $('Parse Webhook Data').item.json.tenant_config || null\n};"
       },
       "id": "build-prompt",
       "name": "Build Prompt with Catalog",
@@ -287,7 +303,7 @@
         "options": {
           "model": {
             "__rl": true,
-            "value": "={{ $json.tenant_config.llm_model_name || 'gemini-2.0-flash-exp' }}",
+            "value": "={{ $json.tenant_config.llm_model_name || 'gemini-2.0-flash-lite' }}",
             "mode": "list"
           },
           "temperature": "={{ $json.tenant_config.llm_temperature || 0.7 }}"
@@ -301,6 +317,8 @@
       ],
       "id": "gemini-model",
       "name": "Google Gemini Chat Model",
+      "retryOnFail": false,
+      "notes": "⚠️ Retry desabilitado para evitar loops em erros 429 (quota exceeded). Use gemini-2.0-flash-lite para maior limite.",
       "credentials": {
         "googlePalmApi": {
           "id": "{{GOOGLE_GEMINI_CREDENTIAL_ID}}",
@@ -333,7 +351,7 @@
     {
       "parameters": {
         "name": "FindProfessionals",
-        "description": "Busca profissionais que oferecem um serviço específico. Use quando o cliente escolher um serviço para verificar quantos profissionais oferecem e seus preços/durações. Retorna lista de profissionais com calendar_id de cada um.",
+        "description": "Busca profissionais que oferecem um serviço específico. Use quando o cliente escolher um serviço para verificar quantos profissionais oferecem e seus preços/durações. Retorna lista de profissionais com calendar_id de cada um. IMPORTANTE: Esta ferramenta recebe tenant_id automaticamente do contexto - você só precisa fornecer o service_name.",
         "workflowId": {
           "__rl": true,
           "value": "{{ 'Find Professionals Tool' }}",
@@ -342,7 +360,7 @@
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
-            "tenant_id": "={{ $json.tenant_id }}",
+            "tenant_id": "={{ $('Parse Webhook Data').first()?.json?.tenant_id || $('Build Prompt with Catalog').first()?.json?.tenant_id || $('Merge FAQ Result').first()?.json?.tenant_id || '' }}",
             "service_name": "={{ $fromAI('service_name', '', 'string') }}"
           }
         }
@@ -360,7 +378,7 @@
     {
       "parameters": {
         "name": "CheckCalendarAvailability",
-        "description": "Consulta horários disponíveis em um calendário do Google Calendar. Use quando o cliente escolher um profissional e data. Retorna lista de horários livres. IMPORTANTE: Use o calendar_id do profissional retornado por FindProfessionals.",
+        "description": "Consulta horários disponíveis em um calendário do Google Calendar. Use quando o cliente escolher um profissional e serviço. Retorna as 10 opções de horário mais próximas, considerando a duração do procedimento. IMPORTANTE: Use o calendar_id e duration_minutes retornados por FindProfessionals. O start_time deve ser a partir de agora (data/hora atual). O end_time deve ser 7 dias no futuro. Retorna apenas as 10 opções mais próximas que têm tempo suficiente para o procedimento.",
         "workflowId": {
           "__rl": true,
           "value": "{{ 'Google Calendar Availability Tool' }}",
@@ -370,8 +388,9 @@
           "mappingMode": "defineBelow",
           "value": {
             "calendar_id": "={{ $fromAI('calendar_id', '', 'string') }}",
-            "start_time": "={{ $fromAI('start_time', '', 'string') }}",
-            "end_time": "={{ $fromAI('end_time', '', 'string') }}"
+            "start_time": "={{ $fromAI('start_time', new Date().toISOString(), 'string') }}",
+            "end_time": "={{ $fromAI('end_time', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), 'string') }}",
+            "duration_minutes": "={{ $fromAI('duration_minutes', 30, 'number') }}"
           }
         }
       },
@@ -388,7 +407,7 @@
     {
       "parameters": {
         "name": "CreateCalendarEvent",
-        "description": "Cria um evento no Google Calendar. Use quando o cliente escolher um horário. IMPORTANTE: Use o calendar_id do profissional escolhido. Inclua na descrição: nome completo, data nascimento, telefone e serviço.",
+        "description": "Cria um evento no Google Calendar. Use quando o cliente escolher um horário. IMPORTANTE: Use o calendar_id do profissional escolhido. Inclua na descrição: nome completo, data de nascimento, telefone (extrair de remote_jid do WhatsApp) e serviço. NÃO solicite telefone do cliente - já está disponível via WhatsApp.",
         "workflowId": {
           "__rl": true,
           "value": "{{ 'Google Calendar Create Event Tool' }}",
@@ -446,7 +465,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ===================================\n// SIMPLE MESSAGE FORMATTER\n// Replaces AI-based formatter\n// Cost: ~$0 (no AI call)\n// Latency: ~5ms vs ~800ms\n// ===================================\n\n// Try multiple sources in order of priority:\n// 1. formatted_text (already formatted from Use FAQ Answer node)\n// 2. output (from Patient Assistant Agent - LangChain agent)\n// 3. answer (from Check FAQ Cache - raw database result)\n// 4. text (alternative agent output field)\n// 5. message_text (fallback)\nconst rawText = $json.formatted_text || $json.output || $json.answer || $json.text || $json.message_text || '';\n\n// If already formatted and not empty, ensure essential fields are preserved\nif ($json.formatted_text && $json.formatted_text.trim() !== '') {\n  return {\n    ...$json,\n    // Ensure essential fields for Update FAQ Cache are present\n    tenant_id: $json.tenant_id || $('Parse Webhook Data')?.first()?.json?.tenant_id,\n    message_text: $json.message_text || $json.message_text_normalized || $('Parse Webhook Data')?.first()?.json?.message_text || '',\n    intent: $json.intent || $json.intent_for_faq || $('Parse Webhook Data')?.first()?.json?.intent || ''\n  };\n}\n\n// Validate we have text to format\nif (!rawText || (typeof rawText === 'string' && rawText.trim() === '')) {\n  console.log('Format Message: No text found in:', Object.keys($json));\n  return {\n    ...$json,\n    formatted_text: 'Desculpe, ocorreu um erro. Por favor, tente novamente.'\n  };\n}\n\n// Convert to string if needed\nconst textToFormat = String(rawText);\n\n// Simple formatting rules for WhatsApp\nlet formatted = textToFormat\n  // Replace literal \\n with actual newlines (handle escaped newlines from DB)\n  .replace(/\\\\n/g, '\\n')\n  // Convert markdown bold ** to WhatsApp bold *\n  .replace(/\\*\\*(.+?)\\*\\*/g, '*$1*')\n  // Remove markdown headers #\n  .replace(/^#{1,6}\\s+/gm, '')\n  // Convert markdown lists to WhatsApp bullets\n  .replace(/^[-*]\\s+/gm, '• ')\n  // Clean up excessive newlines (3+ become 2)\n  .replace(/\\n{3,}/g, '\\n\\n')\n  // Trim whitespace\n  .trim();\n\n// Preserve all original fields and add formatted_text\nreturn {\n  ...$json,\n  formatted_text: formatted,\n  // Explicitly preserve essential fields for Update FAQ Cache (in case they were lost)\n  tenant_id: $json.tenant_id || $('Parse Webhook Data')?.first()?.json?.tenant_id,\n  message_text: $json.message_text || $json.message_text_normalized || $('Parse Webhook Data')?.first()?.json?.message_text || '',\n  intent: $json.intent || $json.intent_for_faq || $('Parse Webhook Data')?.first()?.json?.intent || ''\n};"
+        "jsCode": "// ===================================\n// SIMPLE MESSAGE FORMATTER\n// Replaces AI-based formatter\n// Cost: ~$0 (no AI call)\n// Latency: ~5ms vs ~800ms\n// ===================================\n\n// Try multiple sources in order of priority:\n// 1. formatted_text (from Use FAQ Answer node - may contain \\n literals)\n// 2. output (from Patient Assistant Agent - LangChain agent)\n// 3. answer (from Check FAQ Cache - raw database result)\n// 4. text (alternative agent output field)\n// 5. message_text (fallback)\nconst rawText = $json.formatted_text || $json.output || $json.answer || $json.text || $json.message_text || '';\n\n// Validate we have text to format\nif (!rawText || (typeof rawText === 'string' && rawText.trim() === '')) {\n  console.log('Format Message: No text found in:', Object.keys($json));\n  return {\n    ...$json,\n    formatted_text: 'Desculpe, ocorreu um erro. Por favor, tente novamente.'\n  };\n}\n\n// Convert to string if needed\nconst textToFormat = String(rawText);\n\n// Simple formatting rules for WhatsApp\n// IMPORTANT: Always process text to convert \\n literals to actual newlines\nlet formatted = textToFormat\n  // Replace literal \\\\n (escaped backslash + n) with actual newlines\n  // This handles strings coming from database or JSON that have \\n as literal characters\n  .replace(/\\\\n/g, '\\n')\n  // Also handle \\r\\n (Windows line breaks)\n  .replace(/\\\\r\\\\n/g, '\\n')\n  // Handle \\r (old Mac line breaks)\n  .replace(/\\\\r/g, '\\n')\n  // Convert markdown bold ** to WhatsApp bold *\n  .replace(/\\*\\*(.+?)\\*\\*/g, '*$1*')\n  // Remove markdown headers #\n  .replace(/^#{1,6}\\s+/gm, '')\n  // Convert markdown lists to WhatsApp bullets\n  .replace(/^[-*]\\s+/gm, '• ')\n  // Clean up excessive newlines (3+ become 2)\n  .replace(/\\n{3,}/g, '\\n\\n')\n  // Trim whitespace\n  .trim();\n\n// Preserve all original fields and add formatted_text\nreturn {\n  ...$json,\n  formatted_text: formatted,\n  // Explicitly preserve essential fields for Update FAQ Cache (in case they were lost)\n  tenant_id: $json.tenant_id || $('Parse Webhook Data')?.first()?.json?.tenant_id,\n  message_text: $json.message_text || $json.message_text_normalized || $('Parse Webhook Data')?.first()?.json?.message_text || '',\n  intent: $json.intent || $json.intent_for_faq || $('Parse Webhook Data')?.first()?.json?.intent || ''\n};"
       },
       "id": "format-message-code",
       "name": "Format Message (Code)",
@@ -640,6 +659,17 @@
       "main": [
         [
           {
+            "node": "Merge FAQ Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge FAQ Result": {
+      "main": [
+        [
+          {
             "node": "Needs AI?",
             "type": "main",
             "index": 0
@@ -786,7 +816,7 @@
     "executionOrder": "v1",
     "saveManualExecutions": true,
     "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": "={{ 'Error Handler' }}"
+    "errorWorkflow": "={{ '04 - Error Handler' }}"
   },
   "versionId": "whatsapp-patient-handler-opt-v1",
   "meta": {

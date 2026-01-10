@@ -104,25 +104,49 @@ Transcrever mensagens de áudio usando Google Gemini Audio.
 
 ### 📅 Ferramentas de Calendário (`calendar/`)
 
-#### `mcp-calendar-tool.json`
-Interface unificada do Google Calendar via protocolo MCP.
+#### `google-calendar-availability-tool.json`
+Verifica horários disponíveis em um calendário do Google Calendar.
 
-**Ações:**
-- `get_all`: Listar eventos em intervalo de datas
-- `get_availability`: Verificar horários disponíveis
-- `create`: Criar novo evento
-- `update`: Atualizar evento existente
-- `delete`: Deletar evento
-- `get`: Obter detalhes de evento único
-
-**Entradas (variam por ação):**
-- `action` (string, obrigatório): Ação a realizar
-- `date_start`, `date_end` (datetime): Para get_all, get_availability
-- `event_id` (string): Para update, delete, get
-- `title`, `description` (string): Para create, update
+**Entradas:**
+- `calendar_id` (string, obrigatório): ID do calendário do Google Calendar
+- `start_time` (string, obrigatório): Data/hora inicial (ISO 8601)
+- `end_time` (string, obrigatório): Data/hora final (ISO 8601)
 
 **Saídas:**
-- Dados do evento ou mensagem de confirmação
+- `available_slots` (array): Lista de horários disponíveis
+- `calendar_id` (string): ID do calendário consultado
+
+---
+
+#### `google-calendar-create-event-tool.json`
+Cria um evento no Google Calendar.
+
+**Entradas:**
+- `calendar_id` (string, obrigatório): ID do calendário do Google Calendar
+- `summary` (string, obrigatório): Título do evento
+- `start` (string, obrigatório): Data/hora de início (ISO 8601)
+- `end` (string, obrigatório): Data/hora de fim (ISO 8601)
+- `description` (string, opcional): Descrição do evento
+
+**Saídas:**
+- `event_id` (string): ID do evento criado
+- `html_link` (string): Link HTML para o evento
+- `status` (string): Status da criação
+
+---
+
+#### `google-calendar-list-events-tool.json`
+Lista eventos de um calendário do Google Calendar.
+
+**Entradas:**
+- `calendar_id` (string, obrigatório): ID do calendário do Google Calendar
+- `time_min` (string, opcional): Data/hora mínima (ISO 8601)
+- `time_max` (string, opcional): Data/hora máxima (ISO 8601)
+- `max_results` (number, opcional): Número máximo de resultados
+
+**Saídas:**
+- `events` (array): Lista de eventos encontrados
+- `total` (number): Total de eventos
 
 ---
 
@@ -227,8 +251,9 @@ Ferramentas usam estas credenciais do n8n:
 Ferramentas referenciam estas variáveis de ambiente:
 - `EVOLUTION_INSTANCE_NAME`: Instância WhatsApp padrão
 - `TELEGRAM_INTERNAL_CHAT_ID`: Alvo de notificação da equipe
-- `MCP_CALENDAR_ENDPOINT`: Endpoint da API de calendário
 - `CLINIC_NAME`, `CLINIC_ADDRESS`: Informações do negócio
+
+**Nota:** Google Calendar tools usam credenciais OAuth2 configuradas no n8n (não variáveis de ambiente)
 
 ---
 
@@ -241,8 +266,10 @@ Ao importar ferramentas, siga esta ordem para satisfazer dependências:
    - whatsapp-send-tool.json
    - telegram-notify-tool.json
 
-2. **Ferramentas de Calendário** (sem dependências)
-   - mcp-calendar-tool.json
+2. **Ferramentas de Calendário** (depende de Google OAuth)
+   - google-calendar-availability-tool.json
+   - google-calendar-create-event-tool.json
+   - google-calendar-list-events-tool.json
 
 3. **Ferramentas de Processamento de IA** (depende de comunicação)
    - image-ocr-tool.json
@@ -296,5 +323,7 @@ Ao adicionar novas ferramentas:
 
 ---
 
-**Última Atualização:** 2026-01-01  
-**Versão:** 1.0
+**Última Atualização:** 2026-01-09  
+**Versão:** 2.0
+
+**Nota:** MCP Calendar Tool foi removido e substituído pelos Google Calendar Tools diretos (gratuitos e sem dependência externa)

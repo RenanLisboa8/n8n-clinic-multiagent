@@ -57,73 +57,10 @@ FOR EACH ROW
 EXECUTE FUNCTION update_faq_updated_at();
 
 -- ========================================
--- SEED DATA: Common FAQ entries
+-- SEED DATA: Common FAQ entries for ALL active tenants
 -- ========================================
 
--- Example FAQ entries for Clínica Exemplo
-INSERT INTO tenant_faq (
-    tenant_id,
-    question_original,
-    question_normalized,
-    answer,
-    keywords,
-    intent,
-    view_count
-) 
-SELECT 
-    tenant_id,
-    'Qual o horário de funcionamento?',
-    'qual o horário de funcionamento?',
-    'Olá! 👋\n\nNosso horário de funcionamento é:\n*' || hours_start || ' às ' || hours_end || '*\n' || days_open || '\n\nPosso ajudar com mais alguma coisa?',
-    ARRAY['horário', 'horario', 'hora', 'funcionamento', 'abre', 'fecha'],
-    'hours',
-    0
-FROM tenant_config
-WHERE evolution_instance_name = 'clinic_example_instance'
-ON CONFLICT (tenant_id, question_normalized) DO NOTHING;
-
-INSERT INTO tenant_faq (
-    tenant_id,
-    question_original,
-    question_normalized,
-    answer,
-    keywords,
-    intent,
-    view_count
-) 
-SELECT 
-    tenant_id,
-    'Qual o endereço da clínica?',
-    'qual o endereço da clínica?',
-    'Nosso endereço é:\n*' || clinic_address || '*\n\n📍 Veja no mapa:\n' || google_calendar_public_link || '\n\nQualquer dúvida, estou à disposição!',
-    ARRAY['endereço', 'endereco', 'onde', 'localização', 'localizacao'],
-    'location',
-    0
-FROM tenant_config
-WHERE evolution_instance_name = 'clinic_example_instance'
-ON CONFLICT (tenant_id, question_normalized) DO NOTHING;
-
-INSERT INTO tenant_faq (
-    tenant_id,
-    question_original,
-    question_normalized,
-    answer,
-    keywords,
-    intent,
-    view_count
-) 
-SELECT 
-    tenant_id,
-    'Como posso agendar uma consulta?',
-    'como posso agendar uma consulta?',
-    'Para agendar sua consulta, me informe:\n\n1️⃣ *Nome completo*\n2️⃣ *Data de nascimento*\n3️⃣ *Telefone para contato*\n4️⃣ *Data e horário de preferência*\n\nTerei prazer em verificar a disponibilidade para você! 😊',
-    ARRAY['agendar', 'marcar', 'consulta', 'agendamento'],
-    'appointment',
-    0
-FROM tenant_config
-WHERE evolution_instance_name = 'clinic_example_instance'
-ON CONFLICT (tenant_id, question_normalized) DO NOTHING;
-
+-- 1. Greeting FAQ (with numbered menu)
 INSERT INTO tenant_faq (
     tenant_id,
     question_original,
@@ -137,12 +74,264 @@ SELECT
     tenant_id,
     'Oi',
     'oi',
-    'Olá! 👋 Seja bem-vindo(a) à *' || clinic_name || '*!\n\nSou o assistente virtual e estou aqui para ajudá-lo(a) com:\n\n✅ Agendamento de consultas\n✅ Reagendamentos\n✅ Informações sobre a clínica\n✅ Horários e localização\n\nComo posso ajudar você hoje?',
-    ARRAY['oi', 'olá', 'ola', 'hey', 'hello'],
+    'Olá! Seja bem-vindo(a) à *' || clinic_name || '*!
+
+Sou o assistente virtual e estou aqui para ajudá-lo(a). Escolha uma opção:
+
+1 - Agendamento de consultas
+2 - Reagendamentos
+3 - Informações sobre a clínica
+4 - Horários e localização
+
+Digite o número da opção desejada (1, 2, 3 ou 4).',
+    ARRAY['oi', 'olá', 'ola', 'hey', 'hello', 'bom dia', 'boa tarde', 'boa noite'],
     'greeting',
     0
 FROM tenant_config
-WHERE evolution_instance_name = 'clinic_example_instance'
+WHERE is_active = true
+ON CONFLICT (tenant_id, question_normalized) DO NOTHING;
+
+-- 2. Option 1 - Appointment FAQ
+INSERT INTO tenant_faq (
+    tenant_id,
+    question_original,
+    question_normalized,
+    answer,
+    keywords,
+    intent,
+    view_count
+) 
+SELECT 
+    tenant_id,
+    '1',
+    '1',
+    'Ótimo! Para agendarmos sua consulta, por favor, me informe:
+
+• *Nome completo*:
+• *Data de nascimento* (formato: DD/MM/AAAA):
+
+*Nota*: Seu telefone já está disponível via WhatsApp.
+
+Assim que tiver essas informações, posso verificar a disponibilidade para você!',
+    ARRAY['1', 'um', 'agendar', 'marcar', 'consulta', 'agendamento'],
+    'appointment',
+    0
+FROM tenant_config
+WHERE is_active = true
+ON CONFLICT (tenant_id, question_normalized) DO UPDATE SET
+    answer = EXCLUDED.answer,
+    keywords = EXCLUDED.keywords;
+
+-- 3. Option 2 - Reschedule FAQ
+INSERT INTO tenant_faq (
+    tenant_id,
+    question_original,
+    question_normalized,
+    answer,
+    keywords,
+    intent,
+    view_count
+) 
+SELECT 
+    tenant_id,
+    '2',
+    '2',
+    'Entendi! Você quer *reagendar* uma consulta.
+
+Por favor, me informe:
+• O nome completo usado no agendamento anterior
+• A data/hora atual da consulta
+• A nova data/hora desejada
+
+Assim que tiver essas informações, posso ajudar com o reagendamento!',
+    ARRAY['2', 'dois', 'reagendar', 'remarcar', 'mudar', 'alterar', 'trocar'],
+    'reschedule',
+    0
+FROM tenant_config
+WHERE is_active = true
+ON CONFLICT (tenant_id, question_normalized) DO UPDATE SET
+    answer = EXCLUDED.answer,
+    keywords = EXCLUDED.keywords;
+
+-- 4. Option 3 - Clinic Info FAQ
+INSERT INTO tenant_faq (
+    tenant_id,
+    question_original,
+    question_normalized,
+    answer,
+    keywords,
+    intent,
+    view_count
+) 
+SELECT 
+    tenant_id,
+    '3',
+    '3',
+    'Informações sobre a clínica *' || clinic_name || '*:
+
+Clínica especializada em diversos tratamentos.
+
+Para mais informações específicas, digite:
+• "serviços" - para ver nossos serviços
+• "profissionais" - para conhecer nossa equipe
+• Ou faça uma pergunta específica',
+    ARRAY['3', 'três', 'tres', 'informações', 'informacoes', 'info', 'sobre', 'clinica'],
+    'info',
+    0
+FROM tenant_config
+WHERE is_active = true
+ON CONFLICT (tenant_id, question_normalized) DO UPDATE SET
+    answer = EXCLUDED.answer,
+    keywords = EXCLUDED.keywords;
+
+-- 5. Option 4 - Hours and Location FAQ
+INSERT INTO tenant_faq (
+    tenant_id,
+    question_original,
+    question_normalized,
+    answer,
+    keywords,
+    intent,
+    view_count
+) 
+SELECT 
+    tenant_id,
+    '4',
+    '4',
+    'Horários e Localização:
+
+*Horário de Funcionamento:*
+' || COALESCE(hours_start || ' às ' || hours_end, 'Consulte disponibilidade') || '
+' || COALESCE(days_open_display, 'Segunda a Sábado') || '
+
+*Endereço:*
+' || COALESCE(clinic_address, 'Endereço não cadastrado') || '
+' || COALESCE('📍 Mapa: ' || google_calendar_public_link, '') || '
+
+*Telefone:* ' || COALESCE(clinic_phone, 'Não disponível') || '
+
+Precisa de mais alguma informação?',
+    ARRAY['4', 'quatro', 'horário', 'horario', 'localização', 'localizacao', 'endereço', 'endereco', 'horas', 'onde', 'fica'],
+    'hours_location',
+    0
+FROM tenant_config
+WHERE is_active = true
+ON CONFLICT (tenant_id, question_normalized) DO UPDATE SET
+    answer = EXCLUDED.answer,
+    keywords = EXCLUDED.keywords;
+
+-- 6. Hours FAQ (alternative question format)
+INSERT INTO tenant_faq (
+    tenant_id,
+    question_original,
+    question_normalized,
+    answer,
+    keywords,
+    intent,
+    view_count
+) 
+SELECT 
+    tenant_id,
+    'Qual o horário de funcionamento?',
+    'qual o horário de funcionamento?',
+    'Olá! 👋
+
+Nosso horário de funcionamento é:
+*' || hours_start || ' às ' || hours_end || '*
+' || COALESCE(days_open_display, 'Segunda a Sábado') || '
+
+Posso ajudar com mais alguma coisa?',
+    ARRAY['horário', 'horario', 'hora', 'funcionamento', 'abre', 'fecha', 'aberto', 'atende'],
+    'hours',
+    0
+FROM tenant_config
+WHERE is_active = true
+ON CONFLICT (tenant_id, question_normalized) DO NOTHING;
+
+-- 7. Location FAQ (alternative question format)
+INSERT INTO tenant_faq (
+    tenant_id,
+    question_original,
+    question_normalized,
+    answer,
+    keywords,
+    intent,
+    view_count
+) 
+SELECT 
+    tenant_id,
+    'Qual o endereço da clínica?',
+    'qual o endereço da clínica?',
+    'Nosso endereço é:
+*' || COALESCE(clinic_address, 'Endereço não cadastrado') || '*
+
+📍 ' || COALESCE('Veja no mapa: ' || google_calendar_public_link, 'Mapa não disponível') || '
+
+Qualquer dúvida, estou à disposição!',
+    ARRAY['endereço', 'endereco', 'onde', 'localização', 'localizacao', 'fica', 'chegar'],
+    'location',
+    0
+FROM tenant_config
+WHERE is_active = true
+  AND clinic_address IS NOT NULL
+ON CONFLICT (tenant_id, question_normalized) DO NOTHING;
+
+-- 8. Appointment FAQ (alternative question format)
+INSERT INTO tenant_faq (
+    tenant_id,
+    question_original,
+    question_normalized,
+    answer,
+    keywords,
+    intent,
+    view_count
+) 
+SELECT 
+    tenant_id,
+    'Como posso agendar uma consulta?',
+    'como posso agendar uma consulta?',
+    'Ótimo! Para agendarmos sua consulta, por favor, me informe:
+
+•⁠  ⁠*Nome completo*:
+•⁠  ⁠*Data de nascimento* (formato: DD/MM/AAAA):
+
+*Nota*: Seu telefone já está disponível via WhatsApp, não preciso solicitar. 😊
+
+Assim que tiver essas informações, posso verificar a disponibilidade para você!',
+    ARRAY['agendar', 'marcar', 'consulta', 'agendamento', 'horário disponível', 'horario disponivel'],
+    'appointment',
+    0
+FROM tenant_config
+WHERE is_active = true
+ON CONFLICT (tenant_id, question_normalized) DO NOTHING;
+
+-- 9. Help FAQ
+INSERT INTO tenant_faq (
+    tenant_id,
+    question_original,
+    question_normalized,
+    answer,
+    keywords,
+    intent,
+    view_count
+) 
+SELECT 
+    tenant_id,
+    'Ajuda',
+    'ajuda',
+    'Claro! Posso ajudar você com:
+
+📅 *Agendamentos* - Marcar ou remarcar consultas
+📋 *Informações* - Horários, endereço, serviços
+🔄 *Reagendamentos* - Alterar horário de consulta
+❌ *Cancelamentos* - Cancelar consultas
+
+O que você gostaria de fazer?',
+    ARRAY['ajuda', 'help', 'socorro', 'não entendi', 'nao entendi', 'preciso de ajuda'],
+    'help',
+    0
+FROM tenant_config
+WHERE is_active = true
 ON CONFLICT (tenant_id, question_normalized) DO NOTHING;
 
 -- ========================================
@@ -192,7 +381,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Schedule this to run monthly via cron or n8n workflow
+-- ========================================
+-- VERIFY SEED DATA
+-- ========================================
+
+SELECT 
+    COUNT(*) as total_faqs,
+    COUNT(DISTINCT tenant_id) as tenants_com_faq
+FROM tenant_faq
+WHERE is_active = true;
+
+-- Schedule cleanup_stale_faqs() to run monthly via cron or n8n workflow
 
 COMMENT ON TABLE tenant_faq IS 'Caches frequently asked questions to reduce AI API calls and improve response time';
 COMMENT ON COLUMN tenant_faq.question_normalized IS 'Lowercase normalized version for efficient matching';

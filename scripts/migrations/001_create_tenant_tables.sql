@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS tenant_config (
     
     -- Business Information
     clinic_name VARCHAR(200) NOT NULL,
+    clinic_type VARCHAR(50) DEFAULT 'mixed',  -- 'medical', 'aesthetic', 'mixed', 'dental', etc.
     clinic_address TEXT,
     clinic_phone VARCHAR(20),
     clinic_email VARCHAR(100),
@@ -50,7 +51,7 @@ CREATE TABLE IF NOT EXISTS tenant_config (
     system_prompt_patient TEXT NOT NULL,
     system_prompt_internal TEXT NOT NULL,
     system_prompt_confirmation TEXT NOT NULL,
-    llm_model_name VARCHAR(100) DEFAULT 'gemini-2.0-flash-exp',
+    llm_model_name VARCHAR(100) DEFAULT 'gemini-2.0-flash-lite',  -- maior limite de quota no tier gratuito
     llm_temperature NUMERIC(2,1) DEFAULT 0.7,
     
     -- Feature Flags
@@ -80,7 +81,8 @@ CREATE TABLE IF NOT EXISTS tenant_config (
     CONSTRAINT valid_hours CHECK (hours_start < hours_end),
     CONSTRAINT valid_temperature CHECK (llm_temperature BETWEEN 0.0 AND 2.0),
     CONSTRAINT valid_tier CHECK (subscription_tier IN ('basic', 'professional', 'enterprise')),
-    CONSTRAINT valid_status CHECK (subscription_status IN ('active', 'suspended', 'cancelled', 'trial'))
+    CONSTRAINT valid_status CHECK (subscription_status IN ('active', 'suspended', 'cancelled', 'trial')),
+    CONSTRAINT valid_clinic_type CHECK (clinic_type IN ('medical', 'aesthetic', 'mixed', 'dental', 'other'))
 );
 
 -- ============================================================================
@@ -125,6 +127,9 @@ CREATE TRIGGER tenant_config_updated_at
 -- ============================================================================
 -- 4. CREATE TENANT_SECRETS TABLE (Optional - for future use)
 -- ============================================================================
+
+-- Add comment for clinic_type
+COMMENT ON COLUMN tenant_config.clinic_type IS 'Type of clinic: medical (medical clinics), aesthetic (aesthetic clinics), mixed (both), dental (dentistry), other (custom)';
 
 CREATE TABLE IF NOT EXISTS tenant_secrets (
     secret_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

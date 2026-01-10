@@ -432,7 +432,7 @@
     "executionOrder": "v1",
     "saveManualExecutions": true,
     "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": "={{ 'Error Handler' }}"
+    "errorWorkflow": "={{ '04 - Error Handler' }}"
   },
   "versionId": "telegram-internal-assistant-mt-v1",
   "meta": {

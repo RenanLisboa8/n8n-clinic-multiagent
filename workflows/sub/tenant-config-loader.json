@@ -20,10 +20,16 @@
               "value": "={{ $json.body?.instance || $json.instance || $json.instance_name || '' }}"
             },
             {
-              "id": "original_data",
-              "name": "original_data",
+              "id": "original_body",
+              "name": "original_body",
               "type": "object",
-              "value": "={{ $json }}"
+              "value": "={{ $json.body || $json }}"
+            },
+            {
+              "id": "original_headers",
+              "name": "original_headers",
+              "type": "object",
+              "value": "={{ $json.headers || {} }}"
             }
           ]
         }
@@ -37,7 +43,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT * FROM get_tenant_by_instance('{{ $json.instance_name }}');",
+        "query": "SELECT * FROM tenant_config WHERE evolution_instance_name = '{{ $json.instance_name }}' AND is_active = true LIMIT 1;",
         "options": {}
       },
       "id": "query-tenant-config",
@@ -61,7 +67,8 @@
                 "options": {
                   "leftValue": "",
                   "caseSensitive": true,
-                  "typeValidation": "strict"
+                  "typeValidation": "loose",
+                  "version": 2
                 },
                 "combinator": "and",
                 "conditions": [
@@ -93,13 +100,56 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT get_services_catalog_for_prompt('{{ $json.tenant_id }}') as services_catalog;",
+        "options": {}
+      },
+      "id": "load-services-catalog",
+      "name": "Load Services Catalog",
+      "type": "n8n-nodes-base.postgres",
+      "position": [900, 240],
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "📋 Loads services catalog dynamically from database"
+    },
+    {
+      "parameters": {
         "assignments": {
           "assignments": [
             {
-              "id": "merge-data",
-              "name": "data",
+              "id": "body",
+              "name": "body",
               "type": "object",
-              "value": "={{ { ...($('Extract Instance Name').item.json.original_data), tenant_config: $json, tenant_id: $json.tenant_id } }}"
+              "value": "={{ $('Extract Instance Name').item.json.original_body }}"
+            },
+            {
+              "id": "headers",
+              "name": "headers",
+              "type": "object",
+              "value": "={{ $('Extract Instance Name').item.json.original_headers }}"
+            },
+            {
+              "id": "tenant_config",
+              "name": "tenant_config",
+              "type": "object",
+              "value": "={{ $('Query Tenant Config').item.json }}"
+            },
+            {
+              "id": "tenant_id",
+              "name": "tenant_id",
+              "type": "string",
+              "value": "={{ $('Query Tenant Config').item.json.tenant_id }}"
+            },
+            {
+              "id": "services_catalog",
+              "name": "services_catalog",
+              "type": "string",
+              "value": "={{ $('Load Services Catalog').item.json.services_catalog }}"
             }
           ]
         },
@@ -113,80 +163,58 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "=INSERT INTO tenant_activity_log (tenant_id, activity_type, metadata)\nVALUES (NULL, 'unknown_instance', '{\"instance_name\": \"{{ $('Extract Instance Name').item.json.instance_name }}\", \"timestamp\": \"{{ $now }}\"}'::jsonb);",
-        "options": {}
-      },
-      "id": "log-unknown-instance",
-      "name": "Log Unknown Instance",
-      "type": "n8n-nodes-base.postgres",
-      "position": [1120, 420],
-      "typeVersion": 2.4,
-      "credentials": {
-        "postgres": {
-          "id": "{{POSTGRES_CREDENTIAL_ID}}",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const instanceName = $('Extract Instance Name').item.json.instance_name;\n\n// Throw error that will be caught by error workflow\nthrow new Error(`⚠️ UNKNOWN INSTANCE: ${instanceName}\\n\\nThis Evolution API instance is not registered in the system.\\n\\nAction Required:\\n1. Add tenant configuration via SQL\\n2. Or deactivate this instance\\n\\nInstance: ${instanceName}`);"
-      },
-      "id": "throw-error",
-      "name": "Throw Error - Unknown Instance",
-      "type": "n8n-nodes-base.code",
-      "position": [1340, 420],
-      "typeVersion": 2
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=SELECT increment_message_count('{{ $json.data.tenant_id }}'::uuid);",
-        "options": {}
-      },
-      "id": "increment-counter",
-      "name": "Increment Message Counter",
-      "type": "n8n-nodes-base.postgres",
-      "position": [1340, 240],
-      "typeVersion": 2.4,
-      "credentials": {
-        "postgres": {
-          "id": "{{POSTGRES_CREDENTIAL_ID}}",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "assignments": {
           "assignments": [
             {
-              "id": "return-data",
-              "name": "json",
+              "id": "body",
+              "name": "body",
               "type": "object",
-              "value": "={{ $('Merge Config with Original Data').item.json.data }}"
+              "value": "={{ $('Extract Instance Name').item.json.original_body }}"
+            },
+            {
+              "id": "headers",
+              "name": "headers",
+              "type": "object",
+              "value": "={{ $('Extract Instance Name').item.json.original_headers }}"
+            },
+            {
+              "id": "tenant_config",
+              "name": "tenant_config",
+              "type": "object",
+              "value": "={{ null }}"
+            },
+            {
+              "id": "tenant_id",
+              "name": "tenant_id",
+              "type": "string",
+              "value": "={{ null }}"
+            },
+            {
+              "id": "error",
+              "name": "error",
+              "type": "string",
+              "value": "={{ 'Unknown instance: ' + $('Extract Instance Name').item.json.instance_name }}"
             }
           ]
         },
         "options": {}
       },
-      "id": "prepare-output",
-      "name": "Prepare Output",
+      "id": "return-error",
+      "name": "Return Error Data",
       "type": "n8n-nodes-base.set",
-      "position": [1560, 240],
+      "position": [1120, 420],
       "typeVersion": 3.4
     },
     {
       "parameters": {
-        "content": "## Tenant Config Loader\n\n**Purpose**: Load tenant-specific configuration from database based on Evolution API instance name.\n\n**Usage**: Call this workflow from any main workflow that receives webhook data.\n\n**Input**: Webhook payload containing `instance` field\n\n**Output**: Original data + `tenant_config` object + `tenant_id`\n\n**Error Handling**: Throws error if instance not found (caught by error handler workflow)",
-        "height": 280,
+        "content": "## Tenant Config Loader\n\n**Purpose**: Load tenant-specific configuration from database based on Evolution API instance name.\n\n**Usage**: Call this workflow from any main workflow that receives webhook data.\n\n**Input**: Webhook payload containing `body.instance` field\n\n**Output**: \n- `body` - Original webhook body\n- `headers` - Original headers  \n- `tenant_config` - Full tenant configuration from DB\n- `tenant_id` - Tenant UUID\n\n**Error Handling**: Returns null tenant_config if instance not found",
+        "height": 320,
         "width": 400
       },
       "id": "documentation",
       "name": "Sticky Note",
       "type": "n8n-nodes-base.stickyNote",
-      "position": [220, 80],
+      "position": [220, 40],
       "typeVersion": 1
     }
   ],
@@ -229,47 +257,25 @@
       "main": [
         [
           {
-            "node": "Merge Config with Original Data",
+            "node": "Load Services Catalog",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Log Unknown Instance",
+            "node": "Return Error Data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Merge Config with Original Data": {
+    "Load Services Catalog": {
       "main": [
         [
           {
-            "node": "Increment Message Counter",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Log Unknown Instance": {
-      "main": [
-        [
-          {
-            "node": "Throw Error - Unknown Instance",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Increment Message Counter": {
-      "main": [
-        [
-          {
-            "node": "Prepare Output",
+            "node": "Merge Config with Original Data",
             "type": "main",
             "index": 0
           }
@@ -283,7 +289,7 @@
     "saveManualExecutions": true,
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "tenant-config-loader-v1",
+  "versionId": "tenant-config-loader-v2-fixed",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "clinic-multiagent-system"
@@ -299,5 +305,3 @@
     }
   ]
 }
-
-

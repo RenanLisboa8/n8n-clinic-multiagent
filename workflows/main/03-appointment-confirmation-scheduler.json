@@ -45,30 +45,55 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT DISTINCT \n  p.professional_id,\n  p.professional_name,\n  p.google_calendar_id,\n  p.tenant_id,\n  tc.clinic_name,\n  tc.evolution_instance_name,\n  tc.clinic_address,\n  tc.timezone\nFROM professionals p\nJOIN tenant_config tc ON p.tenant_id = tc.tenant_id\nWHERE p.is_active = true\n  AND tc.is_active = true\n  AND p.google_calendar_id IS NOT NULL\nORDER BY tc.tenant_name, p.display_order;",
+        "options": {}
+      },
+      "id": "load-professionals",
+      "name": "Load All Active Professionals",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 400],
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "📋 Loads all active professionals with their calendar IDs"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-professionals",
+      "name": "Loop Over Professionals",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [900, 400],
+      "typeVersion": 3.1
+    },
+    {
+      "parameters": {
         "operation": "getAll",
-        "calendarId": {
-          "__rl": true,
-          "value": "={{ $env.GOOGLE_CALENDAR_ID }}",
-          "mode": "id",
-          "cachedResultName": "Clinic Calendar"
-        },
+        "calendarId": "={{ $json.google_calendar_id }}",
         "returnAll": true,
         "options": {
-          "timeMax": "={{ $json.tomorrow_date }}T23:59:59-03:00",
-          "timeMin": "={{ $json.tomorrow_date }}T00:00:00-03:00"
+          "timeMax": "={{ $('Prepare Dates').item.json.tomorrow_date }}T23:59:59-03:00",
+          "timeMin": "={{ $('Prepare Dates').item.json.tomorrow_date }}T00:00:00-03:00"
         }
       },
       "id": "fetch-appointments",
       "name": "Fetch Tomorrow's Appointments",
       "type": "n8n-nodes-base.googleCalendar",
-      "position": [680, 400],
+      "position": [1120, 400],
       "typeVersion": 1.2,
       "credentials": {
         "googleCalendarOAuth2Api": {
           "id": "{{GOOGLE_CALENDAR_CREDENTIAL_ID}}",
           "name": "Google Calendar"
         }
-      }
+      },
+      "notes": "📅 Fetches appointments for this professional's calendar"
     },
     {
       "parameters": {
@@ -77,7 +102,7 @@
       "id": "loop-appointments",
       "name": "Loop Over Appointments",
       "type": "n8n-nodes-base.splitInBatches",
-      "position": [900, 400],
+      "position": [1340, 400],
       "typeVersion": 3.1
     },
     {
@@ -107,6 +132,30 @@
               "name": "event_id",
               "type": "string",
               "value": "={{ $json.id }}"
+            },
+            {
+              "id": "professional_name",
+              "name": "professional_name",
+              "type": "string",
+              "value": "={{ $('Loop Over Professionals').item.json.professional_name }}"
+            },
+            {
+              "id": "clinic_name",
+              "name": "clinic_name",
+              "type": "string",
+              "value": "={{ $('Loop Over Professionals').item.json.clinic_name }}"
+            },
+            {
+              "id": "clinic_address",
+              "name": "clinic_address",
+              "type": "string",
+              "value": "={{ $('Loop Over Professionals').item.json.clinic_address }}"
+            },
+            {
+              "id": "evolution_instance_name",
+              "name": "evolution_instance_name",
+              "type": "string",
+              "value": "={{ $('Loop Over Professionals').item.json.evolution_instance_name }}"
             }
           ]
         }
@@ -114,7 +163,7 @@
       "id": "extract-contact",
       "name": "Extract Patient Contact",
       "type": "n8n-nodes-base.set",
-      "position": [1120, 400],
+      "position": [1560, 400],
       "typeVersion": 3.4
     },
     {
@@ -141,7 +190,7 @@
       "id": "has-phone",
       "name": "Has Phone?",
       "type": "n8n-nodes-base.if",
-      "position": [1340, 400],
+      "position": [1780, 400],
       "typeVersion": 2.1
     },
     {
@@ -152,7 +201,7 @@
               "id": "confirmation_message",
               "name": "confirmation_message",
               "type": "string",
-              "value": "=Olá, *{{ $json.patient_name }}*! 👋\n\nEste é um lembrete da *{{ $env.CLINIC_NAME }}*.\n\nVocê tem uma consulta agendada para:\n📅 *Amanhã* às *{{ $json.appointment_time }}*\n📍 {{ $env.CLINIC_ADDRESS }}\n\nPor favor, responda:\n✅ *CONFIRMAR* - Para confirmar presença\n📅 *REAGENDAR* - Se precisar mudar o horário\n❌ *CANCELAR* - Para cancelar\n\nAguardamos seu retorno! 🙂"
+              "value": "=Olá, *{{ $json.patient_name }}*! 👋\n\nEste é um lembrete da *{{ $json.clinic_name }}*.\n\nVocê tem uma consulta agendada para:\n📅 *Amanhã* às *{{ $json.appointment_time }}*\n👨‍⚕️ *{{ $json.professional_name }}*\n📍 {{ $json.clinic_address || 'Consulte endereço da clínica' }}\n\nPor favor, responda:\n✅ *CONFIRMAR* - Para confirmar presença\n📅 *REAGENDAR* - Se precisar mudar o horário\n❌ *CANCELAR* - Para cancelar\n\nAguardamos seu retorno! 🙂"
             },
             {
               "id": "remote_jid",
@@ -166,7 +215,7 @@
       "id": "prepare-confirmation",
       "name": "Prepare Confirmation Message",
       "type": "n8n-nodes-base.set",
-      "position": [1560, 300],
+      "position": [2000, 300],
       "typeVersion": 3.4
     },
     {
@@ -177,7 +226,7 @@
       "id": "wait",
       "name": "Wait (Rate Limit)",
       "type": "n8n-nodes-base.wait",
-      "position": [1780, 300],
+      "position": [2220, 300],
       "typeVersion": 1.1,
       "webhookId": "confirmation-wait"
     },
@@ -188,7 +237,7 @@
           "fieldMapping": {
             "mappingMode": "defineBelow",
             "values": {
-              "instance_name": "={{ $env.EVOLUTION_INSTANCE_NAME }}",
+              "instance_name": "={{ $json.evolution_instance_name }}",
               "remote_jid": "={{ $json.remote_jid }}",
               "message_text": "={{ $json.confirmation_message }}"
             }
@@ -198,7 +247,7 @@
       "id": "send-confirmation",
       "name": "Send Confirmation",
       "type": "n8n-nodes-base.executeWorkflow",
-      "position": [2000, 300],
+      "position": [2440, 300],
       "typeVersion": 1.2
     },
     {
@@ -229,7 +278,7 @@
       "id": "log-success",
       "name": "Log Success",
       "type": "n8n-nodes-base.set",
-      "position": [2220, 300],
+      "position": [2660, 300],
       "typeVersion": 3.4
     },
     {
@@ -260,7 +309,7 @@
       "id": "log-skip",
       "name": "Log Skip",
       "type": "n8n-nodes-base.set",
-      "position": [1560, 500],
+      "position": [2000, 500],
       "typeVersion": 3.4
     }
   ],
@@ -278,6 +327,28 @@
       ]
     },
     "Prepare Dates": {
+      "main": [
+        [
+          {
+            "node": "Load All Active Professionals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load All Active Professionals": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Professionals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Professionals": {
       "main": [
         [
           {
@@ -393,6 +464,17 @@
           }
         ]
       ]
+    },
+    "Loop Over Appointments": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Professionals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
@@ -400,7 +482,7 @@
     "executionOrder": "v1",
     "saveManualExecutions": true,
     "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": "={{ $env.ERROR_WORKFLOW_ID || 'Error Handler' }}"
+    "errorWorkflow": "={{ $env.ERROR_WORKFLOW_ID || '04 - Error Handler' }}"
   },
   "versionId": "main-confirmation-scheduler-v1",
   "meta": {
@@ -422,6 +504,11 @@
     }
   ]
 }
+
+
+
+
+
 
 
 

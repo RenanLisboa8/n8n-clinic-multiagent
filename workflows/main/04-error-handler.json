@@ -110,6 +110,69 @@
         "conditions": {
           "options": {
             "leftValue": "",
+            "caseSensitive": false,
+            "typeValidation": "strict"
+          },
+          "combinator": "or",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error_message }}",
+              "rightValue": "429",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "leftValue": "={{ $json.error_message }}",
+              "rightValue": "quota exceeded",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "leftValue": "={{ $json.error_message }}",
+              "rightValue": "too many requests",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ]
+        }
+      },
+      "id": "is-rate-limit-error",
+      "name": "Is Rate Limit Error?",
+      "type": "n8n-nodes-base.if",
+      "position": [680, 600],
+      "typeVersion": 2.1,
+      "notes": "🔍 Detecta erros 429 (quota exceeded) do Gemini API"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "rate_limit_alert",
+              "name": "rate_limit_alert",
+              "type": "string",
+              "value": "=🚨 *RATE LIMIT EXCEEDED*\n\n*Workflow:* {{ $json.workflow_name }}\n*Time:* {{ $json.timestamp }}\n\n⚠️ *CRITICAL: Google Gemini API quota exceeded!*\n\nThe service has reached the daily quota limit (20 requests/day on free tier).\n\n*Error Details:*\n```\n{{ $json.error_message }}\n```\n\n*Immediate Actions Required:*\n1. Wait ~1 hour for quota reset\n2. Consider upgrading to paid tier\n3. Check quota usage: https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/quotas\n4. Verify Message Formatter Tool is DEACTIVATED\n5. Check if retries are disabled on Gemini nodes\n\n*This error should NOT retry automatically - retries are disabled to prevent quota exhaustion.*"
+            }
+          ]
+        }
+      },
+      "id": "format-rate-limit-alert",
+      "name": "Format Rate Limit Alert",
+      "type": "n8n-nodes-base.set",
+      "position": [900, 500],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
             "caseSensitive": true,
             "typeValidation": "strict"
           },
@@ -129,7 +192,7 @@
       "id": "is-patient-workflow",
       "name": "Is Patient Workflow?",
       "type": "n8n-nodes-base.if",
-      "position": [900, 600],
+      "position": [1120, 600],
       "typeVersion": 2.1
     },
     {
@@ -225,7 +288,36 @@
             "index": 0
           },
           {
+            "node": "Is Rate Limit Error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Rate Limit Error?": {
+      "main": [
+        [
+          {
+            "node": "Format Rate Limit Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Is Patient Workflow?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Rate Limit Alert": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Alert",
             "type": "main",
             "index": 0
           }
@@ -309,6 +401,11 @@
     }
   ]
 }
+
+
+
+
+
 
 
 
