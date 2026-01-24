@@ -65,18 +65,13 @@ Você tem duas interfaces principais:
 
 ### Visualizando Configuração Atual
 
-**Opção 1: Usando Script de Gerenciamento (Recomendado)**
+**Opção 1: Via SQL (Equipe de TI)**
 
 Peça à sua equipe de TI para executar:
-```bash
-./scripts/manage-tenants.sh list
-```
-
-Você verá uma tabela como:
-```
-tenant_id                          | tenant_name      | instance_name          | is_active
------------------------------------|------------------|------------------------|----------
-abc123...                          | Clínica Exemplo  | clinic_example         | true
+```sql
+SELECT tenant_id, tenant_name, evolution_instance_name, is_active
+FROM tenant_config
+ORDER BY tenant_name;
 ```
 
 **Opção 2: Via UI do n8n**
@@ -127,11 +122,7 @@ Telefone: (11) 99999-8888.
 WHERE tenant_name = 'Clínica Exemplo';
 ```
 
-**Peça à sua equipe de TI para executar esses comandos SQL, ou use o script de gerenciamento:**
-
-```bash
-./scripts/manage-tenants.sh update clinic_example_instance clinic_phone "+5511999998888"
-```
+**Peça à sua equipe de TI para executar esses comandos SQL.**
 
 ---
 
@@ -443,16 +434,9 @@ ID da Lista Google Tasks: [fornecer ID]
 Chat ID do Telegram: [fornecer ID]
 ```
 
-#### Passo 2: Equipe de TI Executa Script
+#### Passo 2: Equipe de TI Executa SQL
 
-Sua equipe de TI executará:
-
-```bash
-./scripts/manage-tenants.sh add
-# Eles entrarão as informações interativamente
-```
-
-Ou via SQL:
+Sua equipe de TI executará via SQL:
 
 ```sql
 INSERT INTO tenant_config (

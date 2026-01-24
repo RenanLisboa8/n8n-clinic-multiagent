@@ -254,10 +254,13 @@ docker compose ps postgres
 
 ### 4.2 Executar Migrações
 
+> O `init-db.sh` roda automaticamente apenas na primeira inicialização do container com volume vazio.  
+> Para ambientes existentes, aplique migrations com o script abaixo.
+
 ```bash
-# Método 1: Usando script fornecido
-chmod +x scripts/init-db.sh
-./scripts/init-db.sh
+# Método 1: Aplicar migrations (recomendado para ambientes existentes)
+chmod +x scripts/apply-migrations.sh
+./scripts/apply-migrations.sh
 
 # Método 2: Migração manual
 docker compose exec -T postgres psql -U clinic_admin -d clinic_db < scripts/migrations/001_create_tenant_tables.sql
@@ -394,11 +397,7 @@ Navegue até **Settings** → **Credentials** e crie:
 ### 7.1 Adicionar Seu Primeiro Tenant
 
 ```bash
-# Opção 1: Usar script de gerenciamento (interativo)
-chmod +x scripts/manage-tenants.sh
-./scripts/manage-tenants.sh add
-
-# Opção 2: SQL direto
+# Opção única: SQL direto
 docker compose exec postgres psql -U clinic_admin -d clinic_db
 
 # Dentro do psql:
