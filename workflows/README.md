@@ -1,6 +1,16 @@
 # Workflows - Sistema Multi-Profissional e Multi-Serviço
 
+**Versão**: 3.0 - Refatorado com base no Material Secretária v3
+
 Este diretório contém os workflows do sistema de agendamento multi-tenant, suportando múltiplos profissionais e múltiplos serviços por clínica.
+
+## 🆕 Melhorias da Versão 3.0
+
+- ✅ **Documentação Aprimorada**: Sticky notes informativas em todos os workflows
+- ✅ **Notas Detalhadas**: Cada node possui notas explicativas sobre sua função
+- ✅ **Estrutura Organizada**: Melhor organização seguindo padrões do Material Secretária v3
+- ✅ **Manutenção Facilitada**: Documentação inline facilita manutenção futura
+- ✅ **Funcionalidades Preservadas**: Todas as funcionalidades multi-tenant e multi-profissional mantidas
 
 ## 📁 Estrutura de Diretórios
 
@@ -404,6 +414,24 @@ Nenhuma variável de ambiente obrigatória - tudo é carregado do banco de dados
 
 ---
 
-**Última Atualização**: 2026-01-09  
-**Versão**: 2.0 - Multi-Profissional e Multi-Serviço  
+**Última Atualização**: 2026-01-10  
+**Versão**: 3.0 - Refatorado com base no Material Secretária v3  
 **Autor**: Sistema de Clínica Multi-Agent
+
+## 📝 Notas de Refatoração
+
+Esta versão foi refatorada aplicando melhorias do Material Secretária v3, mantendo toda a arquitetura multi-tenant e multi-profissional existente:
+
+### Melhorias Aplicadas
+1. **Documentação**: Sticky notes informativas em todos os workflows principais
+2. **Notas de Nodes**: Cada node possui notas explicativas detalhadas
+3. **Estrutura**: Melhor organização seguindo padrões estabelecidos
+4. **Manutenibilidade**: Documentação inline facilita manutenção e onboarding
+
+### Funcionalidades Preservadas
+- ✅ Arquitetura multi-tenant completa
+- ✅ Suporte a múltiplos profissionais e serviços
+- ✅ Cache de FAQs (~75% redução em chamadas de IA)
+- ✅ Otimizações de performance
+- ✅ Sistema de agendamento completo
+- ✅ Tratamento de erros robusto
