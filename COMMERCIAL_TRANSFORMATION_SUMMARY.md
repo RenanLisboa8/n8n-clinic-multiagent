@@ -20,7 +20,6 @@
 
 ### Fase 3: Licenciamento Comercial ✅
 - ✅ Arquivo `LICENSE` - Licença comercial proprietária (3 níveis)
-- ✅ `scripts/add-copyright-headers.sh` - Script de automação de copyright
 - ✅ `README.md` - Página de apresentação comercial profissional
 
 ---
@@ -34,7 +33,6 @@
 | `docs/USER_GUIDE.md` | Markdown | ~2.200 | Manual de operações do usuário |
 | `LICENSE` | Jurídico | ~600 | Contrato de licença proprietária |
 | `README.md` | Markdown | ~400 | Página de apresentação comercial |
-| `scripts/add-copyright-headers.sh` | Shell | ~200 | Automação de copyright |
 
 **Total**: 6 arquivos, ~7.200 linhas, 135+ páginas de documentação
 
@@ -43,9 +41,6 @@
 ## 🚀 Execute a Seguir
 
 ```bash
-# Adicionar headers de copyright a todos os arquivos
-./scripts/add-copyright-headers.sh
-
 # Revisar alterações
 git status
 git diff
