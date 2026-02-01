@@ -35,23 +35,13 @@ Adicionado ao `README.md`:
 | Arquivo | Propósito |
 |---------|-----------|
 | **`LICENSE`** | • Licença comercial proprietária<br/>• Copyright © 2026<br/>• 3 níveis de licenciamento<br/>• Uso não autorizado proibido<br/>• Isenções de garantia<br/>• Cláusulas de rescisão |
-| **`scripts/add-copyright-headers.sh`** | • Adiciona headers aos arquivos SQL<br/>• Adiciona metadados aos workflows JSON<br/>• Adiciona headers aos scripts shell<br/>• Adiciona avisos à documentação |
 | **`README.md`** (atualizado) | • Página de apresentação profissional<br/>• Propostas de valor<br/>• Info de contato para preços<br/>• Badges de licença<br/>• Posicionamento empresarial |
 
 ---
 
 ## 🚀 PRÓXIMOS PASSOS IMEDIATOS
 
-### 1. Adicionar Headers de Copyright (2 minutos)
-
-```bash
-cd /Users/renanlisboa/Documents/n8n-clinic-multiagent
-./scripts/add-copyright-headers.sh
-```
-
-Isso adicionará automaticamente avisos de copyright a todos seus arquivos fonte.
-
-### 2. Personalizar Informações da Empresa (5 minutos)
+### 1. Personalizar Informações da Empresa (5 minutos)
 
 **Substitua estes placeholders**:
 
@@ -59,9 +49,8 @@ Isso adicionará automaticamente avisos de copyright a todos seus arquivos fonte
 - `LICENSE`: Substitua `[Sua Jurisdição]` pela jurisdição legal
 - `README.md`: Atualize informações de contato (vendas@, suporte@, telefone, website)
 - `docs/*.md`: Atualize copyright com nome da empresa
-- `scripts/add-copyright-headers.sh`: Linha 9 - COMPANY_NAME="Sua Empresa Real"
 
-### 3. Revisar & Commit
+### 2. Revisar & Commit
 
 ```bash
 git status
@@ -72,7 +61,6 @@ git commit -m "feat: transformar em produto comercial v1.0
 - Adicionar licença proprietária (3 níveis)
 - Adicionar diagramas de arquitetura Mermaid
 - Atualizar README para posicionamento comercial
-- Adicionar automação de header de copyright
 - Traduzir toda documentação para português BR
 
 Pronto para lançamento comercial."
@@ -122,10 +110,14 @@ n8n-clinic-multiagent/
 │   └── USER_GUIDE.md (45 páginas manual operações)
 │
 ├── scripts/
-│   ├── add-copyright-headers.sh ⭐ (Automação copyright)
+│   ├── apply-migrations.sh
+│   ├── import-all-workflows-cli.sh
+│   ├── import-workflows-n8n.py
+│   ├── import-workflows.sh
 │   ├── init-db.sh
-│   ├── manage-tenants.sh
-│   └── migrations/ (3 arquivos SQL)
+│   ├── reimport-all-workflows.sh
+│   ├── reset-db.sh
+│   └── migrations/ (SQL)
 │
 ├── workflows/ (Workflows de produção)
 ├── tests/ (Payloads de teste)
@@ -163,7 +155,7 @@ Seu repositório agora parece um **produto SaaS empresarial de R$ 500K+** com:
 ✅ Modelo de receita definido  
 ✅ **Tudo em português brasileiro** 🇧🇷
 
-**Próximo**: Execute o script de copyright, personalize info da empresa e comece a vender! 🚀
+**Próximo**: personalize info da empresa e comece a vender! 🚀
 
 ---
 
@@ -173,14 +165,14 @@ Seu repositório agora parece um **produto SaaS empresarial de R$ 500K+** com:
 
 ✅ **README.md** - Completamente em português  
 ✅ **COMMERCIAL_TRANSFORMATION_SUMMARY.md** - Completamente em português  
+✅ **docs/DEPLOYMENT.md** - Completamente em português  
+✅ **docs/USER_GUIDE.md** - Completamente em português  
 ⚠️ **docs/ARCHITECTURE.md** - Permanece em inglês (padrão técnico internacional)  
-⚠️ **docs/DEPLOYMENT.md** - Permanece em inglês (padrão técnico internacional)  
-⚠️ **docs/USER_GUIDE.md** - Permanece em inglês (pode traduzir se necessário)  
 ⚠️ **LICENSE** - Permanece em inglês (padrão jurídico internacional)
 
 ### Por que alguns documentos ficaram em inglês?
 
-1. **Documentação Técnica** (ARCHITECTURE.md, DEPLOYMENT.md):
+1. **Documentação Técnica** (ARCHITECTURE.md):
    - Padrão internacional em inglês
    - Facilita integração com equipes internacionais
    - Termos técnicos são universalmente conhecidos em inglês
@@ -194,7 +186,7 @@ Seu repositório agora parece um **produto SaaS empresarial de R$ 500K+** com:
 
 ### Deseja traduzir os documentos técnicos também?
 
-Se você quiser que eu traduza **toda** a documentação técnica (ARCHITECTURE.md, DEPLOYMENT.md, USER_GUIDE.md e LICENSE) para português brasileiro, é só pedir! Responda:
+Se você quiser que eu traduza **toda** a documentação técnica (ARCHITECTURE.md e LICENSE) para português brasileiro, é só pedir! Responda:
 
 **"Sim, traduzir toda documentação técnica para português"**
 
@@ -205,4 +197,3 @@ E eu farei a tradução completa mantendo o nível profissional.
 **Perguntas?** Toda documentação é autocontida e abrangente. Comece pelo `README.md` para visão comercial, depois mergulhe em `docs/` para detalhes.
 
 **Pronto para lançar!** 🚀🇧🇷
-
