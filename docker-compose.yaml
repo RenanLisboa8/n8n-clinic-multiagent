@@ -59,6 +59,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+      - ./scripts/migrations:/docker-entrypoint-initdb.d/migrations:ro
     networks:
       - clinic_network
     healthcheck:
