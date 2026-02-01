@@ -135,7 +135,9 @@ AI is only called in these scenarios:
 - `scripts/migrations/022_conversation_state.sql` - State machine
 
 ### Workflows
-- `workflows/main/01-whatsapp-optimized-state-machine.json` - Optimized flow
+- `workflows/main/01-whatsapp-patient-handler-optimized.json` - Optimized flow with FAQ cache
+
+> **Nota**: O workflow `01-whatsapp-optimized-state-machine.json` foi removido por ser uma implementação experimental redundante. O patient-handler é o workflow de produção recomendado.
 
 ## Configuration
 
