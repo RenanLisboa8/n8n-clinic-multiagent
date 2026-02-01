@@ -8,7 +8,7 @@
 
 ```bash
 # 1. Reset completo (apaga tudo e recria)
-./scripts/reset-complete.sh
+./scripts/reset-db.sh
 
 # 2. Quando pedir confirmação, digite: RESET
 
@@ -29,23 +29,19 @@
 
 ```bash
 # 1. Migração incremental (preserva dados)
-./scripts/migrate-to-new-structure.sh
+./scripts/apply-migrations.sh
 
-# 2. Opcionalmente faça backup quando perguntado
+# 2. Importe workflows atualizados
+./scripts/reimport-all-workflows.sh
 
-# 3. Aguarde migrations executarem
-
-# 4. Importe workflows atualizados
-./scripts/import-workflows.sh
-
-# 5. Teste o workflow!
+# 3. Teste o workflow!
 ```
 
 ## ⚡ Resposta Rápida
 
-**Para testar:** Use `reset-complete.sh` - é mais rápido e garante estrutura limpa.
+**Para testar:** Use `reset-db.sh` - é mais rápido e garante estrutura limpa.
 
-**Para produção:** Use `migrate-to-new-structure.sh` - preserva dados.
+**Para produção:** Use `apply-migrations.sh` - preserva dados.
 
 ## 📚 Documentação Completa
 
