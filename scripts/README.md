@@ -24,7 +24,7 @@ scripts/
 ├── cli/
 │   ├── cli.py                   # Python CLI for tenant/professional management
 │   └── requirements.txt         # CLI dependencies
-└── [legacy files...]            # Old migration scripts (to be removed)
+└── migrations_legacy_archive/   # Archived legacy migrations (reference only)
 ```
 
 ## 🚀 Quick Start
@@ -135,16 +135,18 @@ BEGIN
 END $$;
 ```
 
-## 🗑️ Legacy Files (To Be Removed)
+## 🗑️ Legacy Files (Archived)
 
-After confirming the new structure works, these files can be archived:
+Legacy migration scripts and obsolete shell scripts have been archived:
 
-| File | Replaced By |
-|------|-------------|
-| `migrations/001_*.sql` through `024_*.sql` | `db/schema/schema.sql` |
+| Archived Item | Current Replacement |
+|---------------|---------------------|
+| `migrations/001_*.sql` through `024_*.sql` | `db/schema/schema.sql` + `db/seeds/` |
 | `apply-migrations.sh` | `ops/setup.sh` |
 | `init-db.sh` | `ops/setup.sh` |
 | `reset-db.sh` | `ops/reset.sh` |
+
+The archived files are located in `migrations_legacy_archive/` for reference only. **Do not run them.**
 
 ## 🔧 Environment Variables
 
