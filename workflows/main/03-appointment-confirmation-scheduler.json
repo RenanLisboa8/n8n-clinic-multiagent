@@ -3,6 +3,19 @@
   "nodes": [
     {
       "parameters": {
+        "content": "## 📋 03 - Appointment Confirmation Scheduler\n\n**Versão**: 3.0 - Refatorado com base no Material Secretária v3\n\n### 🎯 Funcionalidades Principais\n- ✅ Envia lembretes de confirmação para agendamentos do dia seguinte\n- ✅ Suporte completo a múltiplos profissionais\n- ✅ Processa todos os tenants automaticamente\n- ✅ Extrai informações do paciente da descrição do evento\n- ✅ Mensagem personalizada com nome do profissional\n\n### ⏰ Agendamento\n- **Horário**: 8h da manhã (segunda a sexta)\n- **Timezone**: Respeita timezone de cada clínica\n- **Período**: Agendamentos do dia seguinte (amanhã)\n\n### 🔄 Fluxo de Processamento\n1. **Trigger**: Executa diariamente às 8h (seg-sex)\n2. **Carrega Profissionais**: Busca todos os profissionais ativos de todos os tenants\n3. **Loop por Profissional**: Para cada profissional:\n   - Busca agendamentos do calendário dele\n   - Extrai informações do paciente (nome, telefone)\n   - Prepara mensagem de confirmação\n   - Envia via WhatsApp\n4. **Rate Limiting**: Espera 2 segundos entre envios\n\n### 📊 Características Multi-Profissional\n- Processa todos os calendários de profissionais separadamente\n- Inclui nome do profissional na mensagem\n- Usa `evolution_instance_name` correto de cada tenant\n- Respeita `timezone` de cada clínica\n\n### 📝 Formato da Mensagem\n- Saudação personalizada com nome do paciente\n- Data e horário formatados\n- Nome do profissional\n- Endereço da clínica\n- Opções de resposta (CONFIRMAR, REAGENDAR, CANCELAR)\n\n### ⚠️ Validações\n- Apenas agendamentos com telefone válido são processados\n- Agendamentos sem telefone são logados e pulados\n- Rate limiting de 2 segundos entre envios",
+        "height": 700,
+        "width": 500,
+        "color": 5
+      },
+      "id": "documentation-sticky",
+      "name": "Sticky Note - Documentação Principal",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [0, 0],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
         "rule": {
           "interval": [
             {
@@ -16,7 +29,8 @@
       "name": "Daily Trigger (8 AM Mon-Fri)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "position": [240, 400],
-      "typeVersion": 1.2
+      "typeVersion": 1.2,
+      "notes": "⏰ Trigger agendado para executar diariamente às 8h (segunda a sexta)\n\n**Cron**: `0 8 * * 1-5`\n**Timezone**: UTC (ajustado por timezone da clínica)\n**Frequência**: Uma vez por dia, apenas em dias úteis"
     },
     {
       "parameters": {
@@ -41,7 +55,8 @@
       "name": "Prepare Dates",
       "type": "n8n-nodes-base.set",
       "position": [460, 400],
-      "typeVersion": 3.4
+      "typeVersion": 3.4,
+      "notes": "📅 Prepara datas para busca de agendamentos\n\n**Campos**:\n- `tomorrow_date` - Data de amanhã no formato YYYY-MM-DD\n- `trigger_time` - Timestamp do trigger (para logs)\n\n**Uso**: Define o período de busca (dia seguinte)"
     },
     {
       "parameters": {
@@ -60,7 +75,7 @@
           "name": "Postgres account"
         }
       },
-      "notes": "📋 Loads all active professionals with their calendar IDs"
+      "notes": "📋 Carrega todos os profissionais ativos com seus calendar IDs\n\n**Query**: Busca profissionais ativos de todos os tenants ativos\n**Retorna**:\n- `professional_id` - UUID do profissional\n- `professional_name` - Nome do profissional\n- `google_calendar_id` - ID do calendário do Google Calendar\n- `tenant_id` - UUID do tenant\n- `clinic_name` - Nome da clínica\n- `evolution_instance_name` - Instância Evolution API\n- `clinic_address` - Endereço da clínica\n- `timezone` - Timezone da clínica\n\n**Ordenação**: Por `tenant_name` e `display_order` do profissional"
     },
     {
       "parameters": {
@@ -93,7 +108,7 @@
           "name": "Google Calendar"
         }
       },
-      "notes": "📅 Fetches appointments for this professional's calendar"
+      "notes": "📅 Busca agendamentos do calendário deste profissional\n\n**Período**: Amanhã (00:00:00 até 23:59:59)\n**Calendário**: `google_calendar_id` do profissional\n**Timezone**: Considera timezone da clínica\n**Retorna**: Todos os eventos do dia seguinte\n\n**Processamento**: Cada profissional é processado separadamente para suporte multi-profissional"
     },
     {
       "parameters": {
@@ -164,7 +179,8 @@
       "name": "Extract Patient Contact",
       "type": "n8n-nodes-base.set",
       "position": [1560, 400],
-      "typeVersion": 3.4
+      "typeVersion": 3.4,
+      "notes": "📝 Extrai informações de contato do paciente do evento\n\n**Extrai**:\n- `patient_name` - Do campo `summary` do evento\n- `appointment_time` - Do campo `start.dateTime`\n- `phone_number` - Regex da descrição (\\d{10,15})\n- `event_id` - ID do evento no Google Calendar\n- `professional_name` - Do loop de profissionais\n- `clinic_name` - Do tenant config\n- `clinic_address` - Do tenant config\n- `evolution_instance_name` - Para envio WhatsApp\n\n**Validação**: Telefone é extraído via regex da descrição"
     },
     {
       "parameters": {
@@ -216,7 +232,8 @@
       "name": "Prepare Confirmation Message",
       "type": "n8n-nodes-base.set",
       "position": [2000, 300],
-      "typeVersion": 3.4
+      "typeVersion": 3.4,
+      "notes": "💬 Prepara mensagem de confirmação personalizada\n\n**Conteúdo**:\n- Saudação com nome do paciente\n- Lembrete da consulta (amanhã)\n- Data e horário formatados\n- Nome do profissional\n- Endereço da clínica\n- Opções de resposta (CONFIRMAR, REAGENDAR, CANCELAR)\n\n**Formato**: Mensagem WhatsApp com emojis e formatação"
     },
     {
       "parameters": {
@@ -228,7 +245,8 @@
       "type": "n8n-nodes-base.wait",
       "position": [2220, 300],
       "typeVersion": 1.1,
-      "webhookId": "confirmation-wait"
+      "webhookId": "confirmation-wait",
+      "notes": "⏳ Espera de 2 segundos entre envios (rate limiting)\n\n**Motivo**: Evitar bloqueio por spam da Evolution API\n**Duração**: 2 segundos\n**Aplicado**: Entre cada envio de confirmação"
     },
     {
       "parameters": {

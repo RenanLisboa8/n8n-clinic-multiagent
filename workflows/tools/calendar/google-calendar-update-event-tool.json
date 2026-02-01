@@ -1,5 +1,5 @@
 {
-  "name": "Google Calendar Create Event Tool",
+  "name": "Google Calendar Update Event Tool",
   "nodes": [
     {
       "parameters": {},
@@ -17,31 +17,37 @@
               "id": "calendar_id",
               "name": "calendar_id",
               "type": "string",
-              "value": "={{ $json.calendar_id || $json.google_calendar_id }}"
+              "value": "={{ $json.calendar_id || $json.google_calendar_id || $json.id_agenda }}"
+            },
+            {
+              "id": "event_id",
+              "name": "event_id",
+              "type": "string",
+              "value": "={{ $json.event_id || $json.id_evento }}"
             },
             {
               "id": "summary",
               "name": "summary",
               "type": "string",
-              "value": "={{ $json.summary || $json.title }}"
+              "value": "={{ $json.summary || $json.title || $json.titulo || '' }}"
             },
             {
               "id": "start",
               "name": "start",
               "type": "string",
-              "value": "={{ $json.start || $json.start_time }}"
+              "value": "={{ $json.start || $json.start_time || '' }}"
             },
             {
               "id": "end",
               "name": "end",
               "type": "string",
-              "value": "={{ $json.end || $json.end_time }}"
+              "value": "={{ $json.end || $json.end_time || '' }}"
             },
             {
               "id": "description",
               "name": "description",
               "type": "string",
-              "value": "={{ $json.description || $json.notes || '' }}"
+              "value": "={{ $json.description || $json.descricao || '' }}"
             }
           ]
         }
@@ -54,28 +60,32 @@
     },
     {
       "parameters": {
-        "operation": "create",
-        "calendar": "={{ $json.calendar_id }}",
-        "summary": "={{ $json.summary }}",
-        "start": "={{ $json.start }}",
-        "end": "={{ $json.end }}",
-        "description": "={{ $json.description }}",
-        "options": {
-          "sendUpdates": "none"
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.calendar_id }}",
+          "mode": "id"
+        },
+        "eventId": "={{ $json.event_id }}",
+        "updateFields": {
+          "summary": "={{ $json.summary || undefined }}",
+          "start": "={{ $json.start || undefined }}",
+          "end": "={{ $json.end || undefined }}",
+          "description": "={{ $json.description || undefined }}"
         }
       },
-      "id": "create-event",
-      "name": "Create Event",
+      "id": "update-event",
+      "name": "Update Event",
       "type": "n8n-nodes-base.googleCalendar",
       "position": [680, 300],
-      "typeVersion": 1,
+      "typeVersion": 1.3,
       "credentials": {
         "googleCalendarOAuth2Api": {
           "id": "{{GOOGLE_CALENDAR_CREDENTIAL_ID}}",
           "name": "Google Calendar OAuth2"
         }
       },
-      "notes": "📅 Cria evento usando Google Calendar API direto"
+      "notes": "📅 Atualiza evento usando Google Calendar API\n\n**Campos atualizáveis**:\n- summary (título)\n- start (data/hora início)\n- end (data/hora fim)\n- description (descrição)\n\n**Nota**: Campos vazios são ignorados (não sobrescrevem)"
     },
     {
       "parameters": {
@@ -104,6 +114,24 @@
               "name": "calendar_id",
               "type": "string",
               "value": "={{ $('Extract Parameters').item.json.calendar_id }}"
+            },
+            {
+              "id": "updated_start",
+              "name": "updated_start",
+              "type": "string",
+              "value": "={{ $json.start?.dateTime || $json.start?.date }}"
+            },
+            {
+              "id": "updated_end",
+              "name": "updated_end",
+              "type": "string",
+              "value": "={{ $json.end?.dateTime || $json.end?.date }}"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "type": "string",
+              "value": "=Agendamento atualizado com sucesso"
             }
           ]
         }
@@ -132,14 +160,14 @@
       "main": [
         [
           {
-            "node": "Create Event",
+            "node": "Update Event",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Create Event": {
+    "Update Event": {
       "main": [
         [
           {
@@ -155,7 +183,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "google-calendar-create-event-v1",
+  "versionId": "google-calendar-update-event-v1",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "clinic-multiagent-system"

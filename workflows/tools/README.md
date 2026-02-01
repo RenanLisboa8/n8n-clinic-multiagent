@@ -30,19 +30,8 @@ Enviar mensagens WhatsApp via Evolution API.
 
 ---
 
-#### `message-formatter-tool.json`
-Formatar mensagens para compatibilidade com markdown do WhatsApp.
-
-**Entradas:**
-- `raw_text` (string, obrigatório): Texto não formatado do agente de IA
-
-**Saídas:**
-- `formatted_text` (string): Markdown compatível com WhatsApp
-
-**Transformações:**
-- `**negrito**` → `*negrito*`
-- `# Cabeçalho` → `Cabeçalho`
-- Preserva quebras de linha e emojis
+#### `message-formatter-tool.json` *(Removido)*
+> **NOTA**: Esta ferramenta foi removida. O patient-handler agora usa formatação inline via código JavaScript no nó "Format Message (Code)", que é mais rápido (~5ms vs ~800ms) e não requer chamada de IA.
 
 ---
 
@@ -148,6 +137,60 @@ Lista eventos de um calendário do Google Calendar.
 - `events` (array): Lista de eventos encontrados
 - `total` (number): Total de eventos
 
+**Uso típico:**
+- Encontrar agendamentos do paciente antes de reagendar ou cancelar
+- Consultar a agenda de um profissional
+
+---
+
+#### `google-calendar-update-event-tool.json`
+Atualiza (reagenda) um evento existente no Google Calendar.
+
+**Entradas:**
+- `calendar_id` (string, obrigatório): ID do calendário do Google Calendar
+- `event_id` (string, obrigatório): ID do evento a ser atualizado
+- `start` (string, opcional): Nova data/hora de início (ISO 8601)
+- `end` (string, opcional): Nova data/hora de fim (ISO 8601)
+- `summary` (string, opcional): Novo título do evento
+- `description` (string, opcional): Nova descrição
+
+**Saídas:**
+- `success` (boolean): Se a atualização foi bem-sucedida
+- `event_id` (string): ID do evento atualizado
+- `event_link` (string): Link HTML para o evento
+- `updated_start` (string): Nova data/hora de início
+- `updated_end` (string): Nova data/hora de fim
+
+**Fluxo típico:**
+1. Use `ListCalendarEvents` para encontrar o agendamento
+2. Confirme com o paciente qual agendamento reagendar
+3. Use `CheckCalendarAvailability` para encontrar novos horários
+4. Use `UpdateCalendarEvent` com o `event_id` e novos horários
+
+---
+
+#### `google-calendar-delete-event-tool.json`
+Cancela (exclui) um agendamento do Google Calendar e envia alerta para equipe.
+
+**Entradas:**
+- `calendar_id` (string, obrigatório): ID do calendário do Google Calendar
+- `event_id` (string, obrigatório): ID do evento a ser excluído
+- `patient_name` (string, opcional): Nome do paciente
+- `patient_phone` (string, opcional): Telefone do paciente
+- `reason` (string, opcional): Motivo do cancelamento
+- `telegram_chat_id` (string, opcional): Chat ID do Telegram para alerta (multi-tenant)
+- `send_alert` (boolean, opcional): Se deve enviar alerta (padrão: true)
+
+**Saídas:**
+- `success` (boolean): Se a exclusão foi bem-sucedida
+- `deleted` (boolean): Confirmação de exclusão
+- `event_id` (string): ID do evento excluído
+- `alert_sent` (boolean): Se o alerta foi enviado à equipe
+
+**Multi-tenant:**
+- Usa `telegram_chat_id` do input para enviar alerta ao chat correto da clínica
+- Fallback para `TELEGRAM_INTERNAL_CHAT_ID` se não fornecido
+
 ---
 
 ### 🚨 Ferramentas de Escalonamento (`escalation/`)
@@ -160,6 +203,8 @@ Escalonar conversa para operador humano.
 - `phone_number` (string, obrigatório): Número WhatsApp do paciente
 - `last_message` (string, obrigatório): Mensagem mais recente
 - `reason` (string, obrigatório): Motivo do escalonamento
+- `telegram_chat_id` (string, obrigatório para multi-tenant): Chat ID do Telegram da clínica
+- `instance_name` (string, obrigatório para multi-tenant): Nome da instância Evolution
 
 **Gatilhos de Escalonamento:**
 - Palavras-chave de urgência médica
@@ -170,6 +215,11 @@ Escalonar conversa para operador humano.
 **Saídas:**
 - Notificação enviada à equipe via Telegram
 - Mensagem de confirmação ao paciente
+
+**Multi-tenant:**
+- Usa `telegram_chat_id` do input para enviar alerta ao chat correto da clínica
+- Usa `instance_name` do input para responder via WhatsApp correto
+- Fallback para variáveis de ambiente se não fornecidos
 
 ---
 

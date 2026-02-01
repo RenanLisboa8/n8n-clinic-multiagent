@@ -61,7 +61,7 @@
           "name": "Postgres account"
         }
       },
-      "notes": "🔍 Identifies tenant by Telegram chat ID"
+      "notes": "🔍 Identifica tenant pelo chat ID do Telegram\n\n**Query**: Busca `tenant_config` onde `telegram_internal_chat_id` corresponde ao chat ID recebido\n\n**Retorna**:\n- Configuração completa do tenant\n- `tenant_id` - UUID do tenant\n- Todas as configurações (calendário, tarefas, prompts)\n\n**Segurança**: Apenas tenants ativos (`is_active = true`) são retornados"
     },
     {
       "parameters": {
@@ -167,23 +167,27 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "position": [1340, 320],
       "typeVersion": 1.8,
-      "notes": "🤖 Uses tenant-specific internal prompt"
+      "notes": "🤖 Assistente interno usando prompt específico do tenant\n\n**Modelo**: Claude 3.5 Sonnet (via OpenRouter)\n**Temperatura**: 0.7 (balanceado entre criatividade e consistência)\n**Memória**: 10 mensagens de contexto\n**Ferramentas**:\n- MCP Calendar Tool (tenant-specific)\n- Google Tasks Tool (tenant-specific)\n- WhatsApp Send Tool (para notificar pacientes)\n\n**Prompt**: Carregado de `tenant_config.system_prompt_internal`"
     },
     {
       "parameters": {
-        "options": {}
+        "model": "anthropic/claude-3.5-sonnet",
+        "options": {
+          "temperature": 0.7
+        }
       },
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [1340, 520],
-      "id": "gemini-model",
-      "name": "Google Gemini Chat Model",
+      "id": "openrouter-model",
+      "name": "OpenRouter Chat Model",
       "credentials": {
-        "googlePalmApi": {
-          "id": "{{GOOGLE_GEMINI_CREDENTIAL_ID}}",
-          "name": "Google Gemini Shared"
+        "openRouterApi": {
+          "id": "{{OPENROUTER_CREDENTIAL_ID}}",
+          "name": "OpenRouter account"
         }
-      }
+      },
+      "notes": "🤖 Using Claude 3.5 Sonnet via OpenRouter - excellent for internal assistant"
     },
     {
       "parameters": {
@@ -213,7 +217,7 @@
       "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
       "position": [1200, 720],
       "typeVersion": 1,
-      "notes": "📅 Tenant-specific calendar"
+      "notes": "📅 Ferramenta de calendário específica do tenant\n\n**Endpoint**: Configurado em `tenant_config.mcp_calendar_endpoint`\n**Funcionalidades**:\n- Consultar eventos\n- Criar eventos\n- Atualizar eventos\n- Deletar eventos\n- Verificar disponibilidade\n\n**Isolamento**: Cada tenant tem seu próprio endpoint MCP"
     },
     {
       "parameters": {
@@ -235,7 +239,7 @@
           "name": "Google Tasks Shared"
         }
       },
-      "notes": "✅ Tenant-specific task list"
+      "notes": "✅ Lista de tarefas específica do tenant\n\n**Lista ID**: Configurado em `tenant_config.google_tasks_list_id`\n**Uso**: Adicionar itens na lista de compras da clínica\n**Isolamento**: Cada tenant tem sua própria lista de tarefas"
     },
     {
       "parameters": {
@@ -284,13 +288,13 @@
     },
     {
       "parameters": {
-        "content": "## Multi-Tenant Telegram Internal Assistant\n\n**Purpose**: Internal tool for clinic staff to manage appointments and shopping lists\n\n**Authentication**: By Telegram Chat ID\n\n**Key Changes**:\n- ✅ Identifies tenant by chat_id\n- ✅ Unauthorized chats are rejected\n- ✅ Uses tenant-specific calendar/tasks\n- ✅ Can send WhatsApp to patients\n\n**Security**: Only authorized chat IDs can access",
-        "height": 300,
-        "width": 400,
+        "content": "## 📋 02 - Telegram Internal Assistant (Multi-Tenant)\n\n**Versão**: 3.0 - Refatorado com base no Material Secretária v3\n\n### 🎯 Funcionalidades Principais\n- ✅ Assistente interno para equipe via Telegram\n- ✅ Identificação automática de tenant por chat ID\n- ✅ Reagendamento de consultas\n- ✅ Consulta de agenda de profissionais\n- ✅ Notificação automática de pacientes via WhatsApp\n- ✅ Gerenciamento de lista de compras (Google Tasks)\n\n### 🔐 Segurança e Autenticação\n- **Método**: Identificação por `telegram_internal_chat_id`\n- **Validação**: Apenas chats autorizados podem acessar\n- **Rejeição**: Chats não autorizados recebem mensagem de erro\n\n### 🛠️ Ferramentas Disponíveis\n- **MCP Calendar Tool**: Consulta e edição de eventos no Google Calendar\n- **Google Tasks Tool**: Adiciona itens na lista de compras\n- **WhatsApp Send Tool**: Envia mensagens de confirmação/remarcação aos pacientes\n\n### 📊 Características\n- **Modelo**: Claude 3.5 Sonnet (via OpenRouter)\n- **Memória**: 10 mensagens de contexto\n- **Multi-Tenant**: Cada tenant tem suas próprias configurações\n- **Isolamento**: Calendários e tarefas são isolados por tenant\n\n### 🔄 Fluxo de Reagendamento\n1. Profissional solicita reagendamento via Telegram\n2. Sistema identifica tenant pelo chat ID\n3. Localiza consulta no calendário do profissional\n4. Extrai telefone do paciente da descrição do evento\n5. Atualiza evento ou cria novo\n6. **SEMPRE** notifica paciente via WhatsApp\n\n### ⚠️ Regras Importantes\n- SEMPRE notificar paciente após reagendamento\n- Usar calendar_id correto do profissional\n- Manter linguagem profissional\n- Atender APENAS equipe interna",
+        "height": 600,
+        "width": 500,
         "color": 5
       },
       "id": "documentation",
-      "name": "Sticky Note",
+      "name": "Sticky Note - Documentação Principal",
       "type": "n8n-nodes-base.stickyNote",
       "position": [220, 80],
       "typeVersion": 1
@@ -371,7 +375,7 @@
         ]
       ]
     },
-    "Google Gemini Chat Model": {
+    "OpenRouter Chat Model": {
       "ai_languageModel": [
         [
           {

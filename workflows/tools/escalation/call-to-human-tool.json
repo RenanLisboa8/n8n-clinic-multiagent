@@ -31,7 +31,7 @@
     {
       "parameters": {
         "operation": "sendMessage",
-        "chatId": "={{ $env.TELEGRAM_INTERNAL_CHAT_ID }}",
+        "chatId": "={{ $json.telegram_chat_id || $env.TELEGRAM_INTERNAL_CHAT_ID }}",
         "text": "={{ $json.alert_message }}",
         "additionalFields": {
           "parseMode": "Markdown"
@@ -47,7 +47,8 @@
           "id": "{{TELEGRAM_BOT_CREDENTIAL_ID}}",
           "name": "Telegram Bot"
         }
-      }
+      },
+      "notes": "📱 Envia alerta de escalação para o Telegram da clínica\n\n**Multi-tenant**: Usa telegram_chat_id do input (por tenant), fallback para env var global"
     },
     {
       "parameters": {
@@ -189,7 +190,7 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1"
   },

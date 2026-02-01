@@ -2,12 +2,26 @@
   "name": "04 - Error Handler",
   "nodes": [
     {
+      "parameters": {
+        "content": "## 📋 04 - Error Handler\n\n**Versão**: 3.0 - Refatorado com base no Material Secretária v3\n\n### 🎯 Funcionalidades Principais\n- ✅ Captura erros de todos os workflows\n- ✅ Log estruturado de erros\n- ✅ Notificação via Telegram em caso de falhas críticas\n- ✅ Detecção específica de erros de rate limit (429)\n- ✅ Fallback para pacientes em caso de erro no workflow principal\n\n### 🔍 Tipos de Erros Tratados\n1. **Erros Gerais**: Qualquer erro em qualquer workflow\n2. **Rate Limit (429)**: Quota excedida do Google Gemini API\n3. **Erros no Workflow de Pacientes**: Fallback automático para paciente\n\n### 📊 Fluxo de Processamento\n1. **Captura**: Error Trigger captura erro automaticamente\n2. **Parse**: Extrai informações do erro (workflow, node, mensagem)\n3. **Classificação**: Identifica tipo de erro (rate limit, geral)\n4. **Notificação**: Envia alerta via Telegram\n5. **Fallback**: Se erro no workflow de pacientes, envia mensagem de fallback\n\n### 🚨 Alertas Especiais\n- **Rate Limit**: Alerta crítico com instruções específicas\n- **Workflow de Pacientes**: Envia mensagem de fallback ao paciente\n- **Outros Erros**: Alerta padrão com link para execução\n\n### ⚠️ Configuração\n- **Telegram Chat ID**: `$env.TELEGRAM_INTERNAL_CHAT_ID`\n- **N8N Webhook URL**: `$env.N8N_WEBHOOK_URL`\n- **Clinic Phone**: `$env.CLINIC_PHONE` (para fallback)",
+        "height": 700,
+        "width": 500,
+        "color": 5
+      },
+      "id": "documentation-sticky",
+      "name": "Sticky Note - Documentação Principal",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [0, 0],
+      "typeVersion": 1
+    },
+    {
       "parameters": {},
       "id": "error-trigger",
       "name": "Error Trigger",
       "type": "n8n-nodes-base.errorTrigger",
       "position": [240, 400],
-      "typeVersion": 1
+      "typeVersion": 1,
+      "notes": "🚨 Trigger que captura erros automaticamente de todos os workflows\n\n**Ativação**: Automática quando qualquer workflow falha\n**Dados Recebidos**:\n- `workflow` - Informações do workflow que falhou\n- `execution` - Informações da execução\n- `error` - Detalhes do erro (mensagem, node, stack)\n\n**Uso**: Configurado como `errorWorkflow` nos settings dos workflows"
     },
     {
       "parameters": {
@@ -62,7 +76,8 @@
       "name": "Parse Error Data",
       "type": "n8n-nodes-base.set",
       "position": [460, 400],
-      "typeVersion": 3.4
+      "typeVersion": 3.4,
+      "notes": "📝 Extrai e estrutura informações do erro\n\n**Campos Extraídos**:\n- `workflow_name` - Nome do workflow que falhou\n- `workflow_id` - ID do workflow\n- `execution_id` - ID da execução\n- `error_message` - Mensagem de erro\n- `error_node` - Nome do node que falhou\n- `error_stack` - Stack trace completo\n- `timestamp` - Timestamp do erro\n\n**Uso**: Dados estruturados para logs e notificações"
     },
     {
       "parameters": {
@@ -98,6 +113,7 @@
       "type": "n8n-nodes-base.telegram",
       "position": [900, 400],
       "typeVersion": 1.2,
+      "notes": "📱 Envia alerta de erro via Telegram\n\n**Destinatário**: `$env.TELEGRAM_INTERNAL_CHAT_ID`\n**Formato**: Markdown\n**Conteúdo**:\n- Nome do workflow\n- ID da execução\n- Node que falhou\n- Mensagem de erro\n- Link direto para execução\n\n**Uso**: Notificação imediata para equipe técnica",
       "credentials": {
         "telegramApi": {
           "id": "{{TELEGRAM_BOT_CREDENTIAL_ID}}",
@@ -147,7 +163,7 @@
       "type": "n8n-nodes-base.if",
       "position": [680, 600],
       "typeVersion": 2.1,
-      "notes": "🔍 Detecta erros 429 (quota exceeded) do Gemini API"
+      "notes": "🔍 Detecta erros 429 (quota exceeded) do Google Gemini API\n\n**Padrões Detectados**:\n- \"429\" na mensagem de erro\n- \"quota exceeded\" na mensagem\n- \"too many requests\" na mensagem\n\n**Ação**: Se detectado, envia alerta crítico com instruções específicas\n\n**Importante**: Erros de rate limit NÃO devem retry automaticamente"
     },
     {
       "parameters": {
@@ -157,7 +173,7 @@
               "id": "rate_limit_alert",
               "name": "rate_limit_alert",
               "type": "string",
-              "value": "=🚨 *RATE LIMIT EXCEEDED*\n\n*Workflow:* {{ $json.workflow_name }}\n*Time:* {{ $json.timestamp }}\n\n⚠️ *CRITICAL: Google Gemini API quota exceeded!*\n\nThe service has reached the daily quota limit (20 requests/day on free tier).\n\n*Error Details:*\n```\n{{ $json.error_message }}\n```\n\n*Immediate Actions Required:*\n1. Wait ~1 hour for quota reset\n2. Consider upgrading to paid tier\n3. Check quota usage: https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/quotas\n4. Verify Message Formatter Tool is DEACTIVATED\n5. Check if retries are disabled on Gemini nodes\n\n*This error should NOT retry automatically - retries are disabled to prevent quota exhaustion.*"
+              "value": "=🚨 *RATE LIMIT EXCEEDED*\n\n*Workflow:* {{ $json.workflow_name }}\n*Time:* {{ $json.timestamp }}\n\n⚠️ *CRITICAL: Google Gemini API quota exceeded!*\n\nThe service has reached the daily quota limit (20 requests/day on free tier).\n\n*Error Details:*\n```\n{{ $json.error_message }}\n```\n\n*Immediate Actions Required:*\n1. Wait ~1 hour for quota reset\n2. Consider upgrading to paid tier\n3. Check quota usage: https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/quotas\n4. Check if retries are disabled on Gemini nodes\n\n*This error should NOT retry automatically - retries are disabled to prevent quota exhaustion.*"
             }
           ]
         }
@@ -193,7 +209,8 @@
       "name": "Is Patient Workflow?",
       "type": "n8n-nodes-base.if",
       "position": [1120, 600],
-      "typeVersion": 2.1
+      "typeVersion": 2.1,
+      "notes": "🔍 Verifica se o erro ocorreu no workflow de pacientes\n\n**Detecção**: Verifica se `workflow_name` contém \"WhatsApp Patient Handler\"\n\n**Ação**: Se sim, envia mensagem de fallback ao paciente via WhatsApp\n\n**Motivo**: Garantir que pacientes sempre recebam uma resposta, mesmo em caso de erro"
     },
     {
       "parameters": {

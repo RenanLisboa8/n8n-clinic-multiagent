@@ -48,9 +48,12 @@ workflows/
 
 **Ferramentas Utilizadas**:
 - `FindProfessionals` - Busca profissionais por serviço
+- `ListCalendarEvents` - Lista eventos para encontrar agendamentos existentes
 - `CheckCalendarAvailability` - Consulta horários disponíveis (usa calendar_id do profissional)
 - `CreateCalendarEvent` - Cria agendamento (usa calendar_id do profissional)
-- `CallToHuman` - Escalação para atendimento humano
+- `UpdateCalendarEvent` - Reagenda agendamento existente
+- `DeleteCalendarEvent` - Cancela agendamento e notifica equipe
+- `CallToHuman` - Escalação para atendimento humano (multi-tenant)
 
 ---
 
@@ -172,6 +175,77 @@ Ferramentas utilizadas pelos agentes de LangChain para executar ações.
 - Sempre use o `calendar_id` retornado por `FindProfessionals`
 - Nunca use um `calendar_id` genérico ou de outro profissional
 
+#### Google Calendar Update Event Tool
+**Função**: Atualiza (reagenda) um evento existente no calendário.
+
+**Entradas**:
+- `calendar_id` (obrigatório) - ID do calendário do Google Calendar
+- `event_id` (obrigatório) - ID do evento a ser atualizado
+- `start` (opcional) - Nova data/hora de início (ISO 8601)
+- `end` (opcional) - Nova data/hora de fim (ISO 8601)
+- `summary` (opcional) - Novo título do evento
+- `description` (opcional) - Nova descrição
+
+**Saídas**:
+- `success` - Boolean indicando sucesso
+- `event_id` - ID do evento atualizado
+- `event_link` - Link HTML para o evento
+- `updated_start` - Nova data/hora de início
+- `updated_end` - Nova data/hora de fim
+- `message` - Mensagem de confirmação
+
+**Uso típico**:
+1. Use `ListCalendarEvents` para encontrar o agendamento do paciente
+2. Confirme com o paciente qual agendamento deseja reagendar
+3. Use `CheckCalendarAvailability` para encontrar novos horários
+4. Use `UpdateCalendarEvent` com o `event_id` e novos horários
+
+#### Google Calendar Delete Event Tool
+**Função**: Cancela (exclui) um agendamento e envia alerta para a equipe.
+
+**Entradas**:
+- `calendar_id` (obrigatório) - ID do calendário do Google Calendar
+- `event_id` (obrigatório) - ID do evento a ser excluído
+- `patient_name` (opcional) - Nome do paciente
+- `patient_phone` (opcional) - Telefone do paciente
+- `reason` (opcional) - Motivo do cancelamento
+- `telegram_chat_id` (opcional) - Chat ID do Telegram para alerta (multi-tenant)
+- `send_alert` (opcional) - Se deve enviar alerta (default: true)
+
+**Saídas**:
+- `success` - Boolean indicando sucesso
+- `deleted` - Boolean indicando que foi excluído
+- `event_id` - ID do evento excluído
+- `alert_sent` - Boolean indicando se alerta foi enviado
+- `message` - Mensagem de confirmação
+
+**Multi-tenant**: 
+- Usa `telegram_chat_id` do input para enviar alerta ao chat correto da clínica
+- Fallback para `TELEGRAM_INTERNAL_CHAT_ID` se não fornecido
+
+#### Google Calendar List Events Tool
+**Função**: Lista eventos de um calendário em um período.
+
+**Entradas**:
+- `calendar_id` (obrigatório) - ID do calendário do Google Calendar
+- `time_min` (obrigatório) - Data/hora inicial (ISO 8601)
+- `time_max` (obrigatório) - Data/hora final (ISO 8601)
+
+**Saídas**:
+- `calendar_id` - ID do calendário consultado
+- `event_count` - Quantidade de eventos encontrados
+- `events` (array) - Lista de eventos
+  - `event_id` - ID do evento
+  - `summary` - Título do evento
+  - `start` - Data/hora de início
+  - `end` - Data/hora de fim
+  - `description` - Descrição do evento
+  - `html_link` - Link para o evento
+
+**Uso típico**:
+- Encontrar agendamentos existentes do paciente para reagendar ou cancelar
+- Consultar agenda de um profissional
+
 ---
 
 ### 🔍 Serviços (`tools/service/`)
@@ -229,6 +303,39 @@ Output: {
   ]
 }
 ```
+
+---
+
+### 📞 Escalação (`tools/escalation/`)
+
+#### Call to Human Tool
+**Função**: Escala o atendimento para um humano quando necessário.
+
+**Entradas**:
+- `tenant_id` (obrigatório) - UUID do tenant
+- `patient_name` (obrigatório) - Nome do paciente
+- `phone_number` (obrigatório) - Telefone do paciente (remote_jid)
+- `last_message` (obrigatório) - Última mensagem do paciente
+- `reason` (opcional) - Motivo da escalação
+- `telegram_chat_id` (obrigatório para multi-tenant) - Chat ID do Telegram da clínica
+- `instance_name` (obrigatório para multi-tenant) - Nome da instância Evolution
+
+**Saídas**:
+- `success` - Boolean indicando sucesso
+- `escalated` - Boolean indicando que foi escalado
+- `reason` - Motivo da escalação
+- `timestamp` - Data/hora da escalação
+
+**Multi-tenant**:
+- Usa `telegram_chat_id` do input para enviar alerta ao chat correto da clínica
+- Usa `instance_name` do input para responder via WhatsApp correto
+- Fallback para variáveis de ambiente se não fornecidos
+
+**Quando usar**:
+- Cliente solicita falar com humano
+- Situação de urgência médica
+- Reclamações ou insatisfação
+- Questões que fogem do escopo do bot (pagamentos, etc.)
 
 ---
 
@@ -362,7 +469,133 @@ Nenhuma variável de ambiente obrigatória - tudo é carregado do banco de dados
 
 ---
 
-## 🐛 Troubleshooting
+## � Fluxo de Reagendamento
+
+### 1. Cliente Solicita Reagendamento
+```
+Cliente: "Preciso mudar meu horário da próxima segunda"
+→ AI identifica intenção de reagendamento
+```
+
+### 2. Buscar Agendamentos Existentes
+```
+AI chama ListCalendarEvents(
+  calendar_id: "dr-jose-calendar@group.calendar.google.com",
+  time_min: agora,
+  time_max: 30 dias no futuro
+)
+```
+
+### 3. Identificar Agendamento
+```
+AI: "Encontrei seu agendamento:
+📅 Segunda-feira, 13 de janeiro às 08:00
+Implante Dentário com Dr. José
+
+É esse que deseja reagendar?"
+```
+
+### 4. Buscar Novos Horários
+```
+AI chama CheckCalendarAvailability(
+  calendar_id: "dr-jose-calendar@group.calendar.google.com",
+  duration_minutes: 120
+)
+```
+
+### 5. Cliente Escolhe Novo Horário
+```
+Cliente: "Quero o horário de terça às 14h"
+→ AI chama UpdateCalendarEvent(
+  calendar_id: "dr-jose-calendar@group.calendar.google.com",
+  event_id: "abc123xyz",
+  start: "2025-01-14T14:00:00-03:00",
+  end: "2025-01-14T16:00:00-03:00"
+)
+```
+
+### 6. Confirmação
+```
+AI: "Agendamento reagendado com sucesso!
+📅 Terça-feira, 14 de janeiro às 14:00
+⏱️ Duração: 2 horas"
+```
+
+---
+
+## 🚫 Fluxo de Cancelamento
+
+### 1. Cliente Solicita Cancelamento
+```
+Cliente: "Preciso cancelar minha consulta"
+→ AI identifica intenção de cancelamento
+```
+
+### 2. Buscar Agendamentos
+```
+AI chama ListCalendarEvents para encontrar agendamentos do paciente
+```
+
+### 3. Confirmar Cancelamento
+```
+AI: "Encontrei seu agendamento:
+📅 Segunda-feira, 13 de janeiro às 08:00
+Implante Dentário com Dr. José
+
+Tem certeza que deseja cancelar?"
+```
+
+### 4. Executar Cancelamento
+```
+Cliente: "Sim, pode cancelar"
+→ AI chama DeleteCalendarEvent(
+  calendar_id: "dr-jose-calendar@group.calendar.google.com",
+  event_id: "abc123xyz",
+  patient_name: "João Silva",
+  patient_phone: "5516999999999",
+  reason: "Cancelamento solicitado pelo paciente",
+  telegram_chat_id: "-123456789"
+)
+```
+
+### 5. Notificações
+- **Paciente**: Recebe confirmação do cancelamento via WhatsApp
+- **Equipe**: Recebe alerta no Telegram com detalhes do cancelamento
+
+---
+
+## 📞 Fluxo de Escalação (Transbordo)
+
+### 1. Quando Escalar
+- Cliente solicita explicitamente falar com humano
+- Situação de urgência médica detectada
+- Reclamação ou insatisfação do cliente
+- Questões fora do escopo (pagamentos, seguros, etc.)
+
+### 2. Execução
+```
+AI chama CallToHuman(
+  patient_name: "João Silva",
+  phone_number: "5516999999999",
+  last_message: "Preciso falar com alguém urgente",
+  reason: "Cliente solicitou atendimento humano",
+  telegram_chat_id: "-123456789",  // Chat da clínica
+  instance_name: "clinica-abc"     // Instância WhatsApp
+)
+```
+
+### 3. Resultado
+- **Telegram**: Alerta enviado ao chat interno da clínica
+- **WhatsApp**: Mensagem de confirmação ao paciente
+
+### Multi-Tenant
+Cada clínica recebe alertas em seu próprio chat Telegram:
+- `telegram_chat_id`: Obtido de `tenant_config.telegram_internal_chat_id`
+- `instance_name`: Obtido de `tenant_config.evolution_instance_name`
+
+---
+
+## �🐛 Troubleshooting
 
 ### Erro: "Nenhum profissional encontrado"
 **Causa**: Serviço não cadastrado ou nenhum profissional oferece este serviço.
@@ -414,8 +647,8 @@ Nenhuma variável de ambiente obrigatória - tudo é carregado do banco de dados
 
 ---
 
-**Última Atualização**: 2026-01-10  
-**Versão**: 3.0 - Refatorado com base no Material Secretária v3  
+**Última Atualização**: 2026-02-01  
+**Versão**: 3.1 - Adicionado reagendar, cancelar e escalação multi-tenant  
 **Autor**: Sistema de Clínica Multi-Agent
 
 ## 📝 Notas de Refatoração
@@ -427,6 +660,12 @@ Esta versão foi refatorada aplicando melhorias do Material Secretária v3, mant
 2. **Notas de Nodes**: Cada node possui notas explicativas detalhadas
 3. **Estrutura**: Melhor organização seguindo padrões estabelecidos
 4. **Manutenibilidade**: Documentação inline facilita manutenção e onboarding
+
+### Novas Funcionalidades (v3.1)
+- ✅ **UpdateCalendarEvent**: Reagendamento de eventos existentes
+- ✅ **DeleteCalendarEvent**: Cancelamento com alerta automático para equipe
+- ✅ **CallToHuman Multi-Tenant**: Escalação usando telegram_chat_id e instance_name por tenant
+- ✅ **Documentação Completa**: Fluxos de reagendar, cancelar e escalar documentados
 
 ### Funcionalidades Preservadas
 - ✅ Arquitetura multi-tenant completa

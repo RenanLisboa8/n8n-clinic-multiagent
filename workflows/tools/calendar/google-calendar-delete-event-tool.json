@@ -1,0 +1,338 @@
+{
+  "name": "Google Calendar Delete Event Tool",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "workflow-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [240, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "calendar_id",
+              "name": "calendar_id",
+              "type": "string",
+              "value": "={{ $json.calendar_id || $json.google_calendar_id || $json.id_agenda }}"
+            },
+            {
+              "id": "event_id",
+              "name": "event_id",
+              "type": "string",
+              "value": "={{ $json.event_id || $json.id_evento }}"
+            },
+            {
+              "id": "send_alert",
+              "name": "send_alert",
+              "type": "boolean",
+              "value": "={{ $json.send_alert !== false }}"
+            },
+            {
+              "id": "telegram_chat_id",
+              "name": "telegram_chat_id",
+              "type": "string",
+              "value": "={{ $json.telegram_chat_id || '' }}"
+            },
+            {
+              "id": "patient_name",
+              "name": "patient_name",
+              "type": "string",
+              "value": "={{ $json.patient_name || $json.nome_paciente || 'Paciente' }}"
+            },
+            {
+              "id": "patient_phone",
+              "name": "patient_phone",
+              "type": "string",
+              "value": "={{ $json.patient_phone || $json.phone_number || $json.telefone || '' }}"
+            },
+            {
+              "id": "reason",
+              "name": "reason",
+              "type": "string",
+              "value": "={{ $json.reason || $json.motivo || 'Cancelamento solicitado pelo paciente' }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-params",
+      "name": "Extract Parameters",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 300],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.calendar_id }}",
+          "mode": "id"
+        },
+        "eventId": "={{ $json.event_id }}",
+        "options": {}
+      },
+      "id": "delete-event",
+      "name": "Delete Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "position": [680, 300],
+      "typeVersion": 1.3,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "{{GOOGLE_CALENDAR_CREDENTIAL_ID}}",
+          "name": "Google Calendar OAuth2"
+        }
+      },
+      "notes": "📅 Exclui evento do Google Calendar\n\n**Operação**: delete\n**Requer**: calendar_id + event_id\n\n**Nota**: Esta operação é irreversível"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-alert",
+              "leftValue": "={{ $json.send_alert }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "check-chat-id",
+              "leftValue": "={{ $json.telegram_chat_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true
+      },
+      "id": "should-alert",
+      "name": "Should Send Alert?",
+      "type": "n8n-nodes-base.if",
+      "position": [900, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $('Extract Parameters').item.json.telegram_chat_id || $env.TELEGRAM_INTERNAL_CHAT_ID }}",
+        "text": "=🚫 *AGENDAMENTO CANCELADO*\n\n*Paciente:* {{ $('Extract Parameters').item.json.patient_name }}\n*Telefone:* {{ $('Extract Parameters').item.json.patient_phone }}\n*Motivo:* {{ $('Extract Parameters').item.json.reason }}\n\n*Horário:* {{ $now }}\n*Event ID:* {{ $('Extract Parameters').item.json.event_id }}",
+        "additionalFields": {
+          "parseMode": "Markdown"
+        }
+      },
+      "id": "send-alert",
+      "name": "Send Alert to Staff",
+      "type": "n8n-nodes-base.telegram",
+      "position": [1120, 200],
+      "typeVersion": 1.2,
+      "credentials": {
+        "telegramApi": {
+          "id": "{{TELEGRAM_BOT_CREDENTIAL_ID}}",
+          "name": "Telegram Bot"
+        }
+      },
+      "notes": "📱 Envia alerta de cancelamento para o Telegram da clínica\n\n**Multi-tenant**: Usa telegram_chat_id do input, fallback para env"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "type": "boolean",
+              "value": "=true"
+            },
+            {
+              "id": "deleted",
+              "name": "deleted",
+              "type": "boolean",
+              "value": "=true"
+            },
+            {
+              "id": "event_id",
+              "name": "event_id",
+              "type": "string",
+              "value": "={{ $('Extract Parameters').item.json.event_id }}"
+            },
+            {
+              "id": "calendar_id",
+              "name": "calendar_id",
+              "type": "string",
+              "value": "={{ $('Extract Parameters').item.json.calendar_id }}"
+            },
+            {
+              "id": "alert_sent",
+              "name": "alert_sent",
+              "type": "boolean",
+              "value": "=true"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "type": "string",
+              "value": "=Agendamento cancelado com sucesso. Alerta enviado para a equipe."
+            }
+          ]
+        }
+      },
+      "id": "format-response-with-alert",
+      "name": "Format Response (With Alert)",
+      "type": "n8n-nodes-base.set",
+      "position": [1340, 200],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "type": "boolean",
+              "value": "=true"
+            },
+            {
+              "id": "deleted",
+              "name": "deleted",
+              "type": "boolean",
+              "value": "=true"
+            },
+            {
+              "id": "event_id",
+              "name": "event_id",
+              "type": "string",
+              "value": "={{ $('Extract Parameters').item.json.event_id }}"
+            },
+            {
+              "id": "calendar_id",
+              "name": "calendar_id",
+              "type": "string",
+              "value": "={{ $('Extract Parameters').item.json.calendar_id }}"
+            },
+            {
+              "id": "alert_sent",
+              "name": "alert_sent",
+              "type": "boolean",
+              "value": "=false"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "type": "string",
+              "value": "=Agendamento cancelado com sucesso."
+            }
+          ]
+        }
+      },
+      "id": "format-response-no-alert",
+      "name": "Format Response (No Alert)",
+      "type": "n8n-nodes-base.set",
+      "position": [1120, 400],
+      "typeVersion": 3.4
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Parameters": {
+      "main": [
+        [
+          {
+            "node": "Delete Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Event": {
+      "main": [
+        [
+          {
+            "node": "Should Send Alert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Send Alert?": {
+      "main": [
+        [
+          {
+            "node": "Send Alert to Staff",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Response (No Alert)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Alert to Staff": {
+      "main": [
+        [
+          {
+            "node": "Format Response (With Alert)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "google-calendar-delete-event-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "tool",
+      "id": "1"
+    },
+    {
+      "name": "calendar",
+      "id": "4"
+    },
+    {
+      "name": "google-api",
+      "id": "6"
+    }
+  ]
+}
