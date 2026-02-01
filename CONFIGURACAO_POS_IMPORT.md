@@ -2,11 +2,7 @@
 
 ## ✅ Checklist Rápido
 
-Execute este checklist após importar os workflows no n8n:
-
-```bash
-./scripts/post-import-checklist.sh
-```
+Siga este checklist após importar os workflows no n8n:
 
 ## 🔍 Verificações Críticas
 
@@ -31,7 +27,10 @@ Os workflows **DEVEM** ter estes nomes EXATOS no n8n:
 - ⚪ `WhatsApp Send Tool`
 - ⚪ `Telegram Notify Tool`
 - ⚪ `Call to Human Tool`
-- ⚪ `Message Formatter Tool` (⚠️ DEVE estar DESATIVADO!)
+- ⚪ `Google Calendar Update Event Tool`
+- ⚪ `Google Calendar Delete Event Tool`
+
+> **ℹ️ NOTA:** O `Message Formatter Tool` foi removido. A formatação agora é feita inline no patient-handler.
 
 > **⚠️ IMPORTANTE:** Se os nomes estiverem diferentes após a importação, **renomeie** no n8n para corresponder exatamente aos nomes acima.
 
@@ -133,10 +132,8 @@ Após configurar tudo, teste:
 
 ### Erro: "429 Too Many Requests" (quota exceeded)
 **Solução:**
-- Verifique se `Message Formatter Tool` está **DESATIVADO**
 - Verifique se `retryOnFail` está **DESABILITADO** em todos os nós Gemini
 - Verifique se o modelo está configurado como `gemini-2.0-flash-lite`
-- Execute: `./scripts/fix-rate-limit.sh`
 
 ### Erro: "Find Professionals Tool not found"
 **Solução:**
@@ -152,17 +149,11 @@ Após configurar tudo, teste:
 ## 📋 Scripts Úteis
 
 ```bash
-# Checklist pós-importação
-./scripts/post-import-checklist.sh
-
-# Aplicar correções de rate limit
-./scripts/fix-rate-limit.sh
-
 # Importar workflows
 ./scripts/import-workflows.sh
 
-# Ativar tool workflows
-./scripts/activate-tool-workflows.sh
+# Reimportar workflows com fallback automático
+./scripts/reimport-all-workflows.sh
 ```
 
 ## ✅ Checklist Final
@@ -175,7 +166,6 @@ Antes de considerar tudo configurado, verifique:
 - [ ] Credenciais foram selecionadas em cada workflow
 - [ ] Workflows principais estão ATIVOS
 - [ ] Tool workflows estão INATIVOS (ou ativos, conforme necessário)
-- [ ] `Message Formatter Tool` está DESATIVADO
 - [ ] Retries estão desabilitados em nós Gemini
 - [ ] Modelo está configurado como `gemini-2.0-flash-lite`
 - [ ] Variáveis de ambiente foram configuradas
@@ -185,6 +175,6 @@ Antes de considerar tudo configurado, verifique:
 ## 🆘 Ainda com Problemas?
 
 1. Verifique os logs do n8n: `docker-compose logs -f n8n`
-2. Execute o checklist: `./scripts/post-import-checklist.sh`
-3. Verifique se todas as migrações foram aplicadas: `./scripts/fix-rate-limit.sh`
+2. Revise nomes e credenciais diretamente no n8n
+3. Aplique migrations pendentes: `./scripts/apply-migrations.sh`
 4. Consulte a documentação: `docs/DEPLOYMENT.md`
