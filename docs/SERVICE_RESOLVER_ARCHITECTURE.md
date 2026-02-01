@@ -510,5 +510,266 @@ docker compose exec postgres psql -U clinic_admin -d clinic_db \
 
 ---
 
-*Última Atualização: 02-01-2026*
-*Versão da Arquitetura: 2.0 (Multi-Profissional e Multi-Serviço)*
+## 🔄 Arquitetura do Workflow n8n
+
+### Fluxo Principal: Propagação de tenant_id
+
+O `tenant_id` deve ser propagado consistentemente através de toda a cadeia de execução:
+
+```mermaid
+flowchart TD
+    WH[Webhook WhatsApp] --> TCL[Tenant Config Loader]
+    TCL --> PARSE[Parse Webhook Data]
+    PARSE --> STATE[Conversation State Machine]
+    STATE --> ROUTER{Router Logic}
+    
+    ROUTER -->|FAQ| FAQ_TOOL[FAQ Tool]
+    ROUTER -->|Service| SERVICE_TOOL[Find Professionals Tool]
+    ROUTER -->|Calendar| CALENDAR_TOOL[Calendar Tools]
+    ROUTER -->|Complex| AI_AGENT[AI Agent]
+    
+    SERVICE_TOOL --> CALENDAR_TOOL
+    AI_AGENT --> CALENDAR_TOOL
+    
+    CALENDAR_TOOL --> APPOINTMENTS[Appointments Table]
+    APPOINTMENTS --> RESPONSE[Send Response]
+    
+    style TCL fill:#4285f4,color:#fff
+    style ROUTER fill:#ff9800,color:#fff
+    style APPOINTMENTS fill:#4caf50,color:#fff
+```
+
+### Payload Padronizado
+
+Após o **Tenant Config Loader**, todos os workflows devem receber o seguinte payload padronizado:
+
+```javascript
+{
+  // Identificação do Tenant
+  "tenant_id": "uuid-do-tenant",
+  "tenant_config": {
+    "tenant_name": "Clínica Exemplo",
+    "clinic_name": "Clínica Exemplo Ltda",
+    "timezone": "America/Sao_Paulo",
+    "system_prompt_patient": "Você é o assistente...",
+    "google_calendar_id": "clinic@group.calendar.google.com",
+    "telegram_internal_chat_id": "-12345678",
+    "features": {
+      "audio_transcription": true,
+      "image_ocr": true,
+      "appointment_confirmation": true
+    }
+  },
+  
+  // Catálogo de Serviços (para contexto AI)
+  "services_catalog": [
+    {
+      "professional_id": "uuid",
+      "professional_name": "Dr. José",
+      "service_name": "Implante Dentário",
+      "duration_minutes": 120,
+      "price_cents": 500000,
+      "google_calendar_id": "dr-jose@gmail.com"
+    }
+  ],
+  
+  // Dados do Webhook
+  "remote_jid": "5531999999999@s.whatsapp.net",
+  "message_text": "Quero agendar uma consulta",
+  "message_type": "text",
+  "push_name": "João Paciente",
+  "instance_name": "clinic_instance",
+  
+  // Estado da Conversa (se existir)
+  "conversation_state": {
+    "current_state": "awaiting_service",
+    "selected_service_id": null,
+    "selected_professional_id": null
+  }
+}
+```
+
+### Chamadas de Sub-Workflows
+
+Cada sub-workflow/tool deve receber `tenant_id` explicitamente:
+
+```javascript
+// Chamada para Find Professionals Tool
+{
+  "tenant_id": "{{ $json.tenant_id }}",
+  "service_name": "{{ $json.selected_service }}",
+  "remote_jid": "{{ $json.remote_jid }}"
+}
+
+// Chamada para Calendar Availability Tool
+{
+  "tenant_id": "{{ $json.tenant_id }}",
+  "professional_id": "{{ $json.selected_professional.professional_id }}",
+  "calendar_id": "{{ $json.selected_professional.google_calendar_id }}",
+  "duration_minutes": "{{ $json.selected_professional.duration_minutes }}"
+}
+
+// Chamada para Create Appointment
+{
+  "tenant_id": "{{ $json.tenant_id }}",
+  "professional_id": "{{ $json.selected_professional.professional_id }}",
+  "service_id": "{{ $json.selected_service.service_id }}",
+  "start_at": "{{ $json.selected_slot.start }}",
+  "patient_contact": "{{ $json.remote_jid }}",
+  "patient_name": "{{ $json.push_name }}"
+}
+```
+
+### Router Logic: Fluxo de Decisão
+
+```mermaid
+flowchart TD
+    INPUT[Mensagem do Usuário] --> CHECK_STATE{Verificar Estado}
+    
+    CHECK_STATE -->|Estado: initial| MAIN_MENU[Mostrar Menu Principal]
+    CHECK_STATE -->|Estado: awaiting_service| SHOW_SERVICES[Listar Serviços]
+    CHECK_STATE -->|Estado: awaiting_professional| FIND_PROFS[Buscar Profissionais]
+    CHECK_STATE -->|Estado: awaiting_date| SHOW_SLOTS[Mostrar Horários]
+    CHECK_STATE -->|Estado: awaiting_confirmation| BOOK[Agendar]
+    CHECK_STATE -->|Estado: complex_query| AI_PROCESS[Processar com IA]
+    
+    FIND_PROFS --> DB_CALL[find_professionals_for_service<br/>tenant_id + service_name]
+    
+    DB_CALL --> RESULT{Resultados?}
+    RESULT -->|1 Profissional| AUTO_SELECT[Auto-selecionar]
+    RESULT -->|N Profissionais| SHOW_OPTIONS[Mostrar Opções]
+    RESULT -->|0 Profissionais| ERROR[Serviço não disponível]
+    
+    AUTO_SELECT --> SHOW_SLOTS
+    SHOW_OPTIONS --> AWAIT_CHOICE[Aguardar Seleção]
+    AWAIT_CHOICE --> SHOW_SLOTS
+    
+    SHOW_SLOTS --> CAL_CALL[Google Calendar Availability<br/>calendar_id + duration_minutes]
+    
+    CAL_CALL --> SLOTS{Slots Disponíveis?}
+    SLOTS -->|Sim| PRESENT_SLOTS[Apresentar Slots]
+    SLOTS -->|Não| SUGGEST_DATE[Sugerir Outra Data]
+    
+    PRESENT_SLOTS --> AWAIT_SLOT[Aguardar Seleção]
+    AWAIT_SLOT --> VALIDATE[Validar Slot >= Duração]
+    
+    VALIDATE -->|Válido| CREATE_APPT[create_appointment<br/>tenant + professional + service + slot]
+    VALIDATE -->|Inválido| ERROR_SLOT[Slot Insuficiente]
+    
+    CREATE_APPT --> SYNC_CAL[Sincronizar Google Calendar]
+    SYNC_CAL --> CONFIRM[Confirmar ao Paciente]
+    
+    style DB_CALL fill:#4285f4,color:#fff
+    style CAL_CALL fill:#ff9800,color:#fff
+    style CREATE_APPT fill:#4caf50,color:#fff
+```
+
+### Integração com Tabela de Appointments
+
+Após criar um evento no Google Calendar, o workflow deve:
+
+1. **Criar registro no banco** usando `create_appointment()`
+2. **Armazenar o `google_event_id`** usando `update_appointment_google_event()`
+3. **Atualizar status de sync** para 'synced'
+
+```javascript
+// Após criar evento no Google Calendar
+const googleEventId = $input.item.json.googleEventId;
+const appointmentId = $input.item.json.appointmentId;
+
+// Atualizar appointment com google_event_id
+await $db.query(`
+  SELECT update_appointment_google_event(
+    $1::uuid,
+    $2::varchar,
+    $3::text
+  )
+`, [appointmentId, googleEventId, googleEventLink]);
+```
+
+### Fluxo de Cancelamento
+
+```javascript
+// Paciente solicita cancelamento
+const appointment = await $db.query(`
+  SELECT * FROM get_patient_appointments($1, $2, false)
+`, [tenantId, remoteJid]);
+
+if (appointment) {
+  // Cancelar no banco (soft delete)
+  const result = await $db.query(`
+    SELECT * FROM cancel_appointment($1, 'patient', $2)
+  `, [appointmentId, reason]);
+  
+  // Deletar evento do Google Calendar
+  if (result.google_event_id) {
+    await googleCalendar.deleteEvent({
+      calendarId: result.google_calendar_id,
+      eventId: result.google_event_id
+    });
+  }
+}
+```
+
+---
+
+## 🛡️ Regras de Consistência
+
+### 1. Nunca Hardcodar IDs
+
+❌ **ERRADO:**
+```javascript
+const calendarId = "dr-jose@gmail.com"; // Hardcoded!
+```
+
+✅ **CORRETO:**
+```javascript
+const calendarId = $json.selected_professional.google_calendar_id;
+```
+
+### 2. Sempre Usar Duration do Banco
+
+❌ **ERRADO:**
+```javascript
+const endTime = startTime.plus({ hours: 1 }); // Duração estimada
+```
+
+✅ **CORRETO:**
+```javascript
+const endTime = await $db.query(`
+  SELECT calculate_appointment_end_time($1, $2, $3)
+`, [startTime, professionalId, serviceId]);
+```
+
+### 3. Sempre Propagar tenant_id
+
+❌ **ERRADO:**
+```javascript
+// Sub-workflow sem tenant_id
+await executeWorkflow("find-professionals", { service: "implante" });
+```
+
+✅ **CORRETO:**
+```javascript
+await executeWorkflow("find-professionals", {
+  tenant_id: $json.tenant_id,
+  service: "implante"
+});
+```
+
+### 4. Soft Delete para Appointments
+
+❌ **ERRADO:**
+```sql
+DELETE FROM appointments WHERE appointment_id = $1;
+```
+
+✅ **CORRETO:**
+```sql
+SELECT cancel_appointment($1, 'patient', 'Paciente cancelou');
+```
+
+---
+
+*Última Atualização: 01-02-2026*
+*Versão da Arquitetura: 3.0 (Multi-Tenant SaaS com Appointments)*

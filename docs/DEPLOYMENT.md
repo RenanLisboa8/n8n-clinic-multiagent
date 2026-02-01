@@ -219,6 +219,128 @@ TELEGRAM_BOT_TOKEN=<SEU_TOKEN_BOT>  # Obtenha do @BotFather
 | `N8N_PROTOCOL` | ❌ | Protocolo HTTP (http/https) | `https` (recomendado) |
 | `TIMEZONE` | ❌ | Fuso horário do servidor | `America/Sao_Paulo` |
 
+### 3.3 Estratégia de Credenciais Multi-Tenant
+
+O sistema suporta múltiplos tenants (clínicas) com isolamento completo. A estratégia de credenciais segue o princípio de "configuração via banco de dados":
+
+#### Tipos de Credenciais
+
+| Tipo | Onde Armazenar | Exemplo |
+|------|----------------|---------|
+| **Globais** | `.env` / Variáveis de ambiente | DB URL, Redis, N8N_ENCRYPTION_KEY |
+| **Por Tenant** | Tabela `tenant_config` | Evolution instance, Telegram chat ID |
+| **Google Calendar** | Tabela `calendars` + n8n Credentials | Um OAuth credential por clínica |
+
+#### Configuração de Credenciais Google Calendar
+
+**Opção 1: Uma Credencial por Tenant (Recomendado)**
+
+1. No Google Cloud Console, crie um projeto OAuth por clínica
+2. No n8n, crie uma credencial `Google OAuth2 API` para cada clínica
+3. Anote o ID da credencial n8n (visível na URL ao editar)
+4. Insira na tabela `calendars`:
+
+```sql
+INSERT INTO calendars (
+    tenant_id,
+    professional_id,
+    google_calendar_id,
+    credential_ref,
+    credential_type,
+    is_primary
+) VALUES (
+    'uuid-do-tenant',
+    'uuid-do-profissional',
+    'email-do-profissional@gmail.com',
+    'ID_DA_CREDENCIAL_N8N',  -- ex: 'J2K8L9M0N1P2Q3R4'
+    'n8n_credential',
+    true
+);
+```
+
+**Opção 2: Credencial Padrão por Tenant**
+
+1. Configure uma credencial OAuth no n8n
+2. Armazene o ID na tabela `tenant_config`:
+
+```sql
+UPDATE tenant_config
+SET default_google_credential_id = 'ID_DA_CREDENCIAL_N8N'
+WHERE tenant_id = 'uuid-do-tenant';
+```
+
+3. Calendars sem `credential_ref` usarão a credencial padrão do tenant
+
+**Opção 3: Variável de Ambiente (Desenvolvimento)**
+
+1. No `.env`: `GOOGLE_CALENDAR_CREDENTIAL_CLINIC_A=seu_id`
+2. Na tabela `calendars`:
+
+```sql
+UPDATE calendars
+SET credential_ref = 'GOOGLE_CALENDAR_CREDENTIAL_CLINIC_A',
+    credential_type = 'env_key'
+WHERE calendar_id = 'uuid-do-calendario';
+```
+
+#### Fluxo de Resolução de Credenciais
+
+```
+Workflow precisa de Google Calendar
+        │
+        ▼
+┌───────────────────────────────┐
+│ Busca calendar por            │
+│ professional_id + tenant_id   │
+└───────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────┐
+│ calendars.credential_ref      │
+│ tem valor?                    │
+└───────────────────────────────┘
+     │           │
+    SIM         NÃO
+     │           │
+     ▼           ▼
+┌──────────┐ ┌──────────────────────┐
+│ Usa      │ │ Usa                  │
+│ credential│ │ tenant_config.       │
+│ _ref     │ │ default_google_      │
+│          │ │ credential_id        │
+└──────────┘ └──────────────────────┘
+```
+
+#### Onboarding de Nova Clínica (Apenas DB)
+
+Adicionar um novo tenant requer apenas inserções no banco:
+
+```sql
+-- 1. Criar tenant
+INSERT INTO tenant_config (tenant_name, evolution_instance_name, clinic_name, ...)
+VALUES ('Nova Clínica', 'nova_clinica_instance', 'Nova Clínica Ltda', ...);
+
+-- 2. Criar profissionais
+INSERT INTO professionals (tenant_id, professional_name, google_calendar_id, ...)
+VALUES ((SELECT tenant_id FROM tenant_config WHERE tenant_name = 'Nova Clínica'), 
+        'Dr. João', 'dr.joao@gmail.com', ...);
+
+-- 3. Registrar calendários (se usando credenciais por profissional)
+SELECT register_professional_calendar(
+    (SELECT tenant_id FROM tenant_config WHERE tenant_name = 'Nova Clínica'),
+    (SELECT professional_id FROM professionals WHERE professional_name = 'Dr. João'),
+    'dr.joao@gmail.com',
+    'ID_CREDENCIAL_N8N',
+    true
+);
+
+-- 4. Configurar serviços do profissional
+INSERT INTO professional_services (professional_id, service_id, custom_duration_minutes, custom_price_cents, ...)
+VALUES (...);
+```
+
+**Nenhuma edição de workflow é necessária para adicionar novos tenants!**
+
 ### 3.3 Melhores Práticas de Segurança
 
 ```bash
