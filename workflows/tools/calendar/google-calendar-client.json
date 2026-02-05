@@ -1,0 +1,401 @@
+{
+  "name": "Google Calendar Client",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "workflow-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [240, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tenant_id",
+              "name": "tenant_id",
+              "type": "string",
+              "value": "={{ $json.tenant_id || $json.body?.tenant_id }}"
+            },
+            {
+              "id": "method",
+              "name": "method",
+              "type": "string",
+              "value": "={{ ($json.method || $json.body?.method || 'GET').toUpperCase() }}"
+            },
+            {
+              "id": "google_api_endpoint",
+              "name": "google_api_endpoint",
+              "type": "string",
+              "value": "={{ $json.google_api_endpoint || $json.body?.google_api_endpoint || $json.endpoint || '' }}"
+            },
+            {
+              "id": "body",
+              "name": "body",
+              "type": "object",
+              "value": "={{ $json.body || {} }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-params",
+      "name": "Extract Parameters",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 300],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT google_client_id, google_client_secret, google_refresh_token\nFROM calendars\nWHERE tenant_id = $1::uuid\n  AND google_refresh_token IS NOT NULL\n  AND is_active = true\nLIMIT 1;",
+        "options": {
+          "queryParameters": "={{ [$json.tenant_id] }}"
+        }
+      },
+      "id": "query-credentials",
+      "name": "Query OAuth Credentials",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 300],
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "has-refresh-token",
+                    "leftValue": "={{ $json.google_refresh_token }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "credentials_ok"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "check-credentials",
+      "name": "Check Credentials Found",
+      "type": "n8n-nodes-base.switch",
+      "position": [900, 300],
+      "typeVersion": 3.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error",
+              "name": "error",
+              "type": "string",
+              "value": "No Google OAuth credentials found for tenant. Ensure calendars table has google_client_id, google_client_secret, and google_refresh_token."
+            },
+            {
+              "id": "success",
+              "name": "success",
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        }
+      },
+      "id": "error-no-credentials",
+      "name": "Error: No Credentials",
+      "type": "n8n-nodes-base.set",
+      "position": [1120, 420],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://oauth2.googleapis.com/token",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "refresh_token"
+            },
+            {
+              "name": "client_id",
+              "value": "={{ $json.google_client_id }}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{ $json.google_client_secret }}"
+            },
+            {
+              "name": "refresh_token",
+              "value": "={{ $json.google_refresh_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "refresh-token",
+      "name": "Refresh Access Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1120, 240],
+      "typeVersion": 4.2,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge token refresh response with original request params\nconst tokenResponse = $input.first().json;\nconst originalParams = $('Extract Parameters').first().json;\n\nconst accessToken = tokenResponse?.access_token;\nif (!accessToken) {\n  const errMsg = tokenResponse?.error_description || tokenResponse?.error || 'Token refresh failed';\n  return {\n    success: false,\n    error: `Google OAuth token refresh failed: ${errMsg}`,\n    tenant_id: originalParams.tenant_id\n  };\n}\n\nreturn {\n  ...originalParams,\n  access_token: accessToken\n};"
+      },
+      "id": "merge-token-with-params",
+      "name": "Merge Token with Params",
+      "type": "n8n-nodes-base.code",
+      "position": [1340, 180],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "has-access-token",
+                    "leftValue": "={{ $json.access_token }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "token_ok"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "check-token",
+      "name": "Check Token OK",
+      "type": "n8n-nodes-base.switch",
+      "position": [1560, 180],
+      "typeVersion": 3.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error",
+              "name": "error",
+              "type": "string",
+              "value": "={{ $json.error || 'Token refresh failed' }}"
+            },
+            {
+              "id": "success",
+              "name": "success",
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        }
+      },
+      "id": "error-token-failed",
+      "name": "Error: Token Failed",
+      "type": "n8n-nodes-base.set",
+      "position": [1780, 300],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "method": "={{ $json.method }}",
+        "url": "=https://www.googleapis.com/{{ $json.google_api_endpoint }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": "={{ $json.method !== 'GET' && Object.keys($json.body || {}).length > 0 }}",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body || {}) }}",
+        "options": {}
+      },
+      "id": "google-api-call",
+      "name": "Google API Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1780, 180],
+      "typeVersion": 4.2,
+      "notes": "Makes the actual Google Calendar API request using the access token"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Parameters": {
+      "main": [
+        [
+          {
+            "node": "Query OAuth Credentials",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query OAuth Credentials": {
+      "main": [
+        [
+          {
+            "node": "Check Credentials Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Credentials Found": {
+      "main": [
+        [
+          {
+            "node": "Refresh Access Token",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error: No Credentials",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refresh Access Token": {
+      "main": [
+        [
+          {
+            "node": "Merge Token with Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Token with Params": {
+      "main": [
+        [
+          {
+            "node": "Check Token OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Token OK": {
+      "main": [
+        [
+          {
+            "node": "Google API Call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error: Token Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "google-calendar-client-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "tool",
+      "id": "1"
+    },
+    {
+      "name": "calendar",
+      "id": "4"
+    },
+    {
+      "name": "google-api",
+      "id": "6"
+    }
+  ]
+}

@@ -14,6 +14,12 @@
         "assignments": {
           "assignments": [
             {
+              "id": "tenant_id",
+              "name": "tenant_id",
+              "type": "string",
+              "value": "={{ $json.tenant_id || '' }}"
+            },
+            {
               "id": "calendar_id",
               "name": "calendar_id",
               "type": "string",
@@ -66,27 +72,120 @@
     },
     {
       "parameters": {
-        "operation": "delete",
-        "calendar": {
+        "jsCode": "// Build delete event request for Google Calendar Client\n// API: DELETE calendar/v3/calendars/{calendarId}/events/{eventId}\nconst p = $input.first().json;\nconst encodedCalId = encodeURIComponent(p.calendar_id);\nconst encodedEventId = encodeURIComponent(p.event_id);\nconst endpoint = `calendar/v3/calendars/${encodedCalId}/events/${encodedEventId}`;\n\nreturn {\n  tenant_id: p.tenant_id,\n  method: 'DELETE',\n  google_api_endpoint: endpoint,\n  body: {},\n  _calendar_id: p.calendar_id,\n  _event_id: p.event_id,\n  send_alert: p.send_alert,\n  telegram_chat_id: p.telegram_chat_id,\n  patient_name: p.patient_name,\n  patient_phone: p.patient_phone,\n  reason: p.reason,\n  event_id: p.event_id\n};"
+      },
+      "id": "build-delete-request",
+      "name": "Build Delete Request",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300],
+      "typeVersion": 2,
+      "notes": "Constructs DELETE request for calendar/v3/calendars/{id}/events/{eventId}"
+    },
+    {
+      "parameters": {
+        "workflowId": {
           "__rl": true,
-          "value": "={{ $json.calendar_id }}",
-          "mode": "id"
+          "value": "{{ 'Google Calendar Client' }}",
+          "mode": "list"
         },
-        "eventId": "={{ $json.event_id }}",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $json.tenant_id }}",
+            "method": "={{ $json.method }}",
+            "google_api_endpoint": "={{ $json.google_api_endpoint }}",
+            "body": "={{ $json.body }}"
+          }
+        },
         "options": {}
       },
-      "id": "delete-event",
-      "name": "Delete Event",
-      "type": "n8n-nodes-base.googleCalendar",
-      "position": [680, 300],
-      "typeVersion": 1.3,
-      "credentials": {
-        "googleCalendarOAuth2Api": {
-          "id": "{{GOOGLE_CALENDAR_CREDENTIAL_ID}}",
-          "name": "Google Calendar OAuth2"
+      "id": "call-google-calendar-client",
+      "name": "Call Google Calendar Client",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [900, 300],
+      "typeVersion": 1.2,
+      "notes": "Uses HTTP + OAuth from DB instead of native Google Calendar node"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "no-error",
+                    "leftValue": "={{ $json.error }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notExists"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "success"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
         }
       },
-      "notes": "📅 Exclui evento do Google Calendar\n\n**Operação**: delete\n**Requer**: calendar_id + event_id\n\n**Nota**: Esta operação é irreversível"
+      "id": "check-client-response",
+      "name": "Check Delete Response",
+      "type": "n8n-nodes-base.switch",
+      "position": [1120, 300],
+      "typeVersion": 3.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "error",
+              "name": "error",
+              "type": "string",
+              "value": "={{ $json.error || 'Google Calendar API call failed' }}"
+            },
+            {
+              "id": "deleted",
+              "name": "deleted",
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        }
+      },
+      "id": "error-response",
+      "name": "Return Client Error",
+      "type": "n8n-nodes-base.set",
+      "position": [1340, 420],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "jsCode": "// Restore Extract Parameters so Should Send Alert? and Format nodes have send_alert, telegram_chat_id, etc.\nconst params = $('Extract Parameters').first().json;\nreturn params;"
+      },
+      "id": "restore-params",
+      "name": "Restore Params for Branch",
+      "type": "n8n-nodes-base.code",
+      "position": [1340, 240],
+      "typeVersion": 2
     },
     {
       "parameters": {
@@ -128,25 +227,28 @@
     },
     {
       "parameters": {
-        "operation": "sendMessage",
-        "chatId": "={{ $('Extract Parameters').item.json.telegram_chat_id || $env.TELEGRAM_INTERNAL_CHAT_ID }}",
-        "text": "=🚫 *AGENDAMENTO CANCELADO*\n\n*Paciente:* {{ $('Extract Parameters').item.json.patient_name }}\n*Telefone:* {{ $('Extract Parameters').item.json.patient_phone }}\n*Motivo:* {{ $('Extract Parameters').item.json.reason }}\n\n*Horário:* {{ $now }}\n*Event ID:* {{ $('Extract Parameters').item.json.event_id }}",
-        "additionalFields": {
-          "parseMode": "Markdown"
-        }
+        "workflowId": {
+          "__rl": true,
+          "value": "{{ 'Telegram Client' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $('Extract Parameters').item.json.tenant_id }}",
+            "chat_id": "={{ $('Extract Parameters').item.json.telegram_chat_id }}",
+            "text": "=🚫 *AGENDAMENTO CANCELADO*\n\n*Paciente:* {{ $('Extract Parameters').item.json.patient_name }}\n*Telefone:* {{ $('Extract Parameters').item.json.patient_phone }}\n*Motivo:* {{ $('Extract Parameters').item.json.reason }}\n\n*Horário:* {{ $now }}\n*Event ID:* {{ $('Extract Parameters').item.json.event_id }}",
+            "parse_mode": "Markdown"
+          }
+        },
+        "options": {}
       },
       "id": "send-alert",
       "name": "Send Alert to Staff",
-      "type": "n8n-nodes-base.telegram",
+      "type": "n8n-nodes-base.executeWorkflow",
       "position": [1120, 200],
       "typeVersion": 1.2,
-      "credentials": {
-        "telegramApi": {
-          "id": "{{TELEGRAM_BOT_CREDENTIAL_ID}}",
-          "name": "Telegram Bot"
-        }
-      },
-      "notes": "📱 Envia alerta de cancelamento para o Telegram da clínica\n\n**Multi-tenant**: Usa telegram_chat_id do input, fallback para env"
+      "notes": "📱 Envia alerta via Telegram usando token do tenant no banco"
     },
     {
       "parameters": {
@@ -264,14 +366,54 @@
       "main": [
         [
           {
-            "node": "Delete Event",
+            "node": "Build Delete Request",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Delete Event": {
+    "Build Delete Request": {
+      "main": [
+        [
+          {
+            "node": "Call Google Calendar Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Google Calendar Client": {
+      "main": [
+        [
+          {
+            "node": "Check Delete Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delete Response": {
+      "main": [
+        [
+          {
+            "node": "Restore Params for Branch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Client Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Params for Branch": {
       "main": [
         [
           {

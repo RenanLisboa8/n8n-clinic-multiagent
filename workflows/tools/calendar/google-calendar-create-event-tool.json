@@ -14,6 +14,12 @@
         "assignments": {
           "assignments": [
             {
+              "id": "tenant_id",
+              "name": "tenant_id",
+              "type": "string",
+              "value": "={{ $json.tenant_id || $json.body?.tenant_id }}"
+            },
+            {
               "id": "calendar_id",
               "name": "calendar_id",
               "type": "string",
@@ -50,32 +56,84 @@
       "name": "Extract Parameters",
       "type": "n8n-nodes-base.set",
       "position": [460, 300],
-      "typeVersion": 3.4
+      "typeVersion": 3.4,
+      "notes": "Extracts tenant_id (required for OAuth), calendar_id, summary, start, end, description"
     },
     {
       "parameters": {
-        "operation": "create",
-        "calendar": "={{ $json.calendar_id }}",
-        "summary": "={{ $json.summary }}",
-        "start": "={{ $json.start }}",
-        "end": "={{ $json.end }}",
-        "description": "={{ $json.description }}",
-        "options": {
-          "sendUpdates": "none"
-        }
+        "jsCode": "// Build create event request for Google Calendar Client\n// API: POST calendar/v3/calendars/{calendarId}/events\nconst p = $input.first().json;\nconst encodedCalId = encodeURIComponent(p.calendar_id);\nconst endpoint = `calendar/v3/calendars/${encodedCalId}/events`;\n\n// Google API expects start/end as { dateTime: ISO8601 } for timed events\nconst body = {\n  summary: p.summary || 'Evento',\n  description: p.description || '',\n  start: { dateTime: p.start },\n  end: { dateTime: p.end }\n};\n\nreturn {\n  tenant_id: p.tenant_id,\n  method: 'POST',\n  google_api_endpoint: endpoint,\n  body,\n  _calendar_id: p.calendar_id\n};"
       },
-      "id": "create-event",
-      "name": "Create Event",
-      "type": "n8n-nodes-base.googleCalendar",
+      "id": "build-create-request",
+      "name": "Build Create Request",
+      "type": "n8n-nodes-base.code",
       "position": [680, 300],
-      "typeVersion": 1,
-      "credentials": {
-        "googleCalendarOAuth2Api": {
-          "id": "{{GOOGLE_CALENDAR_CREDENTIAL_ID}}",
-          "name": "Google Calendar OAuth2"
+      "typeVersion": 2,
+      "notes": "Constructs POST request for calendar/v3/calendars/{id}/events"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "{{ 'Google Calendar Client' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $json.tenant_id }}",
+            "method": "={{ $json.method }}",
+            "google_api_endpoint": "={{ $json.google_api_endpoint }}",
+            "body": "={{ $json.body }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "call-google-calendar-client",
+      "name": "Call Google Calendar Client",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [900, 300],
+      "typeVersion": 1.2,
+      "notes": "Uses HTTP + OAuth from DB instead of native Google Calendar node"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "no-error",
+                    "leftValue": "={{ $json.error }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notExists"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "success"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
         }
       },
-      "notes": "📅 Cria evento usando Google Calendar API direto"
+      "id": "check-client-response",
+      "name": "Check Client Response",
+      "type": "n8n-nodes-base.switch",
+      "position": [1120, 300],
+      "typeVersion": 3.2
     },
     {
       "parameters": {
@@ -85,34 +143,33 @@
               "id": "success",
               "name": "success",
               "type": "boolean",
-              "value": "=true"
+              "value": false
             },
             {
-              "id": "event_id",
-              "name": "event_id",
+              "id": "error",
+              "name": "error",
               "type": "string",
-              "value": "={{ $json.id }}"
-            },
-            {
-              "id": "event_link",
-              "name": "event_link",
-              "type": "string",
-              "value": "={{ $json.htmlLink }}"
-            },
-            {
-              "id": "calendar_id",
-              "name": "calendar_id",
-              "type": "string",
-              "value": "={{ $('Extract Parameters').item.json.calendar_id }}"
+              "value": "={{ $json.error || 'Google Calendar API call failed' }}"
             }
           ]
         }
       },
+      "id": "error-response",
+      "name": "Return Client Error",
+      "type": "n8n-nodes-base.set",
+      "position": [1340, 420],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format create event response from Google Calendar API\n// API returns: { id, htmlLink, summary, start, end, ... }\nconst apiResponse = $input.first().json;\nconst params = $('Build Create Request').first().json;\nconst calendarId = params._calendar_id;\n\n// Handle client error response\nif (apiResponse.success === false || apiResponse.error) {\n  return {\n    success: false,\n    error: apiResponse.error || 'API call failed',\n    calendar_id: calendarId,\n    event_id: null,\n    event_link: null\n  };\n}\n\nreturn {\n  success: true,\n  event_id: apiResponse.id,\n  event_link: apiResponse.htmlLink,\n  calendar_id: calendarId\n};"
+      },
       "id": "format-response",
       "name": "Format Response",
-      "type": "n8n-nodes-base.set",
-      "position": [900, 300],
-      "typeVersion": 3.4
+      "type": "n8n-nodes-base.code",
+      "position": [1340, 240],
+      "typeVersion": 2,
+      "notes": "Formats create event response (id, htmlLink)"
     }
   ],
   "pinData": {},
@@ -132,18 +189,47 @@
       "main": [
         [
           {
-            "node": "Create Event",
+            "node": "Build Create Request",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Create Event": {
+    "Build Create Request": {
+      "main": [
+        [
+          {
+            "node": "Call Google Calendar Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Google Calendar Client": {
+      "main": [
+        [
+          {
+            "node": "Check Client Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Client Response": {
       "main": [
         [
           {
             "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Client Error",
             "type": "main",
             "index": 0
           }
@@ -155,7 +241,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "google-calendar-create-event-v1",
+  "versionId": "google-calendar-create-event-v2-dynamic-oauth",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "clinic-multiagent-system"

@@ -30,25 +30,28 @@
     },
     {
       "parameters": {
-        "operation": "sendMessage",
-        "chatId": "={{ $json.telegram_chat_id || $env.TELEGRAM_INTERNAL_CHAT_ID }}",
-        "text": "={{ $json.alert_message }}",
-        "additionalFields": {
-          "parseMode": "Markdown"
-        }
+        "workflowId": {
+          "__rl": true,
+          "value": "{{ 'Telegram Client' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $json.tenant_id }}",
+            "chat_id": "={{ $json.telegram_chat_id }}",
+            "text": "={{ $json.alert_message }}",
+            "parse_mode": "Markdown"
+          }
+        },
+        "options": {}
       },
       "id": "send-alert",
       "name": "Send Alert to Staff",
-      "type": "n8n-nodes-base.telegram",
+      "type": "n8n-nodes-base.executeWorkflow",
       "position": [680, 300],
       "typeVersion": 1.2,
-      "credentials": {
-        "telegramApi": {
-          "id": "{{TELEGRAM_BOT_CREDENTIAL_ID}}",
-          "name": "Telegram Bot"
-        }
-      },
-      "notes": "📱 Envia alerta de escalação para o Telegram da clínica\n\n**Multi-tenant**: Usa telegram_chat_id do input (por tenant), fallback para env var global"
+      "notes": "📱 Envia alerta via Telegram usando token do tenant no banco (sem credencial n8n)"
     },
     {
       "parameters": {
@@ -194,7 +197,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "tool-call-to-human-v1",
+  "versionId": "tool-call-to-human-v2-dynamic-oauth",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "clinic-multiagent-system"
@@ -210,11 +213,3 @@
     }
   ]
 }
-
-
-
-
-
-
-
-

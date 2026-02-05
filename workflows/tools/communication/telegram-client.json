@@ -1,0 +1,247 @@
+{
+  "name": "Telegram Client",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "workflow-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [240, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tenant_id",
+              "name": "tenant_id",
+              "type": "string",
+              "value": "={{ $json.tenant_id || $json.body?.tenant_id }}"
+            },
+            {
+              "id": "chat_id",
+              "name": "chat_id",
+              "type": "string",
+              "value": "={{ $json.chat_id || $json.telegram_chat_id }}"
+            },
+            {
+              "id": "text",
+              "name": "text",
+              "type": "string",
+              "value": "={{ $json.text || $json.message || $json.alert_message || '' }}"
+            },
+            {
+              "id": "parse_mode",
+              "name": "parse_mode",
+              "type": "string",
+              "value": "={{ $json.parse_mode || 'Markdown' }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-params",
+      "name": "Extract Parameters",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 300],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT telegram_bot_token\nFROM tenant_config\nWHERE tenant_id = $1::uuid\n  AND telegram_bot_token IS NOT NULL\n  AND is_active = true\nLIMIT 1;",
+        "options": {
+          "queryParameters": "={{ [$json.tenant_id] }}"
+        }
+      },
+      "id": "query-token",
+      "name": "Query Telegram Token",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 300],
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "has-token",
+                    "leftValue": "={{ $json.telegram_bot_token }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "token_ok"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "check-token",
+      "name": "Check Token Found",
+      "type": "n8n-nodes-base.switch",
+      "position": [900, 300],
+      "typeVersion": 3.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "error",
+              "name": "error",
+              "type": "string",
+              "value": "No Telegram bot token found for tenant. Configure telegram_bot_token in tenant_config."
+            }
+          ]
+        }
+      },
+      "id": "error-no-token",
+      "name": "Error: No Token",
+      "type": "n8n-nodes-base.set",
+      "position": [1120, 420],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge token with original params for HTTP request\nconst tokenRow = $input.first().json;\nconst params = $('Extract Parameters').first().json;\nreturn {\n  ...params,\n  telegram_bot_token: tokenRow.telegram_bot_token\n};"
+      },
+      "id": "merge-token",
+      "name": "Merge Token with Params",
+      "type": "n8n-nodes-base.code",
+      "position": [1120, 240],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $json.telegram_bot_token }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chat_id, text: $json.text, parse_mode: $json.parse_mode || 'Markdown' }) }}",
+        "options": {}
+      },
+      "id": "send-telegram",
+      "name": "Send Telegram Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1340, 240],
+      "typeVersion": 4.2,
+      "notes": "POST to Telegram Bot API sendMessage"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Parameters": {
+      "main": [
+        [
+          {
+            "node": "Query Telegram Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Telegram Token": {
+      "main": [
+        [
+          {
+            "node": "Check Token Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Token Found": {
+      "main": [
+        [
+          {
+            "node": "Merge Token with Params",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error: No Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Token with Params": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "telegram-client-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "tool",
+      "id": "1"
+    },
+    {
+      "name": "communication",
+      "id": "2"
+    }
+  ]
+}

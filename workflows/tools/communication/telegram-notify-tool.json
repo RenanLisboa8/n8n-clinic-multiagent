@@ -11,24 +11,28 @@
     },
     {
       "parameters": {
-        "operation": "sendMessage",
-        "chatId": "={{ $json.chat_id || $env.TELEGRAM_INTERNAL_CHAT_ID }}",
-        "text": "={{ $json.message }}",
-        "additionalFields": {
-          "parseMode": "Markdown"
-        }
+        "workflowId": {
+          "__rl": true,
+          "value": "{{ 'Telegram Client' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $json.tenant_id }}",
+            "chat_id": "={{ $json.chat_id || $json.telegram_chat_id }}",
+            "text": "={{ $json.message }}",
+            "parse_mode": "Markdown"
+          }
+        },
+        "options": {}
       },
       "id": "send-telegram",
       "name": "Send Telegram Notification",
-      "type": "n8n-nodes-base.telegram",
+      "type": "n8n-nodes-base.executeWorkflow",
       "position": [460, 300],
       "typeVersion": 1.2,
-      "credentials": {
-        "telegramApi": {
-          "id": "{{TELEGRAM_BOT_CREDENTIAL_ID}}",
-          "name": "Telegram Bot"
-        }
-      }
+      "notes": "Usa token do tenant no banco (sem credencial n8n)"
     },
     {
       "parameters": {
@@ -44,7 +48,7 @@
               "id": "message_id",
               "name": "message_id",
               "type": "string",
-              "value": "={{ $json.message_id }}"
+              "value": "={{ $json.result?.message_id }}"
             },
             {
               "id": "notification_type",
@@ -97,7 +101,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "tool-telegram-notify-v1",
+  "versionId": "tool-telegram-notify-v2-dynamic",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "clinic-multiagent-system"
@@ -113,11 +117,3 @@
     }
   ]
 }
-
-
-
-
-
-
-
-

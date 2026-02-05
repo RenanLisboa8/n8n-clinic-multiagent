@@ -14,6 +14,12 @@
         "assignments": {
           "assignments": [
             {
+              "id": "tenant_id",
+              "name": "tenant_id",
+              "type": "string",
+              "value": "={{ $json.tenant_id || $json.body?.tenant_id }}"
+            },
+            {
               "id": "calendar_id",
               "name": "calendar_id",
               "type": "string",
@@ -56,36 +62,84 @@
       "name": "Extract Parameters",
       "type": "n8n-nodes-base.set",
       "position": [460, 300],
-      "typeVersion": 3.4
+      "typeVersion": 3.4,
+      "notes": "Extracts tenant_id (required for OAuth), calendar_id, event_id, summary, start, end, description"
     },
     {
       "parameters": {
-        "operation": "update",
-        "calendar": {
-          "__rl": true,
-          "value": "={{ $json.calendar_id }}",
-          "mode": "id"
-        },
-        "eventId": "={{ $json.event_id }}",
-        "updateFields": {
-          "summary": "={{ $json.summary || undefined }}",
-          "start": "={{ $json.start || undefined }}",
-          "end": "={{ $json.end || undefined }}",
-          "description": "={{ $json.description || undefined }}"
-        }
+        "jsCode": "// Build update event request for Google Calendar Client\n// API: PUT calendar/v3/calendars/{calendarId}/events/{eventId}\nconst p = $input.first().json;\nconst encodedCalId = encodeURIComponent(p.calendar_id);\nconst encodedEventId = encodeURIComponent(p.event_id);\nconst endpoint = `calendar/v3/calendars/${encodedCalId}/events/${encodedEventId}`;\n\nconst body = {};\nif (p.summary) body.summary = p.summary;\nif (p.start) body.start = { dateTime: p.start };\nif (p.end) body.end = { dateTime: p.end };\nif (p.description !== undefined) body.description = p.description;\n\nreturn {\n  tenant_id: p.tenant_id,\n  method: 'PUT',\n  google_api_endpoint: endpoint,\n  body,\n  _calendar_id: p.calendar_id,\n  _event_id: p.event_id\n};"
       },
-      "id": "update-event",
-      "name": "Update Event",
-      "type": "n8n-nodes-base.googleCalendar",
+      "id": "build-update-request",
+      "name": "Build Update Request",
+      "type": "n8n-nodes-base.code",
       "position": [680, 300],
-      "typeVersion": 1.3,
-      "credentials": {
-        "googleCalendarOAuth2Api": {
-          "id": "{{GOOGLE_CALENDAR_CREDENTIAL_ID}}",
-          "name": "Google Calendar OAuth2"
+      "typeVersion": 2,
+      "notes": "Constructs PUT request for calendar/v3/calendars/{id}/events/{eventId}"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "{{ 'Google Calendar Client' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $json.tenant_id }}",
+            "method": "={{ $json.method }}",
+            "google_api_endpoint": "={{ $json.google_api_endpoint }}",
+            "body": "={{ $json.body }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "call-google-calendar-client",
+      "name": "Call Google Calendar Client",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [900, 300],
+      "typeVersion": 1.2,
+      "notes": "Uses HTTP + OAuth from DB instead of native Google Calendar node"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "no-error",
+                    "leftValue": "={{ $json.error }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notExists"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "success"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
         }
       },
-      "notes": "📅 Atualiza evento usando Google Calendar API\n\n**Campos atualizáveis**:\n- summary (título)\n- start (data/hora início)\n- end (data/hora fim)\n- description (descrição)\n\n**Nota**: Campos vazios são ignorados (não sobrescrevem)"
+      "id": "check-client-response",
+      "name": "Check Client Response",
+      "type": "n8n-nodes-base.switch",
+      "position": [1120, 300],
+      "typeVersion": 3.2
     },
     {
       "parameters": {
@@ -95,52 +149,32 @@
               "id": "success",
               "name": "success",
               "type": "boolean",
-              "value": "=true"
+              "value": false
             },
             {
-              "id": "event_id",
-              "name": "event_id",
+              "id": "error",
+              "name": "error",
               "type": "string",
-              "value": "={{ $json.id }}"
-            },
-            {
-              "id": "event_link",
-              "name": "event_link",
-              "type": "string",
-              "value": "={{ $json.htmlLink }}"
-            },
-            {
-              "id": "calendar_id",
-              "name": "calendar_id",
-              "type": "string",
-              "value": "={{ $('Extract Parameters').item.json.calendar_id }}"
-            },
-            {
-              "id": "updated_start",
-              "name": "updated_start",
-              "type": "string",
-              "value": "={{ $json.start?.dateTime || $json.start?.date }}"
-            },
-            {
-              "id": "updated_end",
-              "name": "updated_end",
-              "type": "string",
-              "value": "={{ $json.end?.dateTime || $json.end?.date }}"
-            },
-            {
-              "id": "message",
-              "name": "message",
-              "type": "string",
-              "value": "=Agendamento atualizado com sucesso"
+              "value": "={{ $json.error || 'Google Calendar API call failed' }}"
             }
           ]
         }
       },
+      "id": "error-response",
+      "name": "Return Client Error",
+      "type": "n8n-nodes-base.set",
+      "position": [1340, 420],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format update event response from Google Calendar API\n// API returns: { id, htmlLink, summary, start, end, ... }\nconst apiResponse = $input.first().json;\nconst params = $('Build Update Request').first().json;\nconst calendarId = params._calendar_id;\nconst eventId = params._event_id;\n\nif (apiResponse.success === false || apiResponse.error) {\n  return {\n    success: false,\n    error: apiResponse.error || 'API call failed',\n    calendar_id: calendarId,\n    event_id: eventId,\n    event_link: null,\n    message: apiResponse.error || 'Falha ao atualizar agendamento'\n  };\n}\n\nreturn {\n  success: true,\n  event_id: apiResponse.id,\n  event_link: apiResponse.htmlLink,\n  calendar_id: calendarId,\n  updated_start: apiResponse.start?.dateTime || apiResponse.start?.date,\n  updated_end: apiResponse.end?.dateTime || apiResponse.end?.date,\n  message: 'Agendamento atualizado com sucesso'\n};"
+      },
       "id": "format-response",
       "name": "Format Response",
-      "type": "n8n-nodes-base.set",
-      "position": [900, 300],
-      "typeVersion": 3.4
+      "type": "n8n-nodes-base.code",
+      "position": [1340, 240],
+      "typeVersion": 2
     }
   ],
   "pinData": {},
@@ -160,18 +194,47 @@
       "main": [
         [
           {
-            "node": "Update Event",
+            "node": "Build Update Request",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Update Event": {
+    "Build Update Request": {
+      "main": [
+        [
+          {
+            "node": "Call Google Calendar Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Google Calendar Client": {
+      "main": [
+        [
+          {
+            "node": "Check Client Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Client Response": {
       "main": [
         [
           {
             "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Client Error",
             "type": "main",
             "index": 0
           }
@@ -183,7 +246,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "google-calendar-update-event-v1",
+  "versionId": "google-calendar-update-event-v2-dynamic-oauth",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "clinic-multiagent-system"
