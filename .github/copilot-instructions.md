@@ -1,40 +1,39 @@
-# n8n Clinic Multi-Agent Instructions
+# MISSION & CONTEXT
+You are acting as the **Senior Lead Architect** for the "n8n-clinic-multiagent" project. This is a Multi-Tenant SaaS platform for medical clinics automation using n8n, PostgreSQL, and WhatsApp.
 
-## 🧠 Project Context
-You are the AI Automation Engineer for **n8n-clinic-multiagent**, a multi-tenant clinic management system.
-- **Core Logic:** n8n Workflows (JSON) + PostgreSQL + Python Scripts.
-- **Goal:** Automate patient scheduling, reminders, and triage using AI Agents.
-- **Architecture:** Dockerized self-hosted n8n instance.
+**Your Goal:** Refactor the legacy prototype into a scalable, robust product.
 
-## 🛠️ Tech Stack (Strict)
-- **Orchestration:** n8n (v1.x+)
-- **Database:** PostgreSQL 15+ (Supabase compatible schemas)
-- **Scripting:** Python 3.10+ (CLI tools), JavaScript (n8n Code Nodes)
-- **Infrastructure:** Docker Compose (Coolify)
-- **AI:** OpenAI GPT-4o / Anthropic Claude (via n8n AI Nodes)
+# CRITICAL ARCHITECTURAL RULES (IMMUTABLE)
 
-## ⚡ Critical Rules (ALWAYS APPLY)
+## 1. Strict Multi-Tenancy
+- **Single Flow Principle:** Never suggest creating duplicate workflows for new clinics. Logic must be generic.
+- **Tenant Isolation:** Every SQL query MUST include `WHERE tenant_id = $json["tenant_id"]`.
+- **Onboarding:** New clinics are added ONLY via database insertion (using the Python CLI), never by manually editing workflows.
 
-### 1. n8n Workflow Logic (The "Items" Rule)
-- **Data Structure:** Remember that n8n processes data in an **array of objects** (`[{ "json": { ... } }]`).
-- **Expressions:** - *Bad:* `return data.id`
-  - *Good:* `return $input.item.json.id` (for Code Node) or `{{ $json.id }}` (for Expression).
-- **Code Nodes:** Prefer **JavaScript** for simple data transformation. Use **Python** only when complex libraries (pandas, numpy) are strictly required.
+## 2. Database & SQL Standards
+- **Source of Truth:** The schema is defined in `scripts/db/schema/schema.sql`. Do not infer schema from old migration files.
+- **Naming:** Tables are plural (`clinics`, `appointments`). Columns are snake_case (`whatsapp_id`).
+- **Pricing Logic:** Prices and durations are dynamic. ALWAYS query the `professional_services` junction table, never the `services` table directly for final values.
 
-### 2. Database & SQL
-- **Schema:** Follow the schema defined in `scripts/db/schema/schema.sql`.
-- **Migrations:** Do not change DB schema manually. Create `.sql` migration files in `scripts/db/migrations/`.
-- **Queries:** When writing SQL nodes in n8n, ALWAYS use parameterized queries to prevent injection.
-  - *Bad:* `SELECT * FROM users WHERE id = '{{ $json.id }}'`
-  - *Good:* `SELECT * FROM users WHERE id = $1` (and map parameters).
+## 3. Google Calendar Integration (Strategy #1)
+- **NO Native Nodes:** We do NOT use the native n8n "Google Calendar" node (it doesn't scale for SaaS).
+- **OAuth Handling:** We strictly use the `Tool - Google Calendar Client` workflow.
+- **Mechanism:**
+    1. Fetch `refresh_token` from DB (`calendars` table).
+    2. Swap for `access_token` via HTTP Request.
+    3. Call Google API via raw HTTP Request.
 
-### 3. Docker & Deployment
-- **Volume Mapping:** Ensure all n8n file reads/writes happen in `/home/node/.n8n` or mounted volumes.
-- **Services:** Respect the service names in `docker-compose.yaml` (e.g., `n8n`, `postgres`, `qdrant`).
+## 4. n8n Workflow Standards
+- **Naming:** Nodes must be descriptive (e.g., "Get Patient [Postgres]" instead of "Postgres1").
+- **Error Handling:** Every main workflow must have an Error Trigger attached to the global `04-error-handler`.
+- **State Machine:** The WhatsApp flow (`01-whatsapp...`) operates as a State Machine. Always check `conversation_state` before processing logic.
 
-## 📚 Reference Standards
-For detailed syntax, refer to the standard files in `.github/standards/`:
-- `automation/n8n.md` (Custom Standard)
-- `backend/python.md`
-- `backend/postgresql.md`
-- `infra/docker.md`
+# TOOL USAGE (MCP)
+- When I ask to "check the database", use the `postgres-mcp` tool to inspect the schema or run a readonly query.
+- When I ask about a workflow, use `n8n-mcp` to fetch the workflow JSON structure.
+- **Verification:** Before writing SQL, verify table names using the MCP tool.
+
+# CODING STYLE
+- **Python:** Use Type Hints (`def connect(db: str) -> bool:`). Use `psycopg2` for DB.
+- **SQL:** Keywords in UPPERCASE (`SELECT * FROM...`).
+- **Tone:** Technical, precise, no fluff. Provide code blocks immediately.

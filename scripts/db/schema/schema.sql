@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS tenant_config (
     
     -- Communication Configuration
     telegram_internal_chat_id VARCHAR(50),
+    telegram_bot_token TEXT,
     whatsapp_number VARCHAR(20),
     
     -- AI Configuration
@@ -488,8 +489,17 @@ CREATE TABLE IF NOT EXISTS calendars (
     updated_by VARCHAR(100),
     
     -- Constraints
+    -- OAuth Credentials (from migration 025)
+    google_client_id VARCHAR(255),
+    google_client_secret TEXT,
+    google_refresh_token TEXT,
+    google_access_token TEXT,
+    google_token_expires_at TIMESTAMPTZ,
+    google_oauth_scope TEXT DEFAULT 'https://www.googleapis.com/auth/calendar',
+    
+    -- Constraints
     CONSTRAINT unique_google_calendar_per_tenant UNIQUE(tenant_id, google_calendar_id),
-    CONSTRAINT valid_credential_type CHECK (credential_type IN ('n8n_credential', 'env_key', 'tenant_default')),
+    CONSTRAINT valid_credential_type CHECK (credential_type IN ('n8n_credential', 'env_key', 'tenant_default', 'oauth_database')),
     CONSTRAINT valid_calendar_type CHECK (calendar_type IN ('appointments', 'availability', 'shared', 'other'))
 );
 
@@ -497,6 +507,12 @@ COMMENT ON TABLE calendars IS 'Centralizes Google Calendar configuration per pro
 COMMENT ON COLUMN calendars.google_calendar_id IS 'Google Calendar ID - unique per tenant';
 COMMENT ON COLUMN calendars.credential_ref IS 'Reference to n8n credential or env variable key';
 COMMENT ON COLUMN calendars.is_primary IS 'True if this is the primary calendar for the associated professional';
+COMMENT ON COLUMN calendars.google_client_id IS 'Google OAuth Client ID from Google Cloud Console';
+COMMENT ON COLUMN calendars.google_client_secret IS 'Google OAuth Client Secret (encrypted at rest recommended)';
+COMMENT ON COLUMN calendars.google_refresh_token IS 'Long-lived refresh token for obtaining access tokens';
+COMMENT ON COLUMN calendars.google_access_token IS 'Short-lived access token (cached, regenerated on expiry)';
+COMMENT ON COLUMN calendars.google_token_expires_at IS 'Timestamp when the current access token expires';
+COMMENT ON COLUMN calendars.google_oauth_scope IS 'OAuth scope granted during authorization';
 
 CREATE INDEX IF NOT EXISTS idx_calendars_tenant 
 ON calendars(tenant_id) 
@@ -513,6 +529,10 @@ WHERE is_active = true AND is_primary = true;
 CREATE INDEX IF NOT EXISTS idx_calendars_sync 
 ON calendars(last_sync_at) 
 WHERE sync_enabled = true;
+
+CREATE INDEX IF NOT EXISTS idx_calendars_token_expiry 
+ON calendars(google_token_expires_at) 
+WHERE google_refresh_token IS NOT NULL AND sync_enabled = true;
 
 -- Add FK from professionals to calendars (deferred to avoid circular reference)
 ALTER TABLE professionals 
@@ -1351,6 +1371,31 @@ $$ LANGUAGE plpgsql;
 -- ============================================================================
 -- 19. CALENDAR FUNCTIONS
 -- ============================================================================
+
+-- Function: Check if calendar token needs refresh
+CREATE OR REPLACE FUNCTION calendar_token_needs_refresh(p_calendar_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_expires_at TIMESTAMPTZ;
+    v_buffer_minutes INTEGER := 5; -- Refresh 5 minutes before expiry
+BEGIN
+    SELECT google_token_expires_at 
+    INTO v_expires_at
+    FROM calendars 
+    WHERE calendar_id = p_calendar_id;
+    
+    -- If no expiry set or expired, needs refresh
+    IF v_expires_at IS NULL OR v_expires_at < (NOW() + (v_buffer_minutes || ' minutes')::INTERVAL) THEN
+        RETURN TRUE;
+    END IF;
+    
+    RETURN FALSE;
+END;
+$$;
+
+COMMENT ON FUNCTION calendar_token_needs_refresh IS 'Returns TRUE if calendar access token needs refresh (expired or near expiry)';
 
 -- Function: Get calendar configuration for a professional
 CREATE OR REPLACE FUNCTION get_calendar_for_professional(

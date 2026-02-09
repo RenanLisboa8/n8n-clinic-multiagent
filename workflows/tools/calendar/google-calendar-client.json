@@ -6,7 +6,10 @@
       "id": "workflow-trigger",
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "position": [240, 300],
+      "position": [
+        240,
+        300
+      ],
       "typeVersion": 1
     },
     {
@@ -43,25 +46,29 @@
       "id": "extract-params",
       "name": "Extract Parameters",
       "type": "n8n-nodes-base.set",
-      "position": [460, 300],
+      "position": [
+        460,
+        300
+      ],
       "typeVersion": 3.4
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT google_client_id, google_client_secret, google_refresh_token\nFROM calendars\nWHERE tenant_id = $1::uuid\n  AND google_refresh_token IS NOT NULL\n  AND is_active = true\nLIMIT 1;",
-        "options": {
-          "queryParameters": "={{ [$json.tenant_id] }}"
-        }
+        "query": "=SELECT google_client_id, google_client_secret, google_refresh_token\nFROM calendars\nWHERE tenant_id = '{{ $json.tenant_id }}'::uuid\n  AND google_refresh_token IS NOT NULL\n  AND is_active = true\nLIMIT 1;",
+        "options": {}
       },
       "id": "query-credentials",
       "name": "Query OAuth Credentials",
       "type": "n8n-nodes-base.postgres",
-      "position": [680, 300],
+      "position": [
+        680,
+        300
+      ],
       "typeVersion": 2.4,
       "credentials": {
         "postgres": {
-          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "id": "XCqM1aDUIHVebSzp",
           "name": "Postgres account"
         }
       }
@@ -103,7 +110,10 @@
       "id": "check-credentials",
       "name": "Check Credentials Found",
       "type": "n8n-nodes-base.switch",
-      "position": [900, 300],
+      "position": [
+        900,
+        300
+      ],
       "typeVersion": 3.2
     },
     {
@@ -128,7 +138,10 @@
       "id": "error-no-credentials",
       "name": "Error: No Credentials",
       "type": "n8n-nodes-base.set",
-      "position": [1120, 420],
+      "position": [
+        1120,
+        420
+      ],
       "typeVersion": 3.4
     },
     {
@@ -170,18 +183,24 @@
       "id": "refresh-token",
       "name": "Refresh Access Token",
       "type": "n8n-nodes-base.httpRequest",
-      "position": [1120, 240],
+      "position": [
+        1120,
+        240
+      ],
       "typeVersion": 4.2,
       "continueOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "// Merge token refresh response with original request params\nconst tokenResponse = $input.first().json;\nconst originalParams = $('Extract Parameters').first().json;\n\nconst accessToken = tokenResponse?.access_token;\nif (!accessToken) {\n  const errMsg = tokenResponse?.error_description || tokenResponse?.error || 'Token refresh failed';\n  return {\n    success: false,\n    error: `Google OAuth token refresh failed: ${errMsg}`,\n    tenant_id: originalParams.tenant_id\n  };\n}\n\nreturn {\n  ...originalParams,\n  access_token: accessToken\n};"
+        "jsCode": "// Merge token refresh response with original request params\nconst tokenResponse = $input.first().json;\nconst originalParams = $('Extract Parameters').first().json;\n\nconst accessToken = tokenResponse?.access_token;\nif (!accessToken) {\n  const errMsg = tokenResponse?.error_description || tokenResponse?.error || 'Token refresh failed';\n  return {\n    success: false,\n    error: `Google OAuth token refresh failed: ${errMsg}`,\n    tenant_id: originalParams.tenant_id\n  };\n}\n\n// Ensure body is a proper JS object (Set node may serialize it to string)\nlet body = originalParams.body;\nif (typeof body === 'string') {\n  try { body = JSON.parse(body); } catch(e) { body = {}; }\n}\nif (!body || typeof body !== 'object') { body = {}; }\n\n// Validate google_api_endpoint\nif (!originalParams.google_api_endpoint) {\n  return {\n    success: false,\n    error: 'Missing required parameter: google_api_endpoint',\n    tenant_id: originalParams.tenant_id\n  };\n}\n\nreturn {\n  ...originalParams,\n  body,\n  access_token: accessToken\n};"
       },
       "id": "merge-token-with-params",
       "name": "Merge Token with Params",
       "type": "n8n-nodes-base.code",
-      "position": [1340, 180],
+      "position": [
+        1340,
+        180
+      ],
       "typeVersion": 2
     },
     {
@@ -221,7 +240,10 @@
       "id": "check-token",
       "name": "Check Token OK",
       "type": "n8n-nodes-base.switch",
-      "position": [1560, 180],
+      "position": [
+        1560,
+        180
+      ],
       "typeVersion": 3.2
     },
     {
@@ -246,7 +268,10 @@
       "id": "error-token-failed",
       "name": "Error: Token Failed",
       "type": "n8n-nodes-base.set",
-      "position": [1780, 300],
+      "position": [
+        1780,
+        300
+      ],
       "typeVersion": 3.4
     },
     {
@@ -266,15 +291,24 @@
             }
           ]
         },
-        "sendBody": "={{ $json.method !== 'GET' && Object.keys($json.body || {}).length > 0 }}",
+        "sendBody": "={{ $json.method !== 'GET' }}",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.body || {}) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
       },
       "id": "google-api-call",
       "name": "Google API Call",
       "type": "n8n-nodes-base.httpRequest",
-      "position": [1780, 180],
+      "position": [
+        1780,
+        180
+      ],
       "typeVersion": 4.2,
       "notes": "Makes the actual Google Calendar API request using the access token"
     }

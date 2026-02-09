@@ -143,6 +143,54 @@ Inclui **lista de compras** com **Google Tasks** e reagendamentos com notificaç
 
 ---
 
+## 🔑 Google OAuth (coleta de dados para novos clientes)
+
+Para cada novo tenant, voce precisa gerar e armazenar 3 valores no banco (tabela `calendars`):
+
+- `google_client_id`
+- `google_client_secret`
+- `google_refresh_token`
+
+### Passo a passo (Google Cloud Console)
+
+1. Acesse [Google Cloud Console - Credentials](https://console.cloud.google.com/apis/credentials)
+2. Selecione o projeto (ou crie um novo)
+3. Em **APIs e Servicos > Biblioteca**, ative **Google Calendar API**
+4. Volte em **Credentials** e clique em **Create Credentials > OAuth client ID**
+5. Tipo: **Web application**
+6. Em **Authorized redirect URIs**, adicione:
+
+```
+https://developers.google.com/oauthplayground
+```
+
+7. Salve e copie:
+  - **Client ID** (termina com `apps.googleusercontent.com`)
+  - **Client Secret**
+
+### Passo a passo (OAuth 2.0 Playground)
+
+1. Acesse [OAuth 2.0 Playground](https://developers.google.com/oauthplayground)
+2. Clique na engrenagem (canto superior direito)
+3. Marque **Use your own OAuth credentials**
+4. Cole o **Client ID** e **Client Secret**
+5. Em **Step 1**, selecione **Google Calendar API v3** e marque:
+
+```
+https://www.googleapis.com/auth/calendar
+```
+
+6. Clique **Authorize APIs** e faca login com o email do cliente
+7. Clique **Exchange authorization code for tokens**
+8. Copie o **Refresh Token** gerado
+
+### Onde salvar no banco
+
+Atualize a tabela `calendars` com os 3 campos acima para o `tenant_id` do cliente.
+Sem `google_refresh_token`, o workflow **Google Calendar Client** nao retorna credenciais.
+
+---
+
 ## 📚 Documentação (mantida)
 
 - [Arquitetura](docs/ARCHITECTURE.md)

@@ -80,8 +80,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "{{ 'Google Calendar Client' }}",
-          "mode": "list"
+          "value": "huBU2W6CXC9qPm0U",
+          "mode": "id",
+          "cachedResultName": "Google Calendar Client"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
