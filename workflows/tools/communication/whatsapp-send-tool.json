@@ -12,7 +12,7 @@
     {
       "parameters": {
         "resource": "messages-api",
-        "instanceName": "={{ $json.instance_name || $env.EVOLUTION_INSTANCE_NAME }}",
+        "instanceName": "={{ $json.instance_name }}",
         "remoteJid": "={{ $json.remote_jid }}",
         "messageText": "={{ $json.message_text }}",
         "options_message": {}

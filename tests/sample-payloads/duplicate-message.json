@@ -1,0 +1,17 @@
+{
+  "event": "messages.upsert",
+  "instance": "clinica-demo",
+  "data": {
+    "key": {
+      "remoteJid": "5516999880006@s.whatsapp.net",
+      "fromMe": false,
+      "id": "DEDUP_TEST_SAME_ID"
+    },
+    "pushName": "Pedro Lima",
+    "messageType": "conversation",
+    "message": {
+      "conversation": "Olá"
+    }
+  },
+  "description": "Deduplication test: send this payload twice with the same message_id to verify only one processing occurs"
+}

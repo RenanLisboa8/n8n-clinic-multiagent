@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 📋 04 - Error Handler\n\n**Versão**: 3.0 - Refatorado com base no Material Secretária v3\n\n### 🎯 Funcionalidades Principais\n- ✅ Captura erros de todos os workflows\n- ✅ Log estruturado de erros\n- ✅ Notificação via Telegram em caso de falhas críticas\n- ✅ Detecção específica de erros de rate limit (429)\n- ✅ Fallback para pacientes em caso de erro no workflow principal\n\n### 🔍 Tipos de Erros Tratados\n1. **Erros Gerais**: Qualquer erro em qualquer workflow\n2. **Rate Limit (429)**: Quota excedida do Google Gemini API\n3. **Erros no Workflow de Pacientes**: Fallback automático para paciente\n\n### 📊 Fluxo de Processamento\n1. **Captura**: Error Trigger captura erro automaticamente\n2. **Parse**: Extrai informações do erro (workflow, node, mensagem)\n3. **Classificação**: Identifica tipo de erro (rate limit, geral)\n4. **Notificação**: Envia alerta via Telegram\n5. **Fallback**: Se erro no workflow de pacientes, envia mensagem de fallback\n\n### 🚨 Alertas Especiais\n- **Rate Limit**: Alerta crítico com instruções específicas\n- **Workflow de Pacientes**: Envia mensagem de fallback ao paciente\n- **Outros Erros**: Alerta padrão com link para execução\n\n### ⚠️ Configuração\n- **Telegram Chat ID**: `$env.TELEGRAM_INTERNAL_CHAT_ID`\n- **N8N Webhook URL**: `$env.N8N_WEBHOOK_URL`\n- **Clinic Phone**: `$env.CLINIC_PHONE` (para fallback)",
+        "content": "## 📋 04 - Error Handler (Multi-Tenant)\n\n**Versão**: 4.0 - Multi-tenant com resolução dinâmica de tenant\n\n### 🎯 Funcionalidades Principais\n- ✅ Captura erros de todos os workflows\n- ✅ Resolução dinâmica do tenant_id a partir dos dados de execução\n- ✅ Notificação via Telegram usando sub-workflow (sem credencial hardcoded)\n- ✅ Detecção específica de erros de rate limit (429)\n- ✅ Fallback para pacientes em caso de erro no workflow principal\n- ✅ Fallback para $env.FALLBACK_TELEGRAM_CHAT_ID quando tenant não identificado\n\n### 📊 Fluxo de Processamento\n1. **Captura**: Error Trigger captura erro automaticamente\n2. **Extração**: Code node busca tenant_id nos dados de execução do workflow falho\n3. **Config**: Query tenant_config para obter dados do tenant\n4. **Classificação**: Identifica tipo de erro (rate limit, geral)\n5. **Notificação**: Envia alerta via Telegram Client sub-workflow\n6. **Fallback**: Se erro no workflow de pacientes, envia mensagem via WhatsApp\n\n### ⚠️ Configuração\n- **$env.N8N_WEBHOOK_URL**: URL base do n8n (infraestrutura)\n- **$env.FALLBACK_TELEGRAM_CHAT_ID**: Chat ID para alertas quando tenant não identificado",
         "height": 700,
         "width": 500,
         "color": 5
@@ -20,64 +20,76 @@
       "name": "Error Trigger",
       "type": "n8n-nodes-base.errorTrigger",
       "position": [240, 400],
-      "typeVersion": 1,
-      "notes": "🚨 Trigger que captura erros automaticamente de todos os workflows\n\n**Ativação**: Automática quando qualquer workflow falha\n**Dados Recebidos**:\n- `workflow` - Informações do workflow que falhou\n- `execution` - Informações da execução\n- `error` - Detalhes do erro (mensagem, node, stack)\n\n**Uso**: Configurado como `errorWorkflow` nos settings dos workflows"
+      "typeVersion": 1
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
+        "jsCode": "// Extract tenant_id from the failed workflow's execution data\nconst executionData = $input.first().json.execution?.data?.resultData?.runData || {};\n\nlet tenant_id = null;\nlet remote_jid = null;\nlet instance_name = null;\n\n// Search known node outputs for tenant_id\nconst searchPaths = [\n  'Load Tenant Config',\n  'Parse Webhook Data',\n  'Merge Tenant Config',\n  'Lookup Tenant by Chat ID',\n  'Load All Active Professionals',\n  'Query Tenant Config',\n  'Enrich with Tenant Config'\n];\n\nfor (const nodeName of searchPaths) {\n  if (tenant_id) break;\n  const nodeData = executionData[nodeName];\n  if (!nodeData?.[0]?.data?.main?.[0]) continue;\n  \n  for (const item of nodeData[0].data.main[0]) {\n    const json = item.json || {};\n    // Direct tenant_id field\n    if (json.tenant_id) { tenant_id = json.tenant_id; break; }\n    // Nested in tenant_config object\n    if (json.tenant_config?.tenant_id) { tenant_id = json.tenant_config.tenant_id; break; }\n  }\n}\n\n// Extract remote_jid for patient fallback\nconst parseNode = executionData['Parse Webhook Data'];\nif (parseNode?.[0]?.data?.main?.[0]?.[0]?.json) {\n  const parsed = parseNode[0].data.main[0][0].json;\n  remote_jid = parsed.remote_jid || null;\n  instance_name = parsed.instance_name || null;\n}\n\nreturn {\n  tenant_id,\n  remote_jid,\n  instance_name,\n  workflow: $input.first().json.workflow,\n  execution: {\n    id: $input.first().json.execution?.id,\n    url: $input.first().json.execution?.url\n  },\n  error: $input.first().json.error\n};"
+      },
+      "id": "extract-tenant-id",
+      "name": "Extract Tenant ID",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 400],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT tenant_id, clinic_name, clinic_phone,\n       telegram_internal_chat_id, evolution_instance_name\nFROM tenant_config\nWHERE tenant_id = $1::uuid AND is_active = true\nLIMIT 1;",
+        "options": {
+          "queryParameters": "={{ [$json.tenant_id] }}"
+        }
+      },
+      "id": "query-tenant-config",
+      "name": "Query Tenant Config",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 400],
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
             {
-              "id": "workflow_name",
-              "name": "workflow_name",
-              "type": "string",
-              "value": "={{ $json.workflow.name }}"
-            },
-            {
-              "id": "workflow_id",
-              "name": "workflow_id",
-              "type": "string",
-              "value": "={{ $json.workflow.id }}"
-            },
-            {
-              "id": "execution_id",
-              "name": "execution_id",
-              "type": "string",
-              "value": "={{ $json.execution.id }}"
-            },
-            {
-              "id": "error_message",
-              "name": "error_message",
-              "type": "string",
-              "value": "={{ $json.error.message }}"
-            },
-            {
-              "id": "error_node",
-              "name": "error_node",
-              "type": "string",
-              "value": "={{ $json.error.node?.name || 'Unknown' }}"
-            },
-            {
-              "id": "timestamp",
-              "name": "timestamp",
-              "type": "string",
-              "value": "={{ $now }}"
-            },
-            {
-              "id": "error_stack",
-              "name": "error_stack",
-              "type": "string",
-              "value": "={{ $json.error.stack || 'No stack trace' }}"
+              "id": "has-tenant",
+              "leftValue": "={{ $json.tenant_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              }
             }
           ]
         }
       },
-      "id": "parse-error",
+      "id": "check-tenant-found",
+      "name": "Check Tenant Found",
+      "type": "n8n-nodes-base.if",
+      "position": [900, 400],
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge tenant config with extracted data\nconst tenantConfig = $input.first().json;\nconst extracted = $('Extract Tenant ID').first().json;\n\nreturn {\n  // Tenant data\n  tenant_id: tenantConfig.tenant_id,\n  clinic_name: tenantConfig.clinic_name,\n  clinic_phone: tenantConfig.clinic_phone,\n  telegram_chat_id: tenantConfig.telegram_internal_chat_id,\n  evolution_instance_name: tenantConfig.evolution_instance_name || extracted.instance_name,\n  // Error data\n  workflow_name: extracted.workflow?.name || 'Unknown',\n  workflow_id: extracted.workflow?.id || 'Unknown',\n  execution_id: extracted.execution?.id || 'Unknown',\n  error_message: extracted.error?.message || 'Unknown error',\n  error_node: extracted.error?.node?.name || 'Unknown',\n  error_stack: extracted.error?.stack || 'No stack trace',\n  timestamp: new Date().toISOString(),\n  // Patient fallback data\n  remote_jid: extracted.remote_jid,\n  instance_name: tenantConfig.evolution_instance_name || extracted.instance_name\n};"
+      },
+      "id": "parse-error-tenant",
       "name": "Parse Error Data",
-      "type": "n8n-nodes-base.set",
-      "position": [460, 400],
-      "typeVersion": 3.4,
-      "notes": "📝 Extrai e estrutura informações do erro\n\n**Campos Extraídos**:\n- `workflow_name` - Nome do workflow que falhou\n- `workflow_id` - ID do workflow\n- `execution_id` - ID da execução\n- `error_message` - Mensagem de erro\n- `error_node` - Nome do node que falhou\n- `error_stack` - Stack trace completo\n- `timestamp` - Timestamp do erro\n\n**Uso**: Dados estruturados para logs e notificações"
+      "type": "n8n-nodes-base.code",
+      "position": [1120, 300],
+      "typeVersion": 2
     },
     {
       "parameters": {
@@ -87,7 +99,7 @@
               "id": "alert_message",
               "name": "alert_message",
               "type": "string",
-              "value": "=🚨 *WORKFLOW ERROR ALERT*\n\n*Workflow:* {{ $json.workflow_name }}\n*Execution ID:* `{{ $json.execution_id }}`\n*Failed Node:* {{ $json.error_node }}\n*Time:* {{ $json.timestamp }}\n\n*Error Message:*\n```\n{{ $json.error_message }}\n```\n\n*Action Required:*\nPlease check the n8n interface for details and fix the issue.\n\n*Direct Link:*\n{{ $env.N8N_WEBHOOK_URL }}executions/{{ $json.execution_id }}"
+              "value": "=🚨 *WORKFLOW ERROR ALERT*\n\n*Clinic:* {{ $json.clinic_name }}\n*Workflow:* {{ $json.workflow_name }}\n*Execution ID:* `{{ $json.execution_id }}`\n*Failed Node:* {{ $json.error_node }}\n*Time:* {{ $json.timestamp }}\n\n*Error Message:*\n```\n{{ $json.error_message }}\n```\n\n*Action Required:*\nPlease check the n8n interface for details and fix the issue.\n\n*Direct Link:*\n{{ $env.N8N_WEBHOOK_URL }}executions/{{ $json.execution_id }}"
             }
           ]
         }
@@ -95,31 +107,32 @@
       "id": "format-alert",
       "name": "Format Alert Message",
       "type": "n8n-nodes-base.set",
-      "position": [680, 400],
+      "position": [1340, 200],
       "typeVersion": 3.4
     },
     {
       "parameters": {
-        "operation": "sendMessage",
-        "chatId": "={{ $env.TELEGRAM_INTERNAL_CHAT_ID }}",
-        "text": "={{ $json.alert_message }}",
-        "additionalFields": {
-          "parseMode": "Markdown",
-          "disableNotification": false
-        }
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ 'Telegram Client' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $('Parse Error Data').item.json.tenant_id }}",
+            "chat_id": "={{ $('Parse Error Data').item.json.telegram_chat_id }}",
+            "text": "={{ $json.alert_message }}",
+            "parse_mode": "Markdown"
+          }
+        },
+        "options": {}
       },
       "id": "send-telegram-alert",
       "name": "Send Telegram Alert",
-      "type": "n8n-nodes-base.telegram",
-      "position": [900, 400],
-      "typeVersion": 1.2,
-      "notes": "📱 Envia alerta de erro via Telegram\n\n**Destinatário**: `$env.TELEGRAM_INTERNAL_CHAT_ID`\n**Formato**: Markdown\n**Conteúdo**:\n- Nome do workflow\n- ID da execução\n- Node que falhou\n- Mensagem de erro\n- Link direto para execução\n\n**Uso**: Notificação imediata para equipe técnica",
-      "credentials": {
-        "telegramApi": {
-          "id": "{{TELEGRAM_BOT_CREDENTIAL_ID}}",
-          "name": "Telegram Bot"
-        }
-      }
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [1560, 200],
+      "typeVersion": 1.2
     },
     {
       "parameters": {
@@ -161,9 +174,8 @@
       "id": "is-rate-limit-error",
       "name": "Is Rate Limit Error?",
       "type": "n8n-nodes-base.if",
-      "position": [680, 600],
-      "typeVersion": 2.1,
-      "notes": "🔍 Detecta erros 429 (quota exceeded) do Google Gemini API\n\n**Padrões Detectados**:\n- \"429\" na mensagem de erro\n- \"quota exceeded\" na mensagem\n- \"too many requests\" na mensagem\n\n**Ação**: Se detectado, envia alerta crítico com instruções específicas\n\n**Importante**: Erros de rate limit NÃO devem retry automaticamente"
+      "position": [1340, 500],
+      "typeVersion": 2.1
     },
     {
       "parameters": {
@@ -171,9 +183,9 @@
           "assignments": [
             {
               "id": "rate_limit_alert",
-              "name": "rate_limit_alert",
+              "name": "alert_message",
               "type": "string",
-              "value": "=🚨 *RATE LIMIT EXCEEDED*\n\n*Workflow:* {{ $json.workflow_name }}\n*Time:* {{ $json.timestamp }}\n\n⚠️ *CRITICAL: Google Gemini API quota exceeded!*\n\nThe service has reached the daily quota limit (20 requests/day on free tier).\n\n*Error Details:*\n```\n{{ $json.error_message }}\n```\n\n*Immediate Actions Required:*\n1. Wait ~1 hour for quota reset\n2. Consider upgrading to paid tier\n3. Check quota usage: https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/quotas\n4. Check if retries are disabled on Gemini nodes\n\n*This error should NOT retry automatically - retries are disabled to prevent quota exhaustion.*"
+              "value": "=🚨 *RATE LIMIT EXCEEDED*\n\n*Clinic:* {{ $('Parse Error Data').item.json.clinic_name }}\n*Workflow:* {{ $('Parse Error Data').item.json.workflow_name }}\n*Time:* {{ $('Parse Error Data').item.json.timestamp }}\n\n⚠️ *CRITICAL: Google Gemini API quota exceeded!*\n\n*Error Details:*\n```\n{{ $('Parse Error Data').item.json.error_message }}\n```\n\n*Immediate Actions Required:*\n1. Wait ~1 hour for quota reset\n2. Consider upgrading to paid tier\n3. Check quota usage: https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/quotas\n4. Check if retries are disabled on Gemini nodes\n\n*This error should NOT retry automatically.*"
             }
           ]
         }
@@ -181,22 +193,46 @@
       "id": "format-rate-limit-alert",
       "name": "Format Rate Limit Alert",
       "type": "n8n-nodes-base.set",
-      "position": [900, 500],
+      "position": [1560, 400],
       "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ 'Telegram Client' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $('Parse Error Data').item.json.tenant_id }}",
+            "chat_id": "={{ $('Parse Error Data').item.json.telegram_chat_id }}",
+            "text": "={{ $json.alert_message }}",
+            "parse_mode": "Markdown"
+          }
+        },
+        "options": {}
+      },
+      "id": "send-rate-limit-telegram",
+      "name": "Send Rate Limit Alert",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [1780, 400],
+      "typeVersion": 1.2
     },
     {
       "parameters": {
         "conditions": {
           "options": {
             "leftValue": "",
-            "caseSensitive": true,
+            "caseSensitive": false,
             "typeValidation": "strict"
           },
           "combinator": "and",
           "conditions": [
             {
-              "leftValue": "={{ $json.workflow_name }}",
-              "rightValue": "WhatsApp Patient Handler",
+              "leftValue": "={{ $('Parse Error Data').item.json.workflow_name }}",
+              "rightValue": "WhatsApp",
               "operator": {
                 "type": "string",
                 "operation": "contains"
@@ -208,9 +244,8 @@
       "id": "is-patient-workflow",
       "name": "Is Patient Workflow?",
       "type": "n8n-nodes-base.if",
-      "position": [1120, 600],
-      "typeVersion": 2.1,
-      "notes": "🔍 Verifica se o erro ocorreu no workflow de pacientes\n\n**Detecção**: Verifica se `workflow_name` contém \"WhatsApp Patient Handler\"\n\n**Ação**: Se sim, envia mensagem de fallback ao paciente via WhatsApp\n\n**Motivo**: Garantir que pacientes sempre recebam uma resposta, mesmo em caso de erro"
+      "position": [1560, 600],
+      "typeVersion": 2.1
     },
     {
       "parameters": {
@@ -220,7 +255,7 @@
               "id": "fallback_message",
               "name": "fallback_message",
               "type": "string",
-              "value": "=Desculpe, estamos com uma dificuldade técnica temporária. Por favor, tente novamente em alguns minutos ou entre em contato pelo telefone {{ $env.CLINIC_PHONE }}. Pedimos desculpas pelo inconveniente! 🙏"
+              "value": "=Desculpe, estamos com uma dificuldade técnica temporária. Por favor, tente novamente em alguns minutos ou entre em contato pelo telefone {{ $('Parse Error Data').item.json.clinic_phone }}. Pedimos desculpas pelo inconveniente! 🙏"
             }
           ]
         }
@@ -228,21 +263,21 @@
       "id": "prepare-fallback",
       "name": "Prepare Fallback Message",
       "type": "n8n-nodes-base.set",
-      "position": [1120, 500],
+      "position": [1780, 600],
       "typeVersion": 3.4
     },
     {
       "parameters": {
         "resource": "messages-api",
-        "instanceName": "={{ $env.EVOLUTION_INSTANCE_NAME }}",
-        "remoteJid": "={{ $('Error Trigger').item.json.execution?.data?.resultData?.runData?.['Parse Webhook Data']?.[0]?.data?.main?.[0]?.[0]?.json?.remote_jid || '' }}",
+        "instanceName": "={{ $('Parse Error Data').item.json.evolution_instance_name }}",
+        "remoteJid": "={{ $('Parse Error Data').item.json.remote_jid }}",
         "messageText": "={{ $json.fallback_message }}",
         "options_message": {}
       },
       "id": "send-fallback",
       "name": "Send Fallback to Patient",
       "type": "n8n-nodes-evolution-api.evolutionApi",
-      "position": [1340, 500],
+      "position": [2000, 600],
       "typeVersion": 1,
       "credentials": {
         "evolutionApi": {
@@ -279,8 +314,40 @@
       "id": "final-log",
       "name": "Final Log",
       "type": "n8n-nodes-base.set",
-      "position": [1120, 400],
+      "position": [2000, 300],
       "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fallback path: tenant not found in execution data\nconst extracted = $('Extract Tenant ID').first().json;\n\nreturn {\n  workflow_name: extracted.workflow?.name || 'Unknown',\n  workflow_id: extracted.workflow?.id || 'Unknown',\n  execution_id: extracted.execution?.id || 'Unknown',\n  error_message: extracted.error?.message || 'Unknown error',\n  error_node: extracted.error?.node?.name || 'Unknown',\n  timestamp: new Date().toISOString(),\n  alert_message: `🚨 *WORKFLOW ERROR (Tenant Unknown)*\\n\\n*Workflow:* ${extracted.workflow?.name || 'Unknown'}\\n*Execution ID:* \\`${extracted.execution?.id || 'Unknown'}\\`\\n*Failed Node:* ${extracted.error?.node?.name || 'Unknown'}\\n*Time:* ${new Date().toISOString()}\\n\\n*Error Message:*\\n\\`\\`\\`\\n${extracted.error?.message || 'Unknown error'}\\n\\`\\`\\`\\n\\n⚠️ *Could not resolve tenant_id from execution data.*\\nPlease check the n8n interface for details.`\n};"
+      },
+      "id": "format-fallback-alert",
+      "name": "Format Fallback Alert",
+      "type": "n8n-nodes-base.code",
+      "position": [1120, 600],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $env.FALLBACK_TELEGRAM_CHAT_ID }}",
+        "text": "={{ $json.alert_message }}",
+        "additionalFields": {
+          "parseMode": "Markdown",
+          "disableNotification": false
+        }
+      },
+      "id": "send-fallback-telegram",
+      "name": "Send Fallback Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "position": [1340, 600],
+      "typeVersion": 1.2,
+      "credentials": {
+        "telegramApi": {
+          "id": "{{TELEGRAM_BOT_CREDENTIAL_ID}}",
+          "name": "Telegram Bot"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -289,7 +356,47 @@
       "main": [
         [
           {
+            "node": "Extract Tenant ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Tenant ID": {
+      "main": [
+        [
+          {
+            "node": "Query Tenant Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Tenant Config": {
+      "main": [
+        [
+          {
+            "node": "Check Tenant Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Tenant Found": {
+      "main": [
+        [
+          {
             "node": "Parse Error Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Fallback Alert",
             "type": "main",
             "index": 0
           }
@@ -306,6 +413,28 @@
           },
           {
             "node": "Is Rate Limit Error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Alert Message": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram Alert": {
+      "main": [
+        [
+          {
+            "node": "Final Log",
             "type": "main",
             "index": 0
           }
@@ -334,25 +463,14 @@
       "main": [
         [
           {
-            "node": "Send Telegram Alert",
+            "node": "Send Rate Limit Alert",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Format Alert Message": {
-      "main": [
-        [
-          {
-            "node": "Send Telegram Alert",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send Telegram Alert": {
+    "Send Rate Limit Alert": {
       "main": [
         [
           {
@@ -395,6 +513,17 @@
           }
         ]
       ]
+    },
+    "Format Fallback Alert": {
+      "main": [
+        [
+          {
+            "node": "Send Fallback Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
@@ -402,7 +531,7 @@
     "executionOrder": "v1",
     "saveManualExecutions": true
   },
-  "versionId": "error-handler-v1",
+  "versionId": "error-handler-v4-multitenant",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "clinic-multiagent-system"
@@ -418,11 +547,3 @@
     }
   ]
 }
-
-
-
-
-
-
-
-

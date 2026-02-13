@@ -85,7 +85,7 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "huBU2W6CXC9qPm0U",
+          "value": "{{GOOGLE_CALENDAR_CLIENT_WORKFLOW_ID}}",
           "mode": "id",
           "cachedResultName": "Google Calendar Client"
         },

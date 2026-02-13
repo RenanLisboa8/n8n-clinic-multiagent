@@ -1,0 +1,17 @@
+{
+  "event": "messages.upsert",
+  "instance": "clinica-demo",
+  "data": {
+    "key": {
+      "remoteJid": "5516999880001@s.whatsapp.net",
+      "fromMe": false,
+      "id": "SCHED_FLOW_001"
+    },
+    "pushName": "Maria Santos",
+    "messageType": "conversation",
+    "message": {
+      "conversation": "1"
+    }
+  },
+  "description": "Full scheduling flow: patient selects option 1 (schedule appointment)"
+}

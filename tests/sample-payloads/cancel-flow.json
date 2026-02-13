@@ -1,0 +1,17 @@
+{
+  "event": "messages.upsert",
+  "instance": "clinica-demo",
+  "data": {
+    "key": {
+      "remoteJid": "5516999880003@s.whatsapp.net",
+      "fromMe": false,
+      "id": "CANCEL_FLOW_001"
+    },
+    "pushName": "Ana Costa",
+    "messageType": "conversation",
+    "message": {
+      "conversation": "Quero cancelar minha consulta"
+    }
+  },
+  "description": "Cancel flow: patient requests appointment cancellation"
+}

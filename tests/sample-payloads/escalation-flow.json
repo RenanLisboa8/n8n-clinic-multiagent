@@ -1,0 +1,17 @@
+{
+  "event": "messages.upsert",
+  "instance": "clinica-demo",
+  "data": {
+    "key": {
+      "remoteJid": "5516999880004@s.whatsapp.net",
+      "fromMe": false,
+      "id": "ESCALATION_001"
+    },
+    "pushName": "Carlos Ferreira",
+    "messageType": "conversation",
+    "message": {
+      "conversation": "Preciso falar com alguém urgente, é uma emergência"
+    }
+  },
+  "description": "Escalation flow: complex query that should trigger human escalation"
+}

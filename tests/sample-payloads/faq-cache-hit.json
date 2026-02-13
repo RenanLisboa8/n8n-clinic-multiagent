@@ -1,0 +1,17 @@
+{
+  "event": "messages.upsert",
+  "instance": "clinica-demo",
+  "data": {
+    "key": {
+      "remoteJid": "5516999880005@s.whatsapp.net",
+      "fromMe": false,
+      "id": "FAQ_HIT_001"
+    },
+    "pushName": "Lucia Mendes",
+    "messageType": "conversation",
+    "message": {
+      "conversation": "Oi, bom dia!"
+    }
+  },
+  "description": "FAQ cache hit: greeting that should be resolved by FAQ/template without AI"
+}

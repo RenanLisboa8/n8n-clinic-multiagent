@@ -1,56 +1,86 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # ============================================================================
 # PostgreSQL Database Initialization Script
 # ============================================================================
-# This script runs automatically when the PostgreSQL container is first
-# initialized (only when the data directory is empty).
+# Runs the consolidated schema and seed files in order.
 #
-# Note: For existing databases, run migrations manually using:
-#   ./scripts/apply-migrations.sh
+# Usage:
+#   DATABASE_URL=postgres://user:pass@host:5432/dbname ./scripts/init-db.sh
+#
+# Or with individual env vars:
+#   PGHOST=localhost PGPORT=5432 PGDATABASE=n8n_clinic_db PGUSER=n8n_clinic ./scripts/init-db.sh
 # ============================================================================
 
-echo "Initializing database schema..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Get database connection parameters from environment
-DB_NAME="${POSTGRES_DB:-n8n_clinic_db}"
-DB_USER="${POSTGRES_USER:-n8n_clinic}"
+SCHEMA_FILE="$PROJECT_ROOT/scripts/db/schema/schema.sql"
+SEEDS_DIR="$PROJECT_ROOT/scripts/db/seeds"
+MIGRATIONS_DIR="$PROJECT_ROOT/scripts/db/migrations"
 
-# Directory where migration files are located (mounted from host)
-MIGRATIONS_DIR="/docker-entrypoint-initdb.d/migrations"
+# Build psql connection args
+if [ -n "${DATABASE_URL:-}" ]; then
+  PSQL_CMD="psql $DATABASE_URL"
+else
+  DB_HOST="${PGHOST:-localhost}"
+  DB_PORT="${PGPORT:-5432}"
+  DB_NAME="${PGDATABASE:-n8n_clinic_db}"
+  DB_USER="${PGUSER:-n8n_clinic}"
+  PSQL_CMD="psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME"
+fi
 
-# Check if migrations directory exists and has files
-# if [ -d "$MIGRATIONS_DIR" ] && [ "$(ls -A $MIGRATIONS_DIR/*.sql 2>/dev/null)" ]; then
-#     echo "Running migration files from $MIGRATIONS_DIR..."
-    
-#     # Run migrations in order (all migrations including latest)
-#     MIGRATIONS=(
-#         "001_create_tenant_tables.sql"
-#         "002_seed_tenant_data.sql"
-#         "003_create_faq_table.sql"
-#         "004_create_service_catalog_architecture.sql"
-#         "005_seed_service_catalog_data.sql"
-#         "015_add_clinic_type_field.sql"
-#         "017_add_services_faq.sql"
-#         "018_unique_services_catalog.sql"
-#         "019_update_appointment_faq_show_catalog.sql"
-#         "020_get_service_by_number.sql"
-#     )
-    
-#     for migration in "${MIGRATIONS[@]}"; do
-#         migration_path="$MIGRATIONS_DIR/$migration"
-#         if [ -f "$migration_path" ]; then
-#             echo "Running $(basename $migration)..."
-#             psql -v ON_ERROR_STOP=1 --username "$DB_USER" --dbname "$DB_NAME" < "$migration_path" 2>&1 | grep -v "^NOTICE:" || true
-#         else
-#             echo "Warning: $migration not found, skipping..."
-#         fi
-#     done
-    
-#     echo "Database initialization completed successfully!"
-# else
-#     echo "No migration files found in $MIGRATIONS_DIR"
-#     echo "Skipping migrations - database will be initialized with default schema only"
-#     echo "Run migrations manually after container startup if needed"
-# fi
+echo "════════════════════════════════════════════════════════════════"
+echo "  Database Initialization"
+echo "════════════════════════════════════════════════════════════════"
+
+# Step 1: Run consolidated schema
+if [ -f "$SCHEMA_FILE" ]; then
+  echo ""
+  echo "Step 1: Running consolidated schema..."
+  $PSQL_CMD -v ON_ERROR_STOP=1 -f "$SCHEMA_FILE" 2>&1 | grep -v "^NOTICE:" || true
+  echo "  Schema applied successfully."
+else
+  echo "ERROR: Schema file not found at $SCHEMA_FILE"
+  exit 1
+fi
+
+# Step 2: Run seed files in order
+if [ -d "$SEEDS_DIR" ]; then
+  echo ""
+  echo "Step 2: Running seed files..."
+  for seed in "$SEEDS_DIR"/[0-9]*.sql; do
+    if [ -f "$seed" ]; then
+      echo "  Running: $(basename "$seed")"
+      $PSQL_CMD -v ON_ERROR_STOP=1 -f "$seed" 2>&1 | grep -v "^NOTICE:" || true
+    fi
+  done
+  echo "  Seeds applied successfully."
+else
+  echo "WARNING: Seeds directory not found at $SEEDS_DIR, skipping."
+fi
+
+# Step 3: Run pending migrations (optional)
+if [ -d "$MIGRATIONS_DIR" ] && [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
+  echo ""
+  echo "Step 3: Running migrations..."
+  for migration in "$MIGRATIONS_DIR"/[0-9]*.sql; do
+    if [ -f "$migration" ]; then
+      echo "  Running: $(basename "$migration")"
+      $PSQL_CMD -v ON_ERROR_STOP=1 -f "$migration" 2>&1 | grep -v "^NOTICE:" || true
+    fi
+  done
+  echo "  Migrations applied successfully."
+fi
+
+echo ""
+echo "════════════════════════════════════════════════════════════════"
+echo "  Database initialized successfully!"
+echo "════════════════════════════════════════════════════════════════"
+echo ""
+echo "Next steps:"
+echo "  1. Configure tenant with: python scripts/cli/cli.py add-tenant ..."
+echo "  2. Set up Google Calendar OAuth credentials"
+echo "  3. Import workflows to n8n (replace {{PLACEHOLDER}} tokens)"
+echo ""

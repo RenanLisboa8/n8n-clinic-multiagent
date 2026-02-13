@@ -1,0 +1,312 @@
+{
+  "name": "Messaging Send Tool",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "workflow-input",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [240, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tenant_id",
+              "name": "tenant_id",
+              "type": "string",
+              "value": "={{ $json.tenant_id }}"
+            },
+            {
+              "id": "instance_name",
+              "name": "instance_name",
+              "type": "string",
+              "value": "={{ $json.instance_name }}"
+            },
+            {
+              "id": "remote_jid",
+              "name": "remote_jid",
+              "type": "string",
+              "value": "={{ $json.remote_jid || $json.phone }}"
+            },
+            {
+              "id": "message_text",
+              "name": "message_text",
+              "type": "string",
+              "value": "={{ $json.message_text || $json.message }}"
+            },
+            {
+              "id": "provider_override",
+              "name": "provider_override",
+              "type": "string",
+              "value": "={{ $json.provider || '' }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-params",
+      "name": "Extract Parameters",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 300],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT messaging_provider FROM tenant_config WHERE tenant_id = $1::uuid AND is_active = true LIMIT 1;",
+        "options": {
+          "queryParameters": "={{ [$json.tenant_id] }}"
+        }
+      },
+      "id": "query-provider",
+      "name": "Query Messaging Provider",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 300],
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Determine provider: use override if provided, otherwise from DB\nconst params = $('Extract Parameters').first().json;\nconst dbProvider = $input.first().json.messaging_provider || 'evolution';\nconst provider = params.provider_override || dbProvider;\n\nreturn {\n  ...params,\n  provider\n};"
+      },
+      "id": "resolve-provider",
+      "name": "Resolve Provider",
+      "type": "n8n-nodes-base.code",
+      "position": [900, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "is-evolution",
+                    "leftValue": "={{ $json.provider }}",
+                    "rightValue": "evolution",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "evolution"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "is-chatwoot",
+                    "leftValue": "={{ $json.provider }}",
+                    "rightValue": "chatwoot",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "chatwoot"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "provider-switch",
+      "name": "Provider Switch",
+      "type": "n8n-nodes-base.switch",
+      "position": [1120, 300],
+      "typeVersion": 3.2
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ 'WhatsApp Send Tool' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "instance_name": "={{ $json.instance_name }}",
+            "remote_jid": "={{ $json.remote_jid }}",
+            "message_text": "={{ $json.message_text }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "send-evolution",
+      "name": "Send via Evolution",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [1340, 200],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ 'Chatwoot Send Tool' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $json.tenant_id }}",
+            "phone": "={{ $json.remote_jid }}",
+            "message": "={{ $json.message_text }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "send-chatwoot",
+      "name": "Send via Chatwoot",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [1340, 400],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "error",
+              "name": "error",
+              "type": "string",
+              "value": "=Unknown messaging provider: {{ $json.provider }}"
+            }
+          ]
+        }
+      },
+      "id": "unknown-provider",
+      "name": "Unknown Provider Error",
+      "type": "n8n-nodes-base.set",
+      "position": [1340, 600],
+      "typeVersion": 3.4
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Parameters": {
+      "main": [
+        [
+          {
+            "node": "Query Messaging Provider",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Messaging Provider": {
+      "main": [
+        [
+          {
+            "node": "Resolve Provider",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Provider": {
+      "main": [
+        [
+          {
+            "node": "Provider Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Provider Switch": {
+      "main": [
+        [
+          {
+            "node": "Send via Evolution",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send via Chatwoot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unknown Provider Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "messaging-send-tool-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "tool",
+      "id": "1"
+    },
+    {
+      "name": "communication",
+      "id": "2"
+    }
+  ]
+}

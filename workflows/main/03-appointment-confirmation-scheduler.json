@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 📋 03 - Appointment Confirmation Scheduler\n\n**Versão**: 3.0 - Refatorado com base no Material Secretária v3\n\n### 🎯 Funcionalidades Principais\n- ✅ Envia lembretes de confirmação para agendamentos do dia seguinte\n- ✅ Suporte completo a múltiplos profissionais\n- ✅ Processa todos os tenants automaticamente\n- ✅ Extrai informações do paciente da descrição do evento\n- ✅ Mensagem personalizada com nome do profissional\n\n### ⏰ Agendamento\n- **Horário**: 8h da manhã (segunda a sexta)\n- **Timezone**: Respeita timezone de cada clínica\n- **Período**: Agendamentos do dia seguinte (amanhã)\n\n### 🔄 Fluxo de Processamento\n1. **Trigger**: Executa diariamente às 8h (seg-sex)\n2. **Carrega Profissionais**: Busca todos os profissionais ativos de todos os tenants\n3. **Loop por Profissional**: Para cada profissional:\n   - Busca agendamentos do calendário dele\n   - Extrai informações do paciente (nome, telefone)\n   - Prepara mensagem de confirmação\n   - Envia via WhatsApp\n4. **Rate Limiting**: Espera 2 segundos entre envios\n\n### 📊 Características Multi-Profissional\n- Processa todos os calendários de profissionais separadamente\n- Inclui nome do profissional na mensagem\n- Usa `evolution_instance_name` correto de cada tenant\n- Respeita `timezone` de cada clínica\n\n### 📝 Formato da Mensagem\n- Saudação personalizada com nome do paciente\n- Data e horário formatados\n- Nome do profissional\n- Endereço da clínica\n- Opções de resposta (CONFIRMAR, REAGENDAR, CANCELAR)\n\n### ⚠️ Validações\n- Apenas agendamentos com telefone válido são processados\n- Agendamentos sem telefone são logados e pulados\n- Rate limiting de 2 segundos entre envios",
+        "content": "## 📋 03 - Appointment Confirmation Scheduler\n\n**Versão**: 4.0 - Refatorado para usar tabela appointments (sem Google Calendar nativo)\n\n### 🎯 Funcionalidades Principais\n- ✅ Envia lembretes de confirmação para agendamentos do dia seguinte\n- ✅ Usa stored function get_appointments_for_reminders() do banco\n- ✅ Multi-tenant: processa todos os tenants automaticamente\n- ✅ Marca lembretes como enviados (evita duplicatas)\n- ✅ Rate limiting entre envios\n\n### ⏰ Agendamento\n- **Horário**: 8h da manhã (segunda a sexta)\n- **Período**: Agendamentos nas próximas 24h\n\n### 🔄 Fluxo de Processamento\n1. **Trigger**: Executa diariamente às 8h (seg-sex)\n2. **Fetch**: Busca appointments pendentes de lembrete via DB\n3. **Enrich**: Carrega evolution_instance_name do tenant\n4. **Filter**: Verifica se tem contato do paciente\n5. **Send**: Envia mensagem via WhatsApp Send Tool\n6. **Mark**: Marca lembrete como enviado no banco\n\n### ⚠️ Sem Google Calendar Nativo\nUsa tabela `appointments` + função `get_appointments_for_reminders('24h')`\nNÃO usa `n8n-nodes-base.googleCalendar`",
         "height": 700,
         "width": 500,
         "color": 5
@@ -29,45 +29,18 @@
       "name": "Daily Trigger (8 AM Mon-Fri)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "position": [240, 400],
-      "typeVersion": 1.2,
-      "notes": "⏰ Trigger agendado para executar diariamente às 8h (segunda a sexta)\n\n**Cron**: `0 8 * * 1-5`\n**Timezone**: UTC (ajustado por timezone da clínica)\n**Frequência**: Uma vez por dia, apenas em dias úteis"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "tomorrow_date",
-              "name": "tomorrow_date",
-              "type": "string",
-              "value": "={{ $now.plus({days: 1}).toFormat('yyyy-MM-dd') }}"
-            },
-            {
-              "id": "trigger_time",
-              "name": "trigger_time",
-              "type": "string",
-              "value": "={{ $now }}"
-            }
-          ]
-        }
-      },
-      "id": "prepare-dates",
-      "name": "Prepare Dates",
-      "type": "n8n-nodes-base.set",
-      "position": [460, 400],
-      "typeVersion": 3.4,
-      "notes": "📅 Prepara datas para busca de agendamentos\n\n**Campos**:\n- `tomorrow_date` - Data de amanhã no formato YYYY-MM-DD\n- `trigger_time` - Timestamp do trigger (para logs)\n\n**Uso**: Define o período de busca (dia seguinte)"
+      "typeVersion": 1.2
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT DISTINCT \n  p.professional_id,\n  p.professional_name,\n  p.google_calendar_id,\n  p.tenant_id,\n  tc.clinic_name,\n  tc.evolution_instance_name,\n  tc.clinic_address,\n  tc.timezone\nFROM professionals p\nJOIN tenant_config tc ON p.tenant_id = tc.tenant_id\nWHERE p.is_active = true\n  AND tc.is_active = true\n  AND p.google_calendar_id IS NOT NULL\nORDER BY tc.tenant_name, p.display_order;",
+        "query": "SELECT * FROM get_appointments_for_reminders('24h');",
         "options": {}
       },
-      "id": "load-professionals",
-      "name": "Load All Active Professionals",
+      "id": "fetch-appointments",
+      "name": "Fetch Appointments for Reminders",
       "type": "n8n-nodes-base.postgres",
-      "position": [680, 400],
+      "position": [460, 400],
       "typeVersion": 2.4,
       "credentials": {
         "postgres": {
@@ -75,40 +48,7 @@
           "name": "Postgres account"
         }
       },
-      "notes": "📋 Carrega todos os profissionais ativos com seus calendar IDs\n\n**Query**: Busca profissionais ativos de todos os tenants ativos\n**Retorna**:\n- `professional_id` - UUID do profissional\n- `professional_name` - Nome do profissional\n- `google_calendar_id` - ID do calendário do Google Calendar\n- `tenant_id` - UUID do tenant\n- `clinic_name` - Nome da clínica\n- `evolution_instance_name` - Instância Evolution API\n- `clinic_address` - Endereço da clínica\n- `timezone` - Timezone da clínica\n\n**Ordenação**: Por `tenant_name` e `display_order` do profissional"
-    },
-    {
-      "parameters": {
-        "options": {}
-      },
-      "id": "loop-professionals",
-      "name": "Loop Over Professionals",
-      "type": "n8n-nodes-base.splitInBatches",
-      "position": [900, 400],
-      "typeVersion": 3.1
-    },
-    {
-      "parameters": {
-        "operation": "getAll",
-        "calendarId": "={{ $json.google_calendar_id }}",
-        "returnAll": true,
-        "options": {
-          "timeMax": "={{ $('Prepare Dates').item.json.tomorrow_date }}T23:59:59-03:00",
-          "timeMin": "={{ $('Prepare Dates').item.json.tomorrow_date }}T00:00:00-03:00"
-        }
-      },
-      "id": "fetch-appointments",
-      "name": "Fetch Tomorrow's Appointments",
-      "type": "n8n-nodes-base.googleCalendar",
-      "position": [1120, 400],
-      "typeVersion": 1.2,
-      "credentials": {
-        "googleCalendarOAuth2Api": {
-          "id": "{{GOOGLE_CALENDAR_CREDENTIAL_ID}}",
-          "name": "Google Calendar"
-        }
-      },
-      "notes": "📅 Busca agendamentos do calendário deste profissional\n\n**Período**: Amanhã (00:00:00 até 23:59:59)\n**Calendário**: `google_calendar_id` do profissional\n**Timezone**: Considera timezone da clínica\n**Retorna**: Todos os eventos do dia seguinte\n\n**Processamento**: Cada profissional é processado separadamente para suporte multi-profissional"
+      "notes": "📅 Busca agendamentos que precisam de lembrete 24h\n\nUsa stored function get_appointments_for_reminders('24h')\nRetorna: appointment_id, tenant_id, patient_contact, patient_name,\nstart_at, service_name, professional_name, clinic_name, clinic_phone\n\nFiltra automaticamente appointments já notificados (reminder_24h_sent_at IS NULL)"
     },
     {
       "parameters": {
@@ -117,70 +57,38 @@
       "id": "loop-appointments",
       "name": "Loop Over Appointments",
       "type": "n8n-nodes-base.splitInBatches",
-      "position": [1340, 400],
+      "position": [680, 400],
       "typeVersion": 3.1
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "patient_name",
-              "name": "patient_name",
-              "type": "string",
-              "value": "={{ $json.summary }}"
-            },
-            {
-              "id": "appointment_time",
-              "name": "appointment_time",
-              "type": "string",
-              "value": "={{ $json.start.dateTime }}"
-            },
-            {
-              "id": "phone_number",
-              "name": "phone_number",
-              "type": "string",
-              "value": "={{ $json.description?.match(/\\d{10,15}/)?.[0] || '' }}"
-            },
-            {
-              "id": "event_id",
-              "name": "event_id",
-              "type": "string",
-              "value": "={{ $json.id }}"
-            },
-            {
-              "id": "professional_name",
-              "name": "professional_name",
-              "type": "string",
-              "value": "={{ $('Loop Over Professionals').item.json.professional_name }}"
-            },
-            {
-              "id": "clinic_name",
-              "name": "clinic_name",
-              "type": "string",
-              "value": "={{ $('Loop Over Professionals').item.json.clinic_name }}"
-            },
-            {
-              "id": "clinic_address",
-              "name": "clinic_address",
-              "type": "string",
-              "value": "={{ $('Loop Over Professionals').item.json.clinic_address }}"
-            },
-            {
-              "id": "evolution_instance_name",
-              "name": "evolution_instance_name",
-              "type": "string",
-              "value": "={{ $('Loop Over Professionals').item.json.evolution_instance_name }}"
-            }
-          ]
+        "operation": "executeQuery",
+        "query": "SELECT evolution_instance_name, clinic_address, timezone\nFROM tenant_config\nWHERE tenant_id = $1::uuid AND is_active = true\nLIMIT 1;",
+        "options": {
+          "queryParameters": "={{ [$json.tenant_id] }}"
         }
       },
-      "id": "extract-contact",
-      "name": "Extract Patient Contact",
-      "type": "n8n-nodes-base.set",
-      "position": [1560, 400],
-      "typeVersion": 3.4,
-      "notes": "📝 Extrai informações de contato do paciente do evento\n\n**Extrai**:\n- `patient_name` - Do campo `summary` do evento\n- `appointment_time` - Do campo `start.dateTime`\n- `phone_number` - Regex da descrição (\\d{10,15})\n- `event_id` - ID do evento no Google Calendar\n- `professional_name` - Do loop de profissionais\n- `clinic_name` - Do tenant config\n- `clinic_address` - Do tenant config\n- `evolution_instance_name` - Para envio WhatsApp\n\n**Validação**: Telefone é extraído via regex da descrição"
+      "id": "enrich-tenant",
+      "name": "Enrich with Tenant Config",
+      "type": "n8n-nodes-base.postgres",
+      "position": [900, 400],
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge appointment data with tenant config\nconst tenant = $input.first().json;\nconst appointment = $('Loop Over Appointments').first().json;\n\nreturn {\n  ...appointment,\n  evolution_instance_name: tenant.evolution_instance_name,\n  clinic_address: tenant.clinic_address,\n  timezone: tenant.timezone\n};"
+      },
+      "id": "merge-data",
+      "name": "Merge Appointment + Tenant",
+      "type": "n8n-nodes-base.code",
+      "position": [1120, 400],
+      "typeVersion": 2
     },
     {
       "parameters": {
@@ -193,7 +101,7 @@
           "combinator": "and",
           "conditions": [
             {
-              "leftValue": "={{ $json.phone_number }}",
+              "leftValue": "={{ $json.patient_contact }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -206,34 +114,18 @@
       "id": "has-phone",
       "name": "Has Phone?",
       "type": "n8n-nodes-base.if",
-      "position": [1780, 400],
+      "position": [1340, 400],
       "typeVersion": 2.1
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "confirmation_message",
-              "name": "confirmation_message",
-              "type": "string",
-              "value": "=Olá, *{{ $json.patient_name }}*! 👋\n\nEste é um lembrete da *{{ $json.clinic_name }}*.\n\nVocê tem uma consulta agendada para:\n📅 *Amanhã* às *{{ $json.appointment_time }}*\n👨‍⚕️ *{{ $json.professional_name }}*\n📍 {{ $json.clinic_address || 'Consulte endereço da clínica' }}\n\nPor favor, responda:\n✅ *CONFIRMAR* - Para confirmar presença\n📅 *REAGENDAR* - Se precisar mudar o horário\n❌ *CANCELAR* - Para cancelar\n\nAguardamos seu retorno! 🙂"
-            },
-            {
-              "id": "remote_jid",
-              "name": "remote_jid",
-              "type": "string",
-              "value": "={{ $json.phone_number }}@s.whatsapp.net"
-            }
-          ]
-        }
+        "jsCode": "// Format appointment time for display\nconst d = $input.first().json;\nconst startAt = new Date(d.start_at);\nconst timeStr = startAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });\nconst dateStr = startAt.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });\n\nreturn {\n  ...d,\n  confirmation_message: `Olá, *${d.patient_name}*! 👋\\n\\nEste é um lembrete da *${d.clinic_name}*.\\n\\nVocê tem uma consulta agendada para:\\n📅 *${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}* às *${timeStr}*\\n👨‍⚕️ *${d.professional_name}*\\n${d.service_name ? `💊 *${d.service_name}*\\n` : ''}📍 ${d.clinic_address || 'Consulte endereço da clínica'}\\n\\nPor favor, responda:\\n✅ *CONFIRMAR* - Para confirmar presença\\n📅 *REAGENDAR* - Se precisar mudar o horário\\n❌ *CANCELAR* - Para cancelar\\n\\nAguardamos seu retorno! 🙂`,\n  remote_jid: d.patient_contact.includes('@') ? d.patient_contact : d.patient_contact + '@s.whatsapp.net'\n};"
       },
       "id": "prepare-confirmation",
       "name": "Prepare Confirmation Message",
-      "type": "n8n-nodes-base.set",
-      "position": [2000, 300],
-      "typeVersion": 3.4,
-      "notes": "💬 Prepara mensagem de confirmação personalizada\n\n**Conteúdo**:\n- Saudação com nome do paciente\n- Lembrete da consulta (amanhã)\n- Data e horário formatados\n- Nome do profissional\n- Endereço da clínica\n- Opções de resposta (CONFIRMAR, REAGENDAR, CANCELAR)\n\n**Formato**: Mensagem WhatsApp com emojis e formatação"
+      "type": "n8n-nodes-base.code",
+      "position": [1560, 300],
+      "typeVersion": 2
     },
     {
       "parameters": {
@@ -243,61 +135,53 @@
       "id": "wait",
       "name": "Wait (Rate Limit)",
       "type": "n8n-nodes-base.wait",
-      "position": [2220, 300],
+      "position": [1780, 300],
       "typeVersion": 1.1,
-      "webhookId": "confirmation-wait",
-      "notes": "⏳ Espera de 2 segundos entre envios (rate limiting)\n\n**Motivo**: Evitar bloqueio por spam da Evolution API\n**Duração**: 2 segundos\n**Aplicado**: Entre cada envio de confirmação"
+      "webhookId": "confirmation-wait"
     },
     {
       "parameters": {
-        "workflow": "={{ 'WhatsApp Send Tool' }}",
-        "options": {
-          "fieldMapping": {
-            "mappingMode": "defineBelow",
-            "values": {
-              "instance_name": "={{ $json.evolution_instance_name }}",
-              "remote_jid": "={{ $json.remote_jid }}",
-              "message_text": "={{ $json.confirmation_message }}"
-            }
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ 'Messaging Send Tool' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $('Merge Appointment + Tenant').item.json.tenant_id }}",
+            "instance_name": "={{ $json.evolution_instance_name }}",
+            "remote_jid": "={{ $json.remote_jid }}",
+            "message_text": "={{ $json.confirmation_message }}"
           }
-        }
+        },
+        "options": {}
       },
       "id": "send-confirmation",
       "name": "Send Confirmation",
       "type": "n8n-nodes-base.executeWorkflow",
-      "position": [2440, 300],
+      "position": [2000, 300],
       "typeVersion": 1.2
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "log_entry",
-              "name": "log_entry",
-              "type": "string",
-              "value": "=Confirmation sent to {{ $json.patient_name }} ({{ $json.phone_number }})"
-            },
-            {
-              "id": "success",
-              "name": "success",
-              "type": "boolean",
-              "value": "=true"
-            },
-            {
-              "id": "timestamp",
-              "name": "timestamp",
-              "type": "string",
-              "value": "={{ $now }}"
-            }
-          ]
+        "operation": "executeQuery",
+        "query": "SELECT mark_reminder_sent($1::uuid, '24h');",
+        "options": {
+          "queryParameters": "={{ [$('Merge Appointment + Tenant').item.json.appointment_id] }}"
         }
       },
-      "id": "log-success",
-      "name": "Log Success",
-      "type": "n8n-nodes-base.set",
-      "position": [2660, 300],
-      "typeVersion": 3.4
+      "id": "mark-sent",
+      "name": "Mark Reminder Sent",
+      "type": "n8n-nodes-base.postgres",
+      "position": [2220, 300],
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
     },
     {
       "parameters": {
@@ -307,7 +191,7 @@
               "id": "log_entry",
               "name": "log_entry",
               "type": "string",
-              "value": "=Skipped {{ $json.patient_name }} - No phone number"
+              "value": "=Skipped appointment {{ $json.appointment_id }} - No phone number"
             },
             {
               "id": "success",
@@ -327,7 +211,7 @@
       "id": "log-skip",
       "name": "Log Skip",
       "type": "n8n-nodes-base.set",
-      "position": [2000, 500],
+      "position": [1560, 500],
       "typeVersion": 3.4
     }
   ],
@@ -337,47 +221,14 @@
       "main": [
         [
           {
-            "node": "Prepare Dates",
+            "node": "Fetch Appointments for Reminders",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Dates": {
-      "main": [
-        [
-          {
-            "node": "Load All Active Professionals",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Load All Active Professionals": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Professionals",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Loop Over Professionals": {
-      "main": [
-        [
-          {
-            "node": "Fetch Tomorrow's Appointments",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch Tomorrow's Appointments": {
+    "Fetch Appointments for Reminders": {
       "main": [
         [
           {
@@ -392,14 +243,25 @@
       "main": [
         [
           {
-            "node": "Extract Patient Contact",
+            "node": "Enrich with Tenant Config",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract Patient Contact": {
+    "Enrich with Tenant Config": {
+      "main": [
+        [
+          {
+            "node": "Merge Appointment + Tenant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Appointment + Tenant": {
       "main": [
         [
           {
@@ -454,14 +316,14 @@
       "main": [
         [
           {
-            "node": "Log Success",
+            "node": "Mark Reminder Sent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Log Success": {
+    "Mark Reminder Sent": {
       "main": [
         [
           {
@@ -482,17 +344,6 @@
           }
         ]
       ]
-    },
-    "Loop Over Appointments": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Professionals",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
     }
   },
   "active": false,
@@ -500,9 +351,9 @@
     "executionOrder": "v1",
     "saveManualExecutions": true,
     "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": "={{ $env.ERROR_WORKFLOW_ID || '04 - Error Handler' }}"
+    "errorWorkflow": "{{ERROR_HANDLER_WORKFLOW_ID}}"
   },
-  "versionId": "main-confirmation-scheduler-v1",
+  "versionId": "main-confirmation-scheduler-v4-db-based",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "clinic-multiagent-system"
@@ -522,11 +373,3 @@
     }
   ]
 }
-
-
-
-
-
-
-
-

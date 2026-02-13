@@ -2241,34 +2241,124 @@ BEGIN
     END IF;
 END $$;
 
--- Public grants for development
-GRANT SELECT, INSERT, UPDATE, DELETE ON conversation_state TO PUBLIC;
-GRANT SELECT ON state_definitions TO PUBLIC;
-GRANT SELECT ON response_templates TO PUBLIC;
-GRANT SELECT, INSERT, UPDATE, DELETE ON calendars TO PUBLIC;
-GRANT SELECT, INSERT, UPDATE, DELETE ON appointments TO PUBLIC;
-GRANT SELECT ON v_calendars_overview TO PUBLIC;
-GRANT SELECT ON v_active_appointments TO PUBLIC;
-GRANT SELECT ON v_todays_appointments TO PUBLIC;
-GRANT SELECT ON v_pending_sync_appointments TO PUBLIC;
-GRANT EXECUTE ON FUNCTION get_or_create_conversation_state TO PUBLIC;
-GRANT EXECUTE ON FUNCTION transition_conversation_state TO PUBLIC;
-GRANT EXECUTE ON FUNCTION update_conversation_state_data TO PUBLIC;
-GRANT EXECUTE ON FUNCTION reset_conversation_state TO PUBLIC;
-GRANT EXECUTE ON FUNCTION cleanup_expired_conversation_states TO PUBLIC;
-GRANT EXECUTE ON FUNCTION get_template_response TO PUBLIC;
-GRANT EXECUTE ON FUNCTION get_calendar_for_professional TO PUBLIC;
-GRANT EXECUTE ON FUNCTION get_tenant_calendars TO PUBLIC;
-GRANT EXECUTE ON FUNCTION register_professional_calendar TO PUBLIC;
-GRANT EXECUTE ON FUNCTION migrate_professional_calendars TO PUBLIC;
-GRANT EXECUTE ON FUNCTION create_appointment TO PUBLIC;
-GRANT EXECUTE ON FUNCTION cancel_appointment TO PUBLIC;
-GRANT EXECUTE ON FUNCTION reschedule_appointment TO PUBLIC;
-GRANT EXECUTE ON FUNCTION update_appointment_google_event TO PUBLIC;
-GRANT EXECUTE ON FUNCTION get_patient_appointments TO PUBLIC;
-GRANT EXECUTE ON FUNCTION get_appointments_for_reminders TO PUBLIC;
-GRANT EXECUTE ON FUNCTION mark_reminder_sent TO PUBLIC;
-GRANT EXECUTE ON FUNCTION get_appointment_stats TO PUBLIC;
+-- ============================================================================
+-- APPLICATION ROLE (replaces PUBLIC grants)
+-- ============================================================================
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'n8n_app') THEN
+    CREATE ROLE n8n_app LOGIN PASSWORD '{{N8N_APP_PASSWORD}}';
+  END IF;
+END $$;
+
+GRANT USAGE ON SCHEMA public TO n8n_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO n8n_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO n8n_app;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO n8n_app;
+REVOKE CREATE ON SCHEMA public FROM n8n_app;
+
+-- ============================================================================
+-- MESSAGING ABSTRACTION
+-- ============================================================================
+
+ALTER TABLE tenant_config
+ADD COLUMN IF NOT EXISTS messaging_provider VARCHAR(20) DEFAULT 'evolution'
+CHECK (messaging_provider IN ('evolution', 'chatwoot'));
+
+-- ============================================================================
+-- MESSAGE QUEUE & DEDUPLICATION
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS message_queue (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenant_config(tenant_id),
+  phone VARCHAR(20) NOT NULL,
+  message_id VARCHAR(100) NOT NULL,
+  payload JSONB NOT NULL,
+  status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'duplicate')),
+  lock_key VARCHAR(100),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  processed_at TIMESTAMPTZ,
+  UNIQUE (tenant_id, message_id)
+);
+
+CREATE TABLE IF NOT EXISTS conversation_locks (
+  tenant_id UUID NOT NULL REFERENCES tenant_config(tenant_id),
+  phone VARCHAR(20) NOT NULL,
+  locked_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '5 minutes',
+  PRIMARY KEY (tenant_id, phone)
+);
+
+CREATE INDEX IF NOT EXISTS idx_message_queue_status ON message_queue(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_message_queue_tenant ON message_queue(tenant_id, message_id);
+CREATE INDEX IF NOT EXISTS idx_conversation_locks_expires ON conversation_locks(expires_at);
+
+-- Function: Enqueue message with deduplication
+CREATE OR REPLACE FUNCTION enqueue_message(
+  p_tenant_id UUID,
+  p_phone VARCHAR,
+  p_message_id VARCHAR,
+  p_payload JSONB
+)
+RETURNS TABLE (queue_id UUID, status VARCHAR) AS $$
+BEGIN
+  INSERT INTO message_queue (tenant_id, phone, message_id, payload, status)
+  VALUES (p_tenant_id, p_phone, p_message_id, p_payload, 'pending')
+  ON CONFLICT (tenant_id, message_id) DO NOTHING;
+
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT id, 'duplicate'::VARCHAR FROM message_queue
+      WHERE tenant_id = p_tenant_id AND message_id = p_message_id LIMIT 1;
+  ELSE
+    RETURN QUERY SELECT id, 'queued'::VARCHAR FROM message_queue
+      WHERE tenant_id = p_tenant_id AND message_id = p_message_id LIMIT 1;
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function: Acquire conversation lock
+CREATE OR REPLACE FUNCTION acquire_conversation_lock(
+  p_tenant_id UUID,
+  p_phone VARCHAR
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+  -- Clean expired locks first
+  DELETE FROM conversation_locks WHERE expires_at < NOW();
+
+  -- Try to acquire
+  INSERT INTO conversation_locks (tenant_id, phone)
+  VALUES (p_tenant_id, p_phone)
+  ON CONFLICT (tenant_id, phone) DO NOTHING;
+
+  RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function: Release conversation lock
+CREATE OR REPLACE FUNCTION release_conversation_lock(
+  p_tenant_id UUID,
+  p_phone VARCHAR
+)
+RETURNS VOID AS $$
+BEGIN
+  DELETE FROM conversation_locks
+  WHERE tenant_id = p_tenant_id AND phone = p_phone;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function: Cleanup expired locks (for scheduler)
+CREATE OR REPLACE FUNCTION cleanup_expired_locks()
+RETURNS INTEGER AS $$
+DECLARE
+  v_count INTEGER;
+BEGIN
+  DELETE FROM conversation_locks WHERE expires_at < NOW();
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END;
+$$ LANGUAGE plpgsql;
 
 -- ============================================================================
 -- 23. SCHEMA COMPLETE

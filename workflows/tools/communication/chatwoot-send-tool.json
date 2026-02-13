@@ -1,0 +1,256 @@
+{
+  "name": "Chatwoot Send Tool",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "workflow-input",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [240, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tenant_id",
+              "name": "tenant_id",
+              "type": "string",
+              "value": "={{ $json.tenant_id }}"
+            },
+            {
+              "id": "phone",
+              "name": "phone",
+              "type": "string",
+              "value": "={{ $json.phone || $json.remote_jid }}"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "type": "string",
+              "value": "={{ $json.message || $json.message_text }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-params",
+      "name": "Extract Parameters",
+      "type": "n8n-nodes-base.set",
+      "position": [460, 300],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  s1.secret_value_encrypted AS chatwoot_api_url,\n  s2.secret_value_encrypted AS chatwoot_api_token,\n  s3.secret_value_encrypted AS chatwoot_account_id\nFROM tenant_secrets s1\nJOIN tenant_secrets s2 ON s1.tenant_id = s2.tenant_id AND s2.secret_key = 'chatwoot_api_token'\nJOIN tenant_secrets s3 ON s1.tenant_id = s3.tenant_id AND s3.secret_key = 'chatwoot_account_id'\nWHERE s1.tenant_id = $1::uuid\n  AND s1.secret_key = 'chatwoot_api_url'\n  AND s1.is_active = true\nLIMIT 1;",
+        "options": {
+          "queryParameters": "={{ [$json.tenant_id] }}"
+        }
+      },
+      "id": "query-credentials",
+      "name": "Query Chatwoot Credentials",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 300],
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge credentials with params\nconst creds = $input.first().json;\nconst params = $('Extract Parameters').first().json;\n\nif (!creds.chatwoot_api_url || !creds.chatwoot_api_token) {\n  return {\n    success: false,\n    error: 'Chatwoot credentials not found for tenant. Configure chatwoot_api_url, chatwoot_api_token, and chatwoot_account_id in tenant_secrets.'\n  };\n}\n\n// Clean phone number (remove @s.whatsapp.net suffix if present)\nconst phone = params.phone.replace('@s.whatsapp.net', '').replace(/\\D/g, '');\n\nreturn {\n  ...params,\n  phone_clean: phone,\n  api_url: creds.chatwoot_api_url,\n  api_token: creds.chatwoot_api_token,\n  account_id: creds.chatwoot_account_id\n};"
+      },
+      "id": "merge-credentials",
+      "name": "Merge Credentials",
+      "type": "n8n-nodes-base.code",
+      "position": [900, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.api_url }}/api/v1/accounts/{{ $json.account_id }}/conversations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "={{ $json.api_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source_id: $json.phone_clean, inbox_id: 1 }) }}",
+        "options": {}
+      },
+      "id": "find-or-create-conversation",
+      "name": "Find or Create Conversation",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1120, 300],
+      "typeVersion": 4.2,
+      "notes": "Gets existing conversation or creates new one for this phone number"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Merge Credentials').item.json.api_url }}/api/v1/accounts/{{ $('Merge Credentials').item.json.account_id }}/conversations/{{ $json.id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "={{ $('Merge Credentials').item.json.api_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ content: $('Merge Credentials').item.json.message, message_type: 'outgoing' }) }}",
+        "options": {}
+      },
+      "id": "send-message",
+      "name": "Send Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1340, 300],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "type": "boolean",
+              "value": "=true"
+            },
+            {
+              "id": "provider",
+              "name": "provider",
+              "type": "string",
+              "value": "chatwoot"
+            },
+            {
+              "id": "message_id",
+              "name": "message_id",
+              "type": "string",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "type": "string",
+              "value": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "position": [1560, 300],
+      "typeVersion": 3.4
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Parameters": {
+      "main": [
+        [
+          {
+            "node": "Query Chatwoot Credentials",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Chatwoot Credentials": {
+      "main": [
+        [
+          {
+            "node": "Merge Credentials",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Credentials": {
+      "main": [
+        [
+          {
+            "node": "Find or Create Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find or Create Conversation": {
+      "main": [
+        [
+          {
+            "node": "Send Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Message": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "chatwoot-send-tool-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "clinic-multiagent-system"
+  },
+  "tags": [
+    {
+      "name": "tool",
+      "id": "1"
+    },
+    {
+      "name": "communication",
+      "id": "2"
+    }
+  ]
+}

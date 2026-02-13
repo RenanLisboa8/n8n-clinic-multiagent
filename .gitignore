@@ -124,33 +124,9 @@ dev/
 .next/
 .nuxt/
 .vercel/
-Material Secretária v3/Configuração Base de Dados Postgres.sql
-Material Secretária v3/Arquivos da Secretária v3/COBRANÇA.pdf
-Material Secretária v3/Arquivos da Secretária v3/DR. ANA SILVA.png
-Material Secretária v3/Arquivos da Secretária v3/DR. CARLA MENDES.png
-Material Secretária v3/Arquivos da Secretária v3/DR. JOÃO PAULO FERREIRA.png
-Material Secretária v3/Arquivos da Secretária v3/DR. ROBERTO ALMEIDA.png
-Material Secretária v3/Arquivos da Secretária v3/PROCEDIMENTO EXAME DE SANGUE.png
-Material Secretária v3/Arquivos da Secretária v3/PROCEDIMENTO TESTE ERGOMÉTRICO.png
-Material Secretária v3/Arquivos da Secretária v3/PROCEDIMENTO ULTASSOM.png
-Material Secretária v3/Arquivos da Secretária v3/PROFISSIONAIS.png
-Material Secretária v3/CONFIGURAÇÃO COOLIFY/docker-compose.chatwoot.yml
-Material Secretária v3/CONFIGURAÇÃO COOLIFY/docker-compose.n8n.yml
-Material Secretária v3/WORKFLOWS/00. Configurações.json
-Material Secretária v3/WORKFLOWS/01. Secretária v3.json
-Material Secretária v3/WORKFLOWS/02. Baixar e enviar arquivo do Google Drive.json
-Material Secretária v3/WORKFLOWS/03. Buscar janelas disponíveis Google Calendar.json
-Material Secretária v3/WORKFLOWS/04. Criar evento Google Calendar.json
-Material Secretária v3/WORKFLOWS/04.1 \[EXTRA] Atualizar agendamento.json
-Material Secretária v3/WORKFLOWS/05. Escalar humano.json
-Material Secretária v3/WORKFLOWS/05.1 \[EXTRA] Escalar humano - Multi-alerta.json
-Material Secretária v3/WORKFLOWS/06. Integração Asaas.json
-Material Secretária v3/WORKFLOWS/07. Quebrar e enviar mensagens.json
-Material Secretária v3/WORKFLOWS/07.1 \[ZAPI] Quebrar e enviar mensagens.json
-Material Secretária v3/WORKFLOWS/08. Agente Assistente Interno.json
-Material Secretária v3/WORKFLOWS/09. Desmarcar agendamento e enviar alerta.json
-Material Secretária v3/WORKFLOWS/10. Buscar ou criar contato + conversa.json
-Material Secretária v3/WORKFLOWS/11. Agente de Lembretes de Agendamento.json
-Material Secretária v3/WORKFLOWS/12. Gestão de ligações.json
-Material Secretária v3/WORKFLOWS/13. Agente de Recuperação de Leads.json
-Material Secretária v3/WORKFLOWS/Retell - Secretária v3.json
+
+# Legacy Reference (prototype v3 - not used by current system)
+Material Secretária v3/
+
+# Legacy Migration Archive (superseded by schema.sql)
+scripts/migrations_legacy_archive/

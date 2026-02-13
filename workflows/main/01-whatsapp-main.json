@@ -1,29 +1,29 @@
 {
-  "name": "01 - WhatsApp Patient Handler (AI Optimized)",
+  "name": "01 - WhatsApp Main Handler",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "whatsapp-webhook",
+        "path": "whatsapp-main",
         "options": {}
       },
       "id": "4fb9f0b7-fe99-4263-9ac1-78db8c5dea04",
       "name": "WhatsApp Webhook",
       "type": "n8n-nodes-base.webhook",
       "position": [
-        640,
-        796
+        0,
+        400
       ],
       "typeVersion": 2,
-      "webhookId": "whatsapp-patient-handler-opt"
+      "webhookId": "whatsapp-main-handler"
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "580ulj5smxBXX1hA",
+          "value": "{{TENANT_CONFIG_LOADER_WORKFLOW_ID}}",
           "mode": "list",
-          "cachedResultUrl": "/workflow/580ulj5smxBXX1hA",
+          "cachedResultUrl": "/workflow/{{TENANT_CONFIG_LOADER_WORKFLOW_ID}}",
           "cachedResultName": "Tenant Config Loader"
         },
         "workflowInputs": {
@@ -40,8 +40,8 @@
       "name": "Load Tenant Config",
       "type": "n8n-nodes-base.executeWorkflow",
       "position": [
-        864,
-        796
+        240,
+        400
       ],
       "typeVersion": 1.2,
       "notes": "🔑 Carrega configuração específica do tenant do banco de dados\n\n**Entrada**: Webhook payload com `body.instance` ou `instance_name`\n**Saída**: \n- `tenant_config` - Configuração completa do tenant\n- `tenant_id` - UUID do tenant\n- `services_catalog` - Catálogo formatado de serviços\n\n**Uso**: Chamado automaticamente antes de processar mensagens"
@@ -54,8 +54,8 @@
       "name": "Parse Webhook Data",
       "type": "n8n-nodes-base.code",
       "position": [
-        1088,
-        796
+        480,
+        400
       ],
       "typeVersion": 2,
       "notes": "🔧 Detecta inteligentemente o tipo de mensagem e faz parse dos dados do webhook\n\n**Suporta**:\n- Mensagens de texto (conversation)\n- Mensagens de imagem (imageMessage)\n- Mensagens de áudio (audioMessage)\n- Mensagens de vídeo (videoMessage)\n- Mensagens de documento (documentMessage)\n\n**Extrai**:\n- `message_type` - Tipo da mensagem\n- `remote_jid` - ID do remetente\n- `message_text` - Texto da mensagem\n- `image_url` / `audio_url` - URLs de mídia"
@@ -140,38 +140,252 @@
       "name": "Message Type Switch",
       "type": "n8n-nodes-base.switch",
       "position": [
-        1312,
-        764
+        720,
+        400
       ],
       "typeVersion": 3.2
     },
     {
       "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "audio-feature-check",
+              "leftValue": "={{ $('Load Tenant Config').item.json.tenant_config?.features?.audio_transcription }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "check-audio-feature",
+      "name": "Check Audio Feature",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        960,
+        600
+      ],
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ 'Audio Transcription Tool' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "instance_name": "={{ $('Parse Webhook Data').item.json.instance_name }}",
+            "message_id": "={{ $('Parse Webhook Data').item.json.message_id }}"
+          }
+        },
         "options": {}
       },
       "id": "8d925187-11dc-4228-a87e-9dfdcb3fe53c",
       "name": "Process Audio",
       "type": "n8n-nodes-base.executeWorkflow",
       "position": [
-        1536,
-        940
+        1080,
+        550
       ],
-      "typeVersion": 1.2,
-      "disabled": true
+      "typeVersion": 1.2
     },
     {
       "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "transcribed_text",
+              "name": "transcribed_text",
+              "type": "string",
+              "value": "={{ $('Parse Webhook Data').item.json.message_text || '' }}"
+            },
+            {
+              "id": "feature_disabled_message",
+              "name": "feature_disabled_message",
+              "type": "string",
+              "value": "Desculpe, o processamento de áudio não está disponível para esta clínica. Por favor, envie sua mensagem por texto."
+            }
+          ]
+        }
+      },
+      "id": "audio-not-available",
+      "name": "Audio Not Available",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        1080,
+        700
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "image-feature-check",
+              "leftValue": "={{ $('Load Tenant Config').item.json.tenant_config?.features?.image_ocr }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "check-image-feature",
+      "name": "Check Image Feature",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        960,
+        250
+      ],
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ 'Image OCR Tool' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "image_url": "={{ $('Parse Webhook Data').item.json.image_url }}"
+          }
+        },
         "options": {}
       },
       "id": "8ac9b17c-a1e0-4c4f-a8be-baaca8c4e8f9",
       "name": "Process Image",
       "type": "n8n-nodes-base.executeWorkflow",
       "position": [
-        1536,
-        652
+        1080,
+        200
       ],
-      "typeVersion": 1.2,
-      "disabled": true
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "transcribed_text",
+              "name": "transcribed_text",
+              "type": "string",
+              "value": "={{ $('Parse Webhook Data').item.json.message_text || '' }}"
+            },
+            {
+              "id": "feature_disabled_message",
+              "name": "feature_disabled_message",
+              "type": "string",
+              "value": "Desculpe, o processamento de imagens não está disponível para esta clínica. Por favor, envie sua mensagem por texto."
+            }
+          ]
+        }
+      },
+      "id": "image-not-available",
+      "name": "Image Not Available",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        1080,
+        350
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM get_or_create_conversation_state('{{ $('Parse Webhook Data').item.json.tenant_id }}'::uuid, '{{ $('Parse Webhook Data').item.json.remote_jid }}'::varchar);",
+        "options": {}
+      },
+      "id": "cd83c3c8-d0b9-414b-ac4f-7315bba5213f",
+      "name": "Get Conversation State",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1200,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM transition_conversation_state(\n  '{{ $('Parse Webhook Data').item.json.tenant_id }}'::uuid,\n  '{{ $('Parse Webhook Data').item.json.remote_jid }}',\n  '{{ $('Parse Webhook Data').item.json.message_text }}'\n);",
+        "options": {}
+      },
+      "id": "6d598e7d-3d0d-4a9c-b411-a39d2b128111",
+      "name": "Transition State",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1440,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "requires-ai",
+              "leftValue": "={{ $json.requires_ai }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "398f328b-001d-4613-be4e-feae08e8311e",
+      "name": "Requires AI?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        300
+      ]
     },
     {
       "parameters": {
@@ -181,8 +395,8 @@
       "name": "Intent Classifier",
       "type": "n8n-nodes-base.code",
       "position": [
-        1760,
-        796
+        1920,
+        100
       ],
       "typeVersion": 2,
       "notes": "⚡ Classificação rápida de intenção sem chamada de IA (~10ms)\n\n**Detecta**:\n- Saudações (oi, olá, bom dia)\n- Horários (horário, abre, fecha)\n- Localização (endereço, onde fica)\n- Agendamento (agendar, marcar, consulta)\n- Cancelamento (cancelar, desmarcar)\n- Reagendamento (remarcar, mudar)\n- Confirmação (sim, confirmo, ok)\n- Seleção de menu (1, 2, 3, 4)\n- Seleção de serviço (5+)\n\n**Prioridade**: Números de menu e catálogo são processados primeiro (sem IA)"
@@ -197,14 +411,14 @@
       "name": "Check FAQ Cache",
       "type": "n8n-nodes-base.postgres",
       "position": [
-        1984,
-        800
+        2160,
+        100
       ],
       "typeVersion": 2.4,
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "XCqM1aDUIHVebSzp",
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
           "name": "Postgres account"
         }
       },
@@ -218,8 +432,8 @@
       "name": "Merge FAQ Result",
       "type": "n8n-nodes-base.code",
       "position": [
-        2208,
-        796
+        2400,
+        100
       ],
       "typeVersion": 2,
       "notes": "🔧 3-Layer Defense: Template → FAQ → AI\n\nMaps intents to response_templates:\n- greeting → greeting_new\n- hours/location → hours_location\n- help → invalid_option\n\nOnly sends to AI if:\n- No FAQ cache hit\n- No template available\n- Intent is 'complex'"
@@ -250,10 +464,304 @@
       "name": "Needs AI?",
       "type": "n8n-nodes-base.if",
       "position": [
-        2432,
-        796
+        2640,
+        100
       ],
       "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build dynamic system prompt with services catalog\nconst basePrompt = $json.tenant_config?.system_prompt_patient || '';\nconst servicesCatalog = $json.services_catalog || 'Nenhum serviço cadastrado.';\n\n// Replace {{ $json.services_catalog }} placeholder with actual catalog\nconst systemPrompt = basePrompt.replace(\n  /\\{\\{ \\$json\\.services_catalog \\}\\}/g,\n  servicesCatalog\n);\n\n// CRITICAL: Preserve tenant_id and all essential fields for tools\nreturn {\n  ...$json,\n  system_prompt_with_catalog: systemPrompt,\n  // Explicitly preserve tenant_id (critical for tool workflows)\n  tenant_id: $json.tenant_id || $('Merge FAQ Result').item.json.tenant_id || $('Parse Webhook Data').item.json.tenant_id || null,\n  // Preserve tenant_config for reference\n  tenant_config: $json.tenant_config || $('Merge FAQ Result').item.json.tenant_config || $('Parse Webhook Data').item.json.tenant_config || null\n};"
+      },
+      "id": "83200162-d2fe-4101-97b9-d7e7279ea72c",
+      "name": "Build Prompt with Catalog",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        2880,
+        -100
+      ],
+      "typeVersion": 2,
+      "notes": "🔧 Injects services catalog into prompt dynamically"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message_text || $json.transcribed_text || $json.extracted_text }}",
+        "options": {
+          "systemMessage": "={{ $json.system_prompt_with_catalog || $json.tenant_config.system_prompt_patient }}"
+        }
+      },
+      "id": "43783b06-32eb-49cb-9b7a-97a0d16eb059",
+      "name": "Patient Assistant Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        3360,
+        -100
+      ],
+      "typeVersion": 1.8,
+      "notes": "🤖 Agente de IA para pacientes - chamado apenas quando FAQ não tem resposta\n\n**Modelo**: Mistral 7B (via OpenRouter)\n**Memória**: 5 mensagens (reduzido para economia)\n**Ferramentas**:\n- FindProfessionals - Busca profissionais por serviço\n- ListCalendarEvents - Lista eventos para reagendar/cancelar\n- CheckCalendarAvailability - Consulta horários disponíveis\n- CreateCalendarEvent - Cria agendamento\n- UpdateCalendarEvent - Reagenda (atualiza) agendamento existente\n- DeleteCalendarEvent - Cancela (exclui) agendamento\n- CallToHuman - Escalação para humano\n\n**Prompt**: Injetado dinamicamente com catálogo de serviços do tenant"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        2880,
+        100
+      ],
+      "id": "7a3093e0-266a-4be9-9958-97f89b3ccdee",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "{{OPENROUTER_CREDENTIAL_ID}}",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.tenant_id }}_{{ $json.remote_jid }}"
+      },
+      "id": "e651bb83-6961-4662-aeef-f1d619e33239",
+      "name": "Postgres Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "position": [
+        3000,
+        100
+      ],
+      "typeVersion": 1.3,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "💾 Reduced window: 5 instead of 10"
+    },
+    {
+      "parameters": {
+        "name": "FindProfessionals",
+        "description": "Busca profissionais que oferecem um serviço específico. Use quando o cliente escolher um serviço para verificar quantos profissionais oferecem e seus preços/durações. Retorna lista de profissionais com calendar_id de cada um. IMPORTANTE: Esta ferramenta recebe tenant_id automaticamente do contexto - você só precisa fornecer o service_name.",
+        "workflowId": {
+          "__rl": true,
+          "value": "FVyU7WmQX73SHQcs",
+          "mode": "id",
+          "cachedResultName": "Find Professionals Tool"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $('Parse Webhook Data').first()?.json?.tenant_id || $('Build Prompt with Catalog').first()?.json?.tenant_id || $('Merge FAQ Result').first()?.json?.tenant_id || '' }}",
+            "service_name": "={{ $fromAI('service_name', '', 'string') }}"
+          }
+        }
+      },
+      "id": "4f68d8f7-0d76-40b0-b260-137572faf4ff",
+      "name": "Find Professionals Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [
+        3120,
+        100
+      ],
+      "typeVersion": 2.1,
+      "notes": "🔍 Busca profissionais que oferecem um serviço"
+    },
+    {
+      "parameters": {
+        "name": "ListCalendarEvents",
+        "description": "Lista eventos existentes de um calendário do Google Calendar. Use ANTES de reagendar ou cancelar para encontrar o event_id do agendamento. Retorna todos os eventos no período especificado, incluindo event_id, summary, start e end. IMPORTANTE: Use o calendar_id do profissional. Para encontrar agendamentos do paciente, busque por nome ou telefone no summary/description dos eventos retornados.",
+        "workflowId": {
+          "__rl": true,
+          "value": "wFmcRycLeCemWSw1",
+          "mode": "id",
+          "cachedResultName": "Google Calendar List Events Tool"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $json.tenant_id }}",
+            "calendar_id": "={{ $fromAI('calendar_id', '', 'string') }}",
+            "time_min": "={{ $fromAI('time_min', new Date().toISOString(), 'string') }}",
+            "time_max": "={{ $fromAI('time_max', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), 'string') }}"
+          }
+        }
+      },
+      "id": "b6936c89-8331-4b27-94a5-6fbd5183e59e",
+      "name": "List Calendar Events",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [
+        3248,
+        100
+      ],
+      "typeVersion": 2.1,
+      "notes": "📋 Lista eventos para reagendar/cancelar"
+    },
+    {
+      "parameters": {
+        "name": "CheckCalendarAvailability",
+        "description": "Consulta horários disponíveis em um calendário do Google Calendar. Use quando o cliente escolher um profissional e serviço. Retorna as 10 opções de horário mais próximas, considerando a duração do procedimento. IMPORTANTE: Use o calendar_id e duration_minutes retornados por FindProfessionals. O start_time deve ser a partir de agora (data/hora atual). O end_time deve ser 7 dias no futuro. Retorna apenas as 10 opções mais próximas que têm tempo suficiente para o procedimento.",
+        "workflowId": {
+          "__rl": true,
+          "value": "iaQfqBe29sPuLxLS",
+          "mode": "id",
+          "cachedResultName": "Google Calendar Availability Tool"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $json.tenant_id }}",
+            "calendar_id": "={{ $fromAI('calendar_id', '', 'string') }}",
+            "start_time": "={{ $fromAI('start_time', new Date().toISOString(), 'string') }}",
+            "end_time": "={{ $fromAI('end_time', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), 'string') }}",
+            "duration_minutes": "={{ $fromAI('duration_minutes', 30, 'number') }}"
+          }
+        }
+      },
+      "id": "7801dead-b34f-4390-a3ee-1baa3f8c22ec",
+      "name": "Check Calendar Availability",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [
+        3376,
+        100
+      ],
+      "typeVersion": 2.1,
+      "notes": "📅 Consulta disponibilidade usando Google Calendar API"
+    },
+    {
+      "parameters": {
+        "name": "CreateCalendarEvent",
+        "description": "Cria um evento no Google Calendar. Use quando o cliente escolher um horário. IMPORTANTE: Use o calendar_id do profissional escolhido. Inclua na descrição: nome completo, data de nascimento, telefone (extrair de remote_jid do WhatsApp) e serviço. NÃO solicite telefone do cliente - já está disponível via WhatsApp.",
+        "workflowId": {
+          "__rl": true,
+          "value": "dVQB3Xn0AGmOrYfj",
+          "mode": "id",
+          "cachedResultName": "Google Calendar Create Event Tool"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $json.tenant_id }}",
+            "calendar_id": "={{ $fromAI('calendar_id', '', 'string') }}",
+            "summary": "={{ $fromAI('summary', '', 'string') }}",
+            "start": "={{ $fromAI('start', '', 'string') }}",
+            "end": "={{ $fromAI('end', '', 'string') }}",
+            "description": "={{ $fromAI('description', '', 'string') }}"
+          }
+        }
+      },
+      "id": "b951b788-1c1e-465e-b12f-168d17b5f9aa",
+      "name": "Create Calendar Event",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [
+        3504,
+        100
+      ],
+      "typeVersion": 2.1,
+      "notes": "📅 Cria evento usando Google Calendar API"
+    },
+    {
+      "parameters": {
+        "name": "CallToHuman",
+        "description": "Use essa ferramenta para escalar atendimento para humano em casos urgentes ou complexos",
+        "workflowId": {
+          "__rl": true,
+          "value": "mrF56wuFz0GHFTve",
+          "mode": "id",
+          "cachedResultName": "Call to Human Tool"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $json.tenant_id }}",
+            "patient_name": "={{ $fromAI('patient_name', '', 'string') }}",
+            "phone_number": "={{ $json.remote_jid }}",
+            "last_message": "={{ $fromAI('last_message', '', 'string') }}",
+            "telegram_chat_id": "={{ $json.tenant_config.telegram_internal_chat_id }}",
+            "instance_name": "={{ $json.tenant_config.evolution_instance_name }}",
+            "reason": "={{ $fromAI('reason', 'Escalação solicitada pelo paciente', 'string') }}"
+          }
+        }
+      },
+      "id": "b63b3e62-a589-4757-a2b3-dc7860d9c954",
+      "name": "Human Escalation Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [
+        3632,
+        100
+      ],
+      "typeVersion": 2.1,
+      "notes": "📞 Escalação para atendimento humano\n\n**Multi-tenant**: Usa telegram_chat_id e instance_name do tenant"
+    },
+    {
+      "parameters": {
+        "name": "UpdateCalendarEvent",
+        "description": "Atualiza (reagenda) um evento existente no Google Calendar. Use quando o cliente quiser mudar o horário de um agendamento existente. Requer: calendar_id do profissional, event_id do agendamento, novo start e end. Use ListCalendarEvents primeiro para encontrar o event_id do agendamento a ser reagendado.",
+        "workflowId": {
+          "__rl": true,
+          "value": "d5WDpqt1thSXUO04",
+          "mode": "id",
+          "cachedResultName": "Google Calendar Update Event Tool"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $json.tenant_id }}",
+            "calendar_id": "={{ $fromAI('calendar_id', '', 'string') }}",
+            "event_id": "={{ $fromAI('event_id', '', 'string') }}",
+            "start": "={{ $fromAI('start', '', 'string') }}",
+            "end": "={{ $fromAI('end', '', 'string') }}",
+            "summary": "={{ $fromAI('summary', '', 'string') }}",
+            "description": "={{ $fromAI('description', '', 'string') }}"
+          }
+        }
+      },
+      "id": "c8229d49-c1f9-4eba-9cde-1cf1dd7e5711",
+      "name": "Update Calendar Event",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [
+        3760,
+        100
+      ],
+      "typeVersion": 2.1,
+      "notes": "📅 Reagenda evento existente no Google Calendar"
+    },
+    {
+      "parameters": {
+        "name": "DeleteCalendarEvent",
+        "description": "Cancela (exclui) um agendamento do Google Calendar. Use quando o cliente confirmar que deseja cancelar um agendamento. Requer: calendar_id do profissional e event_id do agendamento. Use ListCalendarEvents primeiro para encontrar o event_id. O sistema enviará um alerta para a equipe automaticamente.",
+        "workflowId": {
+          "__rl": true,
+          "value": "veWDM8tzwykSWV4m",
+          "mode": "id",
+          "cachedResultName": "Google Calendar Delete Event Tool"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $json.tenant_id }}",
+            "calendar_id": "={{ $fromAI('calendar_id', '', 'string') }}",
+            "event_id": "={{ $fromAI('event_id', '', 'string') }}",
+            "patient_name": "={{ $fromAI('patient_name', '', 'string') }}",
+            "patient_phone": "={{ $json.remote_jid }}",
+            "reason": "={{ $fromAI('reason', 'Cancelamento solicitado pelo paciente', 'string') }}",
+            "telegram_chat_id": "={{ $json.tenant_config.telegram_internal_chat_id }}",
+            "send_alert": true
+          }
+        }
+      },
+      "id": "85f455a1-c707-42a1-95bf-3abfcb4329c0",
+      "name": "Delete Calendar Event",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [
+        3888,
+        100
+      ],
+      "typeVersion": 2.1,
+      "notes": "🚫 Cancela agendamento e notifica equipe"
     },
     {
       "parameters": {
@@ -335,338 +843,11 @@
       "name": "No-AI Router",
       "type": "n8n-nodes-base.switch",
       "position": [
-        2656,
-        944
+        2880,
+        300
       ],
       "typeVersion": 3.2,
       "notes": "🔀 Routes non-AI responses:\n\n1. service_selection → Get Service by Number\n2. template → Resolve Template (DB)\n3. faq → Use FAQ Answer\n4. fallback → Build Prompt (AI)"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Build dynamic system prompt with services catalog\nconst basePrompt = $json.tenant_config?.system_prompt_patient || '';\nconst servicesCatalog = $json.services_catalog || 'Nenhum serviço cadastrado.';\n\n// Replace {{ $json.services_catalog }} placeholder with actual catalog\nconst systemPrompt = basePrompt.replace(\n  /\\{\\{ \\$json\\.services_catalog \\}\\}/g,\n  servicesCatalog\n);\n\n// CRITICAL: Preserve tenant_id and all essential fields for tools\nreturn {\n  ...$json,\n  system_prompt_with_catalog: systemPrompt,\n  // Explicitly preserve tenant_id (critical for tool workflows)\n  tenant_id: $json.tenant_id || $('Merge FAQ Result').item.json.tenant_id || $('Parse Webhook Data').item.json.tenant_id || null,\n  // Preserve tenant_config for reference\n  tenant_config: $json.tenant_config || $('Merge FAQ Result').item.json.tenant_config || $('Parse Webhook Data').item.json.tenant_config || null\n};"
-      },
-      "id": "83200162-d2fe-4101-97b9-d7e7279ea72c",
-      "name": "Build Prompt with Catalog",
-      "type": "n8n-nodes-base.code",
-      "position": [
-        3776,
-        552
-      ],
-      "typeVersion": 2,
-      "notes": "🔧 Injects services catalog into prompt dynamically"
-    },
-    {
-      "parameters": {
-        "promptType": "define",
-        "text": "={{ $json.message_text || $json.transcribed_text || $json.extracted_text }}",
-        "options": {
-          "systemMessage": "={{ $json.system_prompt_with_catalog || $json.tenant_config.system_prompt_patient }}"
-        }
-      },
-      "id": "43783b06-32eb-49cb-9b7a-97a0d16eb059",
-      "name": "Patient Assistant Agent",
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "position": [
-        4440,
-        448
-      ],
-      "typeVersion": 1.8,
-      "notes": "🤖 Agente de IA para pacientes - chamado apenas quando FAQ não tem resposta\n\n**Modelo**: Mistral 7B (via OpenRouter)\n**Memória**: 5 mensagens (reduzido para economia)\n**Ferramentas**:\n- FindProfessionals - Busca profissionais por serviço\n- ListCalendarEvents - Lista eventos para reagendar/cancelar\n- CheckCalendarAvailability - Consulta horários disponíveis\n- CreateCalendarEvent - Cria agendamento\n- UpdateCalendarEvent - Reagenda (atualiza) agendamento existente\n- DeleteCalendarEvent - Cancela (exclui) agendamento\n- CallToHuman - Escalação para humano\n\n**Prompt**: Injetado dinamicamente com catálogo de serviços do tenant"
-    },
-    {
-      "parameters": {
-        "sessionIdType": "customKey",
-        "sessionKey": "={{ $json.tenant_id }}_{{ $json.remote_jid }}"
-      },
-      "id": "e651bb83-6961-4662-aeef-f1d619e33239",
-      "name": "Postgres Chat Memory",
-      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
-      "position": [
-        4128,
-        672
-      ],
-      "typeVersion": 1.3,
-      "credentials": {
-        "postgres": {
-          "id": "XCqM1aDUIHVebSzp",
-          "name": "Postgres account"
-        }
-      },
-      "notes": "💾 Reduced window: 5 instead of 10"
-    },
-    {
-      "parameters": {
-        "name": "FindProfessionals",
-        "description": "Busca profissionais que oferecem um serviço específico. Use quando o cliente escolher um serviço para verificar quantos profissionais oferecem e seus preços/durações. Retorna lista de profissionais com calendar_id de cada um. IMPORTANTE: Esta ferramenta recebe tenant_id automaticamente do contexto - você só precisa fornecer o service_name.",
-        "workflowId": {
-          "__rl": true,
-          "value": "FVyU7WmQX73SHQcs",
-          "mode": "id",
-          "cachedResultName": "Find Professionals Tool"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "tenant_id": "={{ $('Parse Webhook Data').first()?.json?.tenant_id || $('Build Prompt with Catalog').first()?.json?.tenant_id || $('Merge FAQ Result').first()?.json?.tenant_id || '' }}",
-            "service_name": "={{ $fromAI('service_name', '', 'string') }}"
-          }
-        }
-      },
-      "id": "4f68d8f7-0d76-40b0-b260-137572faf4ff",
-      "name": "Find Professionals Tool",
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "position": [
-        4256,
-        672
-      ],
-      "typeVersion": 2.1,
-      "notes": "🔍 Busca profissionais que oferecem um serviço"
-    },
-    {
-      "parameters": {
-        "name": "ListCalendarEvents",
-        "description": "Lista eventos existentes de um calendário do Google Calendar. Use ANTES de reagendar ou cancelar para encontrar o event_id do agendamento. Retorna todos os eventos no período especificado, incluindo event_id, summary, start e end. IMPORTANTE: Use o calendar_id do profissional. Para encontrar agendamentos do paciente, busque por nome ou telefone no summary/description dos eventos retornados.",
-        "workflowId": {
-          "__rl": true,
-          "value": "wFmcRycLeCemWSw1",
-          "mode": "id",
-          "cachedResultName": "Google Calendar List Events Tool"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "tenant_id": "={{ $json.tenant_id }}",
-            "calendar_id": "={{ $fromAI('calendar_id', '', 'string') }}",
-            "time_min": "={{ $fromAI('time_min', new Date().toISOString(), 'string') }}",
-            "time_max": "={{ $fromAI('time_max', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), 'string') }}"
-          }
-        }
-      },
-      "id": "b6936c89-8331-4b27-94a5-6fbd5183e59e",
-      "name": "List Calendar Events",
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "position": [
-        4384,
-        672
-      ],
-      "typeVersion": 2.1,
-      "notes": "📋 Lista eventos para reagendar/cancelar"
-    },
-    {
-      "parameters": {
-        "name": "CheckCalendarAvailability",
-        "description": "Consulta horários disponíveis em um calendário do Google Calendar. Use quando o cliente escolher um profissional e serviço. Retorna as 10 opções de horário mais próximas, considerando a duração do procedimento. IMPORTANTE: Use o calendar_id e duration_minutes retornados por FindProfessionals. O start_time deve ser a partir de agora (data/hora atual). O end_time deve ser 7 dias no futuro. Retorna apenas as 10 opções mais próximas que têm tempo suficiente para o procedimento.",
-        "workflowId": {
-          "__rl": true,
-          "value": "iaQfqBe29sPuLxLS",
-          "mode": "id",
-          "cachedResultName": "Google Calendar Availability Tool"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "tenant_id": "={{ $json.tenant_id }}",
-            "calendar_id": "={{ $fromAI('calendar_id', '', 'string') }}",
-            "start_time": "={{ $fromAI('start_time', new Date().toISOString(), 'string') }}",
-            "end_time": "={{ $fromAI('end_time', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), 'string') }}",
-            "duration_minutes": "={{ $fromAI('duration_minutes', 30, 'number') }}"
-          }
-        }
-      },
-      "id": "7801dead-b34f-4390-a3ee-1baa3f8c22ec",
-      "name": "Check Calendar Availability",
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "position": [
-        4512,
-        672
-      ],
-      "typeVersion": 2.1,
-      "notes": "📅 Consulta disponibilidade usando Google Calendar API"
-    },
-    {
-      "parameters": {
-        "name": "CreateCalendarEvent",
-        "description": "Cria um evento no Google Calendar. Use quando o cliente escolher um horário. IMPORTANTE: Use o calendar_id do profissional escolhido. Inclua na descrição: nome completo, data de nascimento, telefone (extrair de remote_jid do WhatsApp) e serviço. NÃO solicite telefone do cliente - já está disponível via WhatsApp.",
-        "workflowId": {
-          "__rl": true,
-          "value": "dVQB3Xn0AGmOrYfj",
-          "mode": "id",
-          "cachedResultName": "Google Calendar Create Event Tool"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "tenant_id": "={{ $json.tenant_id }}",
-            "calendar_id": "={{ $fromAI('calendar_id', '', 'string') }}",
-            "summary": "={{ $fromAI('summary', '', 'string') }}",
-            "start": "={{ $fromAI('start', '', 'string') }}",
-            "end": "={{ $fromAI('end', '', 'string') }}",
-            "description": "={{ $fromAI('description', '', 'string') }}"
-          }
-        }
-      },
-      "id": "b951b788-1c1e-465e-b12f-168d17b5f9aa",
-      "name": "Create Calendar Event",
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "position": [
-        4640,
-        672
-      ],
-      "typeVersion": 2.1,
-      "notes": "📅 Cria evento usando Google Calendar API"
-    },
-    {
-      "parameters": {
-        "name": "CallToHuman",
-        "description": "Use essa ferramenta para escalar atendimento para humano em casos urgentes ou complexos",
-        "workflowId": {
-          "__rl": true,
-          "value": "mrF56wuFz0GHFTve",
-          "mode": "id",
-          "cachedResultName": "Call to Human Tool"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "tenant_id": "={{ $json.tenant_id }}",
-            "patient_name": "={{ $fromAI('patient_name', '', 'string') }}",
-            "phone_number": "={{ $json.remote_jid }}",
-            "last_message": "={{ $fromAI('last_message', '', 'string') }}",
-            "telegram_chat_id": "={{ $json.tenant_config.telegram_internal_chat_id }}",
-            "instance_name": "={{ $json.tenant_config.evolution_instance_name }}",
-            "reason": "={{ $fromAI('reason', 'Escalação solicitada pelo paciente', 'string') }}"
-          }
-        }
-      },
-      "id": "b63b3e62-a589-4757-a2b3-dc7860d9c954",
-      "name": "Human Escalation Tool",
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "position": [
-        4768,
-        672
-      ],
-      "typeVersion": 2.1,
-      "notes": "📞 Escalação para atendimento humano\n\n**Multi-tenant**: Usa telegram_chat_id e instance_name do tenant"
-    },
-    {
-      "parameters": {
-        "name": "UpdateCalendarEvent",
-        "description": "Atualiza (reagenda) um evento existente no Google Calendar. Use quando o cliente quiser mudar o horário de um agendamento existente. Requer: calendar_id do profissional, event_id do agendamento, novo start e end. Use ListCalendarEvents primeiro para encontrar o event_id do agendamento a ser reagendado.",
-        "workflowId": {
-          "__rl": true,
-          "value": "d5WDpqt1thSXUO04",
-          "mode": "id",
-          "cachedResultName": "Google Calendar Update Event Tool"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "tenant_id": "={{ $json.tenant_id }}",
-            "calendar_id": "={{ $fromAI('calendar_id', '', 'string') }}",
-            "event_id": "={{ $fromAI('event_id', '', 'string') }}",
-            "start": "={{ $fromAI('start', '', 'string') }}",
-            "end": "={{ $fromAI('end', '', 'string') }}",
-            "summary": "={{ $fromAI('summary', '', 'string') }}",
-            "description": "={{ $fromAI('description', '', 'string') }}"
-          }
-        }
-      },
-      "id": "c8229d49-c1f9-4eba-9cde-1cf1dd7e5711",
-      "name": "Update Calendar Event",
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "position": [
-        4896,
-        672
-      ],
-      "typeVersion": 2.1,
-      "notes": "📅 Reagenda evento existente no Google Calendar"
-    },
-    {
-      "parameters": {
-        "name": "DeleteCalendarEvent",
-        "description": "Cancela (exclui) um agendamento do Google Calendar. Use quando o cliente confirmar que deseja cancelar um agendamento. Requer: calendar_id do profissional e event_id do agendamento. Use ListCalendarEvents primeiro para encontrar o event_id. O sistema enviará um alerta para a equipe automaticamente.",
-        "workflowId": {
-          "__rl": true,
-          "value": "veWDM8tzwykSWV4m",
-          "mode": "id",
-          "cachedResultName": "Google Calendar Delete Event Tool"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "tenant_id": "={{ $json.tenant_id }}",
-            "calendar_id": "={{ $fromAI('calendar_id', '', 'string') }}",
-            "event_id": "={{ $fromAI('event_id', '', 'string') }}",
-            "patient_name": "={{ $fromAI('patient_name', '', 'string') }}",
-            "patient_phone": "={{ $json.remote_jid }}",
-            "reason": "={{ $fromAI('reason', 'Cancelamento solicitado pelo paciente', 'string') }}",
-            "telegram_chat_id": "={{ $json.tenant_config.telegram_internal_chat_id }}",
-            "send_alert": true
-          }
-        }
-      },
-      "id": "85f455a1-c707-42a1-95bf-3abfcb4329c0",
-      "name": "Delete Calendar Event",
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "position": [
-        5024,
-        672
-      ],
-      "typeVersion": 2.1,
-      "notes": "🚫 Cancela agendamento e notifica equipe"
-    },
-    {
-      "parameters": {
-        "jsCode": "// ===================================\n// SIMPLE MESSAGE FORMATTER\n// Replaces AI-based formatter\n// Cost: ~$0 (no AI call)\n// Latency: ~5ms vs ~800ms\n// ===================================\n\n// Try multiple sources in order of priority:\n// 1. formatted_text (from Use FAQ Answer node - may contain \\n literals)\n// 2. output (from Patient Assistant Agent - LangChain agent)\n// 3. answer (from Check FAQ Cache - raw database result)\n// 4. text (alternative agent output field)\n// 5. message_text (fallback)\nconst rawText = $json.formatted_text || $json.output || $json.answer || $json.text || $json.message_text || '';\n\n// Validate we have text to format\nif (!rawText || (typeof rawText === 'string' && rawText.trim() === '')) {\n  console.log('Format Message: No text found in:', Object.keys($json));\n  return {\n    ...$json,\n    formatted_text: 'Desculpe, ocorreu um erro. Por favor, tente novamente.'\n  };\n}\n\n// Convert to string if needed\nconst textToFormat = String(rawText);\n\n// Simple formatting rules for WhatsApp\n// IMPORTANT: Always process text to convert \\n literals to actual newlines\nlet formatted = textToFormat\n  // Replace literal \\\\n (escaped backslash + n) with actual newlines\n  // This handles strings coming from database or JSON that have \\n as literal characters\n  .replace(/\\\\n/g, '\\n')\n  // Also handle \\r\\n (Windows line breaks)\n  .replace(/\\\\r\\\\n/g, '\\n')\n  // Handle \\r (old Mac line breaks)\n  .replace(/\\\\r/g, '\\n')\n  // Convert markdown bold ** to WhatsApp bold *\n  .replace(/\\*\\*(.+?)\\*\\*/g, '*$1*')\n  // Remove markdown headers #\n  .replace(/^#{1,6}\\s+/gm, '')\n  // Convert markdown lists to WhatsApp bullets\n  .replace(/^[-*]\\s+/gm, '• ')\n  // Clean up excessive newlines (3+ become 2)\n  .replace(/\\n{3,}/g, '\\n\\n')\n  // Trim whitespace\n  .trim();\n\n// Preserve all original fields and add formatted_text\nreturn {\n  ...$json,\n  formatted_text: formatted,\n  // Explicitly preserve essential fields for Update FAQ Cache (in case they were lost)\n  tenant_id: $json.tenant_id || $('Parse Webhook Data')?.first()?.json?.tenant_id,\n  message_text: $json.message_text || $json.message_text_normalized || $('Parse Webhook Data')?.first()?.json?.message_text || '',\n  intent: $json.intent || $json.intent_for_faq || $('Parse Webhook Data')?.first()?.json?.intent || ''\n};"
-      },
-      "id": "e2072431-e7d3-48c1-b926-2a24d9737ee7",
-      "name": "Format Message (Code)",
-      "type": "n8n-nodes-base.code",
-      "position": [
-        5232,
-        848
-      ],
-      "typeVersion": 2,
-      "notes": "⚡ Formatador de mensagens sem IA (~5ms vs ~800ms)\n\n**Conversões**:\n- Markdown `**bold**` → WhatsApp `*bold*`\n- Literal `\\n` → Quebras de linha reais\n- Headers `#` → Removidos\n- Listas markdown → Bullets WhatsApp\n- Limpeza de espaços excessivos\n\n**Performance**: ~5ms (vs ~800ms com IA)\n**Custo**: $0 (vs ~$0.001 por mensagem com IA)"
-    },
-    {
-      "parameters": {
-        "resource": "messages-api",
-        "instanceName": "={{ $('Parse Webhook Data').item.json.tenant_config.evolution_instance_name }}",
-        "remoteJid": "={{ $('Parse Webhook Data').item.json.remote_jid }}",
-        "messageText": "={{ $json.formatted_text }}",
-        "options_message": {}
-      },
-      "id": "04264f61-3975-4dd8-b731-042667a71599",
-      "name": "Send WhatsApp Response",
-      "type": "n8n-nodes-evolution-api.evolutionApi",
-      "position": [
-        5456,
-        700
-      ],
-      "typeVersion": 1
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=-- Update FAQ view count or insert new FAQ\n-- Get tenant_id from current node, fallback to Parse Webhook Data if needed\n-- This will fail gracefully if tenant_id is empty (workflow will continue)\nINSERT INTO tenant_faq (\n  tenant_id,\n  question_original,\n  question_normalized,\n  answer,\n  answer_type,\n  keywords,\n  intent,\n  view_count\n) VALUES (\n  '{{ $json.tenant_id || $('Parse Webhook Data').first()?.json?.tenant_id }}'::UUID,\n  '{{ ($json.message_text || $('Parse Webhook Data').first()?.json?.message_text || \"unknown\").replace(/'/g, \"''\") }}',\n  LOWER('{{ ($json.message_text || $('Parse Webhook Data').first()?.json?.message_text || \"unknown\").replace(/'/g, \"''\") }}'),\n  '{{ ($json.formatted_text || \"no answer\").replace(/'/g, \"''\") }}',\n  'text',\n  ARRAY['{{ ($json.intent || $('Parse Webhook Data').first()?.json?.intent || \"unknown\").replace(/'/g, \"''\") }}'],\n  '{{ ($json.intent || $('Parse Webhook Data').first()?.json?.intent || \"\").replace(/'/g, \"''\") }}',\n  1\n)\nON CONFLICT (tenant_id, question_normalized)\nDO UPDATE SET\n  view_count = tenant_faq.view_count + 1,\n  last_used_at = NOW(),\n  answer = EXCLUDED.answer,\n  intent = EXCLUDED.intent;",
-        "options": {}
-      },
-      "id": "a23dbfbe-e992-4aba-897b-669da69f4087",
-      "name": "Update FAQ Cache",
-      "type": "n8n-nodes-base.postgres",
-      "position": [
-        5456,
-        892
-      ],
-      "typeVersion": 2.4,
-      "credentials": {
-        "postgres": {
-          "id": "XCqM1aDUIHVebSzp",
-          "name": "Postgres account"
-        }
-      },
-      "notes": "💾 Aprende com interações para melhorar o FAQ\n\n**Funcionalidade**:\n- Insere nova FAQ se não existir\n- Atualiza `view_count` se já existir\n- Atualiza `last_used_at` para ordenação\n- Normaliza pergunta para busca futura\n\n**Efeito**: Sistema melhora automaticamente com o tempo"
     },
     {
       "parameters": {
@@ -686,8 +867,8 @@
       "name": "Use FAQ Answer",
       "type": "n8n-nodes-base.set",
       "position": [
-        4504,
-        1040
+        3360,
+        500
       ],
       "typeVersion": 3.4,
       "notes": "✅ Skip AI entirely - use cached answer"
@@ -702,14 +883,14 @@
       "name": "Resolve Template",
       "type": "n8n-nodes-base.postgres",
       "position": [
-        2880,
-        1040
+        3120,
+        400
       ],
       "typeVersion": 2.4,
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "XCqM1aDUIHVebSzp",
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
           "name": "Postgres account"
         }
       },
@@ -723,47 +904,360 @@
       "name": "Use Template Answer",
       "type": "n8n-nodes-base.code",
       "position": [
-        3104,
-        1040
+        3360,
+        400
       ],
       "typeVersion": 2,
       "notes": "✅ Skip AI — use resolved template response\n\nPriority: Template > FAQ > fallback"
     },
     {
       "parameters": {
-        "content": "## 📋 01 - WhatsApp Patient Handler (AI Optimized)\n\n**Versão**: 4.0 - Template → FAQ → AI (3-Layer Defense)\n\n### 🎯 Funcionalidades Principais\n- ✅ Atendimento multi-tenant via WhatsApp\n- ✅ Suporte completo a múltiplos profissionais e serviços\n- ✅ 3-Layer Defense: Template → FAQ Cache → AI Agent\n- ✅ Processamento inteligente (texto, áudio, imagem)\n- ✅ Agendamento com seleção de profissional e serviço\n\n### ⚡ Otimizações de Performance\n1. ⚡ Intent Classifier (sem IA - ~10ms)\n2. 📋 Response Templates (Postgres - ~20ms)\n3. 💾 FAQ Cache (Postgres - ~50ms)\n4. 🎯 AI Agent (apenas quando REALMENTE necessário)\n5. 📝 Code-based formatter (sem IA - ~5ms)\n6. 🧠 Reduced memory window (5 vs 10 mensagens)\n\n### 🔄 Fluxo de Processamento\n- **\"oi\"** → Template greeting_new (0 chamadas de IA) ✅\n- **\"horário\"** → Template hours_location (0 chamadas IA)\n- **\"5\"** → Catálogo direto (0 chamadas de IA)\n- **\"quero agendar limpeza dental\"** → AI Agent\n- **Todas as respostas** → Cacheadas para uso futuro\n\n### 📊 Métricas de Performance\n- **Redução de custos**: ~90% menos chamadas de IA\n- **Velocidade**: 5-10x mais rápido para consultas comuns\n- **Latência Template**: ~20ms\n- **Latência FAQ**: ~50ms\n- **Latência AI**: ~800ms (último recurso)",
-        "height": 600,
-        "width": 500,
-        "color": 5
+        "operation": "executeQuery",
+        "query": "SELECT get_template_response(\n  CAST('{{ $('Parse Webhook Data').item.json.tenant_id }}' AS uuid),\n  CAST('{{ $('Transition State').item.json.template_key || \"\" }}' AS varchar(100)),\n  CAST('{{ JSON.stringify({\n    \"patient_name\": $('Parse Webhook Data').item.json.push_name || \"Cliente\",\n    \"clinic_name\": $('Parse Webhook Data').item.json.tenant_config.clinic_name\n  }) }}' AS jsonb)\n) as response_text;",
+        "options": {}
       },
-      "id": "91938d78-df43-4499-bab9-779ea272c4b8",
-      "name": "Sticky Note - Documentação Principal",
-      "type": "n8n-nodes-base.stickyNote",
+      "id": "515fb157-9282-40e3-818b-bc627d6b15f1",
+      "name": "Get Template Response",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
       "position": [
-        560,
-        80
+        1920,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "is-invalid-option",
+              "leftValue": "={{ $('Transition State').item.json.template_key }}",
+              "rightValue": "invalid_option",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "882f3a5e-8ea4-4d18-bf4a-09eb60b6e54f",
+      "name": "Needs Available Options?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  valid_inputs,\n  description\nFROM state_definitions\nWHERE state_name = '{{ $('Transition State').item.json.new_state }}';",
+        "options": {}
+      },
+      "id": "8074d168-0cee-4d4b-8104-afb324875970",
+      "name": "Get Available Options",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2400,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "needs-data",
+              "leftValue": "={{ $('Transition State').item.json.new_state }}",
+              "rightValue": "awaiting_service",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "is-invalid-option-template",
+              "leftValue": "={{ $('Transition State').item.json.template_key }}",
+              "rightValue": "invalid_option",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "d32d6147-f837-4ee7-8a99-3699b1ad2bf0",
+      "name": "Needs Dynamic Data?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT get_services_catalog_for_prompt('{{ $('Parse Webhook Data').item.json.tenant_id }}'::uuid) as service_list;",
+        "options": {}
+      },
+      "id": "6ef14d93-f71f-4216-a208-68497a56e000",
+      "name": "Get Services List",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2880,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge template with dynamic data\nconst template = $('Get Template Response').item.json.response_text;\nconst newState = $('Transition State').item.json.new_state;\nconst templateKey = $('Transition State').item.json.template_key;\n\nlet finalResponse = template;\n\n// Replace dynamic placeholders based on state\nif (newState === 'awaiting_service' && $('Get Services List').item) {\n  finalResponse = finalResponse.replace(\n    '{{service_list}}',\n    $('Get Services List').item.json.service_list || ''\n  );\n}\n\n// Add professional list if needed\nif (newState === 'awaiting_professional' && $input.item.json.professional_list) {\n  finalResponse = finalResponse.replace(\n    '{{professional_list}}',\n    $input.item.json.professional_list\n  );\n}\n\n// Replace available_options placeholder for invalid_option template\nif (templateKey === 'invalid_option' && finalResponse.includes('{{available_options}}')) {\n  let availableOptions = '';\n  \n  // Map of state actions to human-readable descriptions\n  const actionDescriptions = {\n    'schedule': 'Agendar consulta',\n    'reschedule': 'Reagendar consulta',\n    'cancel': 'Cancelar consulta',\n    'services_info': 'Informações sobre serviços',\n    'hours_location': 'Horário e localização',\n    'select_service': 'Selecionar serviço',\n    'select_professional': 'Selecionar profissional',\n    'select_slot': 'Selecionar horário',\n    'confirmed': 'Confirmar',\n    'cancelled': 'Cancelar',\n    'initial': 'Voltar ao menu principal'\n  };\n  \n  // Try to get options from Get Available Options node\n  if ($('Get Available Options') && $('Get Available Options').item) {\n    let validInputs = $('Get Available Options').item.json.valid_inputs;\n    \n    // Parse JSON if it's a string\n    if (typeof validInputs === 'string') {\n      try {\n        validInputs = JSON.parse(validInputs);\n      } catch (e) {\n        validInputs = null;\n      }\n    }\n    \n    if (validInputs && typeof validInputs === 'object') {\n      // Get the state definition to understand next_states mapping\n      const stateDef = $('Get Available Options').item.json;\n      \n      // Extract numeric keys and sort them\n      const numericKeys = Object.keys(validInputs)\n        .filter(key => !isNaN(parseInt(key)) && key !== 'number' && key !== 'voltar')\n        .map(key => parseInt(key))\n        .sort((a, b) => a - b);\n      \n      if (numericKeys.length > 0) {\n        const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'];\n        numericKeys.forEach((num, index) => {\n          const numKey = num.toString();\n          const action = validInputs[numKey];\n          const description = actionDescriptions[action] || action || `Opção ${num}`;\n          const emoji = emojis[index] || `${index + 1}️⃣`;\n          availableOptions += `${emoji} ${description}\\n`;\n        });\n        availableOptions = availableOptions.trim();\n      } else {\n        // If no numbered options, show text options with descriptions\n        const textKeys = Object.keys(validInputs)\n          .filter(key => key !== 'number' && key !== 'voltar');\n        if (textKeys.length > 0) {\n          textKeys.forEach((key, index) => {\n            const action = validInputs[key];\n            const description = actionDescriptions[action] || action || key;\n            availableOptions += `${index + 1}️⃣ ${description}\\n`;\n          });\n          availableOptions = availableOptions.trim();\n        }\n      }\n    }\n  }\n  \n  // If still no options, provide a generic message based on state\n  if (!availableOptions) {\n    if (newState === 'initial') {\n      availableOptions = '1️⃣ Agendar consulta\\n2️⃣ Reagendar consulta\\n3️⃣ Cancelar consulta\\n4️⃣ Informações sobre serviços\\n5️⃣ Horário e localização';\n    } else {\n      availableOptions = 'Por favor, digite o número da opção desejada.';\n    }\n  }\n  \n  finalResponse = finalResponse.replace('{{available_options}}', availableOptions);\n}\n\nreturn {\n  response: finalResponse,\n  state: newState,\n  remoteJid: $('Parse Webhook Data').item.json.remote_jid,\n  tenantId: $('Parse Webhook Data').item.json.tenant_id\n};"
+      },
+      "id": "5d70b14c-f539-43e7-8dd0-76a7a407ed11",
+      "name": "Merge Template + Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "response",
+              "name": "response",
+              "type": "string",
+              "value": "={{ $json.response_text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a881cc0d-1586-44cb-a42e-4d3d88bfb086",
+      "name": "Use Template Directly",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3360,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "is-selection",
+              "leftValue": "={{ $('Transition State').item.json.new_state }}",
+              "rightValue": "awaiting_professional",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8f433763-dfc7-4819-9e92-5343c5a5f13c",
+      "name": "Service Selected?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  service_id AS id,\n  service_name AS name,\n  service_code,\n  service_category,\n  service_number\nFROM get_service_by_number(\n  '{{ $('Parse Webhook Data').item.json.tenant_id }}'::uuid,\n  {{ $('Parse Webhook Data').item.json.message_text }}::integer\n);",
+        "options": {}
+      },
+      "id": "a18e9ba4-6bd6-4654-b4b3-24037ab6e5a9",
+      "name": "Get Selected Service",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1920,
+        700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT update_conversation_state_data(\n  '{{ $('Parse Webhook Data').item.json.tenant_id }}'::uuid,\n  '{{ $('Parse Webhook Data').item.json.remote_jid }}',\n  '{{ $json.id }}'::uuid,\n  NULL,\n  NULL,\n  '{\"selected_service_name\": \"{{ $json.name }}\"}'\n);",
+        "options": {}
+      },
+      "id": "54e53f0f-e23f-4fce-9cac-073f69d34867",
+      "name": "Save Service Selection",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2160,
+        700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  p.professional_id AS id,\n  p.professional_name AS name,\n  p.specialty,\n  ROW_NUMBER() OVER (ORDER BY p.professional_name) AS number\nFROM professionals p\nJOIN professional_services ps ON ps.professional_id = p.professional_id\nWHERE ps.service_id = '{{ $('Get Selected Service').item.json.id }}'::uuid\n  AND p.is_active = true\n  AND ps.is_active = true;",
+        "options": {}
+      },
+      "id": "14baf79b-14de-4dec-abb6-74dc57b808c5",
+      "name": "Get Professionals for Service",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2400,
+        700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format professionals list\nconst professionals = $input.all();\nlet list = '';\n\nprofessionals.forEach((prof, index) => {\n  list += `${index + 1}️⃣ *${prof.json.name}*\\n   ${prof.json.specialty}\\n\\n`;\n});\n\nreturn {\n  professional_list: list,\n  professionals: professionals.map(p => p.json)\n};"
+      },
+      "id": "e031e6c1-09d1-4726-82ef-02b93f9b09b7",
+      "name": "Format Professionals List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===================================\n// SIMPLE MESSAGE FORMATTER\n// Replaces AI-based formatter\n// Cost: ~$0 (no AI call)\n// Latency: ~5ms vs ~800ms\n// ===================================\n\n// Try multiple sources in order of priority:\n// 1. formatted_text (from Use FAQ Answer node - may contain \\n literals)\n// 2. output (from Patient Assistant Agent - LangChain agent)\n// 3. answer (from Check FAQ Cache - raw database result)\n// 4. text (alternative agent output field)\n// 5. message_text (fallback)\nconst rawText = $json.formatted_text || $json.output || $json.answer || $json.text || $json.message_text || '';\n\n// Validate we have text to format\nif (!rawText || (typeof rawText === 'string' && rawText.trim() === '')) {\n  console.log('Format Message: No text found in:', Object.keys($json));\n  return {\n    ...$json,\n    formatted_text: 'Desculpe, ocorreu um erro. Por favor, tente novamente.'\n  };\n}\n\n// Convert to string if needed\nconst textToFormat = String(rawText);\n\n// Simple formatting rules for WhatsApp\n// IMPORTANT: Always process text to convert \\n literals to actual newlines\nlet formatted = textToFormat\n  // Replace literal \\\\n (escaped backslash + n) with actual newlines\n  // This handles strings coming from database or JSON that have \\n as literal characters\n  .replace(/\\\\n/g, '\\n')\n  // Also handle \\r\\n (Windows line breaks)\n  .replace(/\\\\r\\\\n/g, '\\n')\n  // Handle \\r (old Mac line breaks)\n  .replace(/\\\\r/g, '\\n')\n  // Convert markdown bold ** to WhatsApp bold *\n  .replace(/\\*\\*(.+?)\\*\\*/g, '*$1*')\n  // Remove markdown headers #\n  .replace(/^#{1,6}\\s+/gm, '')\n  // Convert markdown lists to WhatsApp bullets\n  .replace(/^[-*]\\s+/gm, '• ')\n  // Clean up excessive newlines (3+ become 2)\n  .replace(/\\n{3,}/g, '\\n\\n')\n  // Trim whitespace\n  .trim();\n\n// Preserve all original fields and add formatted_text\nreturn {\n  ...$json,\n  formatted_text: formatted,\n  // Explicitly preserve essential fields for Update FAQ Cache (in case they were lost)\n  tenant_id: $json.tenant_id || $('Parse Webhook Data')?.first()?.json?.tenant_id,\n  message_text: $json.message_text || $json.message_text_normalized || $('Parse Webhook Data')?.first()?.json?.message_text || '',\n  intent: $json.intent || $json.intent_for_faq || $('Parse Webhook Data')?.first()?.json?.intent || ''\n};"
+      },
+      "id": "e2072431-e7d3-48c1-b926-2a24d9737ee7",
+      "name": "Format Message (Code)",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        3600,
+        400
+      ],
+      "typeVersion": 2,
+      "notes": "⚡ Formatador de mensagens sem IA (~5ms vs ~800ms)\n\n**Conversões**:\n- Markdown `**bold**` → WhatsApp `*bold*`\n- Literal `\\n` → Quebras de linha reais\n- Headers `#` → Removidos\n- Listas markdown → Bullets WhatsApp\n- Limpeza de espaços excessivos\n\n**Performance**: ~5ms (vs ~800ms com IA)\n**Custo**: $0 (vs ~$0.001 por mensagem com IA)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalize message text from different input sources\n// Handles outputs from: Merge Template + Data, Use Template Directly, AI Agent\nconst rawText = $json.response || $json.response_text || $json.output || $json.text || $json.formatted_text || '';\n\n// Validate and convert to string\nlet messageText = '';\nif (rawText) {\n  if (typeof rawText === 'string') {\n    messageText = rawText.trim();\n  } else if (typeof rawText === 'object' && rawText !== null) {\n    // If it's an object, try to stringify it\n    messageText = JSON.stringify(rawText);\n  } else {\n    messageText = String(rawText);\n  }\n}\n\n// Ensure we always have a valid message\nif (!messageText || messageText === '') {\n  messageText = 'Desculpe, ocorreu um erro. Por favor, tente novamente.';\n}\n\n// Preserve all original fields and add normalized message_text\nreturn {\n  ...$json,\n  message_text: messageText\n};"
+      },
+      "id": "720edcec-71ad-4f07-ae31-95e4a256c52e",
+      "name": "Normalize Message Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3840,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "={{ $('Parse Webhook Data').item.json.tenant_config.evolution_instance_name }}",
+        "remoteJid": "={{ $('Parse Webhook Data').item.json.remote_jid }}",
+        "messageText": "={{ $json.formatted_text }}",
+        "options_message": {}
+      },
+      "id": "04264f61-3975-4dd8-b731-042667a71599",
+      "name": "Send WhatsApp Response",
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "position": [
+        4080,
+        300
       ],
       "typeVersion": 1
     },
     {
       "parameters": {
-        "model": "openai/gpt-oss-120b:free",
+        "operation": "executeQuery",
+        "query": "=-- Update FAQ view count or insert new FAQ\n-- Get tenant_id from current node, fallback to Parse Webhook Data if needed\n-- This will fail gracefully if tenant_id is empty (workflow will continue)\nINSERT INTO tenant_faq (\n  tenant_id,\n  question_original,\n  question_normalized,\n  answer,\n  answer_type,\n  keywords,\n  intent,\n  view_count\n) VALUES (\n  '{{ $json.tenant_id || $('Parse Webhook Data').first()?.json?.tenant_id }}'::UUID,\n  '{{ ($json.message_text || $('Parse Webhook Data').first()?.json?.message_text || \"unknown\").replace(/'/g, \"''\") }}',\n  LOWER('{{ ($json.message_text || $('Parse Webhook Data').first()?.json?.message_text || \"unknown\").replace(/'/g, \"''\") }}'),\n  '{{ ($json.formatted_text || \"no answer\").replace(/'/g, \"''\") }}',\n  'text',\n  ARRAY['{{ ($json.intent || $('Parse Webhook Data').first()?.json?.intent || \"unknown\").replace(/'/g, \"''\") }}'],\n  '{{ ($json.intent || $('Parse Webhook Data').first()?.json?.intent || \"\").replace(/'/g, \"''\") }}',\n  1\n)\nON CONFLICT (tenant_id, question_normalized)\nDO UPDATE SET\n  view_count = tenant_faq.view_count + 1,\n  last_used_at = NOW(),\n  answer = EXCLUDED.answer,\n  intent = EXCLUDED.intent;",
         "options": {}
       },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-      "typeVersion": 1,
+      "id": "a23dbfbe-e992-4aba-897b-669da69f4087",
+      "name": "Update FAQ Cache",
+      "type": "n8n-nodes-base.postgres",
       "position": [
-        4000,
-        672
+        4080,
+        500
       ],
-      "id": "7a3093e0-266a-4be9-9958-97f89b3ccdee",
-      "name": "OpenRouter Chat Model",
+      "typeVersion": 2.4,
       "credentials": {
-        "openRouterApi": {
-          "id": "KuGKBDcL6dsjIWc0",
-          "name": "OpenRouter account"
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
         }
-      }
+      },
+      "notes": "💾 Aprende com interações para melhorar o FAQ\n\n**Funcionalidade**:\n- Insere nova FAQ se não existir\n- Atualiza `view_count` se já existir\n- Atualiza `last_used_at` para ordenação\n- Normaliza pergunta para busca futura\n\n**Efeito**: Sistema melhora automaticamente com o tempo"
     },
     {
       "parameters": {
@@ -771,18 +1265,18 @@
         "query": "=SELECT gsbn.*, '{{ $json.tenant_id }}'::UUID AS tenant_id FROM get_service_by_number('{{ $json.tenant_id }}'::UUID, {{ $json.service_number }}::INTEGER) gsbn;",
         "options": {}
       },
-      "id": "76674a9d-9a4b-4b78-9c8b-d524780e1b56",
-      "name": "Get Service by Number",
+      "id": "50be97ae-e438-41fe-8f0a-04ef6b306455",
+      "name": "Get Service by Number (AI Path)",
       "type": "n8n-nodes-base.postgres",
       "position": [
-        2880,
-        848
+        3120,
+        300
       ],
       "typeVersion": 2.4,
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "XCqM1aDUIHVebSzp",
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
           "name": "Postgres account"
         }
       },
@@ -809,8 +1303,8 @@
       "name": "Find Professionals (Direct)",
       "type": "n8n-nodes-base.executeWorkflow",
       "position": [
-        3104,
-        848
+        3360,
+        300
       ],
       "typeVersion": 1.2,
       "notes": "🔍 Find professionals for selected service (no AI)"
@@ -823,8 +1317,8 @@
       "name": "Process Professionals",
       "type": "n8n-nodes-base.code",
       "position": [
-        3328,
-        848
+        3600,
+        300
       ],
       "typeVersion": 2,
       "notes": "⚙️ Process professionals list (no AI)"
@@ -855,8 +1349,8 @@
       "name": "Single Professional?",
       "type": "n8n-nodes-base.if",
       "position": [
-        3552,
-        848
+        3840,
+        300
       ],
       "typeVersion": 2,
       "notes": "🔀 Check if single professional (direct calendar) or multiple (user choice)"
@@ -885,8 +1379,8 @@
       "name": "Check Calendar (Direct)",
       "type": "n8n-nodes-base.executeWorkflow",
       "position": [
-        3776,
-        848
+        4080,
+        200
       ],
       "typeVersion": 1.2,
       "notes": "📅 Check calendar availability (no AI)"
@@ -899,11 +1393,124 @@
       "name": "Format Calendar Slots",
       "type": "n8n-nodes-base.code",
       "position": [
-        4504,
-        848
+        4320,
+        200
       ],
       "typeVersion": 2,
       "notes": "📝 Format calendar slots for presentation (no AI)"
+    },
+    {
+      "parameters": {
+        "content": "## 📋 01 - WhatsApp Main Handler (Merged)\n\n**Version**: 5.0 — State Machine + 3-Layer Defense\n\n### Architecture\n- **Backbone**: DB-driven conversation state machine (12 states)\n- **AI Defense**: FAQ Cache → Template → AI Agent (3-layer)\n- **Media**: Audio transcription + Image OCR (gated by feature flags)\n- **Multi-tenant**: All queries scoped by tenant_id\n\n### Flow\n1. Webhook → Tenant Config Loader (sub-workflow)\n2. Parse → Message Type Switch\n3. State Machine: get/create state → transition\n4. If requires_ai → 3-layer defense (FAQ → Template → AI)\n5. If !requires_ai → DB template response with dynamic data\n6. Format → Normalize → Send WhatsApp\n\n### Credential Placeholders\n- `{{POSTGRES_CREDENTIAL_ID}}`\n- `{{OPENROUTER_CREDENTIAL_ID}}`\n- `{{EVOLUTION_CREDENTIAL_ID}}`",
+        "height": 500,
+        "width": 450,
+        "color": 5
+      },
+      "id": "26e7b11c-4d5b-4570-a955-1b9da8f13ac4",
+      "name": "Sticky Note - Documentation",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -400,
+        100
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM enqueue_message(\n  '{{ $json.tenant_id }}'::uuid,\n  '{{ $json.remote_jid }}',\n  '{{ $json.message_id }}',\n  '{}'::jsonb\n);",
+        "options": {}
+      },
+      "id": "enqueue-message",
+      "name": "Enqueue Message",
+      "type": "n8n-nodes-base.postgres",
+      "position": [560, 150],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "Deduplication: inserts message into queue with UNIQUE constraint on (tenant_id, message_id). Returns status 'queued' or 'duplicate'."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "is-duplicate",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "duplicate",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "is-duplicate",
+      "name": "Is Duplicate?",
+      "type": "n8n-nodes-base.if",
+      "position": [700, 150],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT acquire_conversation_lock(\n  '{{ $('Parse Webhook Data').item.json.tenant_id }}'::uuid,\n  '{{ $('Parse Webhook Data').item.json.remote_jid }}'\n) AS lock_acquired;",
+        "options": {}
+      },
+      "id": "acquire-lock",
+      "name": "Acquire Lock",
+      "type": "n8n-nodes-base.postgres",
+      "position": [580, 400],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "Conversation lock: prevents concurrent processing of messages from same phone number. Lock expires after 5 minutes."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Restore context from Parse Webhook Data after dedup/lock Postgres nodes\n// Postgres nodes replace $json with query results, so we need to recover\nreturn $('Parse Webhook Data').first().json;"
+      },
+      "id": "restore-context",
+      "name": "Restore Context",
+      "type": "n8n-nodes-base.code",
+      "position": [660, 400],
+      "typeVersion": 2,
+      "notes": "Restores all parsed webhook data lost during dedup/lock Postgres queries."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT release_conversation_lock(\n  '{{ $('Parse Webhook Data').item.json.tenant_id }}'::uuid,\n  '{{ $('Parse Webhook Data').item.json.remote_jid }}'\n);",
+        "options": {}
+      },
+      "id": "release-lock",
+      "name": "Release Lock",
+      "type": "n8n-nodes-base.postgres",
+      "position": [4300, 350],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "{{POSTGRES_CREDENTIAL_ID}}",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "Releases conversation lock after message processing completes."
     }
   ],
   "pinData": {},
@@ -934,6 +1541,51 @@
       "main": [
         [
           {
+            "node": "Enqueue Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enqueue Message": {
+      "main": [
+        [
+          {
+            "node": "Is Duplicate?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Duplicate?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Acquire Lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acquire Lock": {
+      "main": [
+        [
+          {
+            "node": "Restore Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Context": {
+      "main": [
+        [
+          {
             "node": "Message Type Switch",
             "type": "main",
             "index": 0
@@ -945,21 +1597,39 @@
       "main": [
         [
           {
-            "node": "Intent Classifier",
+            "node": "Get Conversation State",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Process Image",
+            "node": "Check Image Feature",
             "type": "main",
             "index": 0
           }
         ],
+        [
+          {
+            "node": "Check Audio Feature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Audio Feature": {
+      "main": [
         [
           {
             "node": "Process Audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Audio Not Available",
             "type": "main",
             "index": 0
           }
@@ -970,7 +1640,36 @@
       "main": [
         [
           {
-            "node": "Intent Classifier",
+            "node": "Get Conversation State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audio Not Available": {
+      "main": [
+        [
+          {
+            "node": "Get Conversation State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Image Feature": {
+      "main": [
+        [
+          {
+            "node": "Process Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Image Not Available",
             "type": "main",
             "index": 0
           }
@@ -981,7 +1680,63 @@
       "main": [
         [
           {
+            "node": "Get Conversation State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image Not Available": {
+      "main": [
+        [
+          {
+            "node": "Get Conversation State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Conversation State": {
+      "main": [
+        [
+          {
+            "node": "Transition State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transition State": {
+      "main": [
+        [
+          {
+            "node": "Requires AI?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Service Selected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Requires AI?": {
+      "main": [
+        [
+          {
             "node": "Intent Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Template Response",
             "type": "main",
             "index": 0
           }
@@ -1039,11 +1794,33 @@
         ]
       ]
     },
+    "Build Prompt with Catalog": {
+      "main": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patient Assistant Agent": {
+      "main": [
+        [
+          {
+            "node": "Format Message (Code)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "No-AI Router": {
       "main": [
         [
           {
-            "node": "Get Service by Number",
+            "node": "Get Service by Number (AI Path)",
             "type": "main",
             "index": 0
           }
@@ -1093,7 +1870,18 @@
         ]
       ]
     },
-    "Get Service by Number": {
+    "Use FAQ Answer": {
+      "main": [
+        [
+          {
+            "node": "Format Message (Code)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Service by Number (AI Path)": {
       "main": [
         [
           {
@@ -1166,33 +1954,146 @@
         ]
       ]
     },
-    "Build Prompt with Catalog": {
+    "Get Template Response": {
       "main": [
         [
           {
-            "node": "Patient Assistant Agent",
+            "node": "Needs Available Options?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Patient Assistant Agent": {
+    "Needs Available Options?": {
       "main": [
         [
           {
-            "node": "Format Message (Code)",
+            "node": "Get Available Options",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Needs Dynamic Data?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Use FAQ Answer": {
+    "Get Available Options": {
       "main": [
         [
           {
-            "node": "Format Message (Code)",
+            "node": "Needs Dynamic Data?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Dynamic Data?": {
+      "main": [
+        [
+          {
+            "node": "Get Services List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Use Template Directly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Services List": {
+      "main": [
+        [
+          {
+            "node": "Merge Template + Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Service Selected?": {
+      "main": [
+        [
+          {
+            "node": "Get Selected Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Selected Service": {
+      "main": [
+        [
+          {
+            "node": "Save Service Selection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Service Selection": {
+      "main": [
+        [
+          {
+            "node": "Get Professionals for Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Professionals for Service": {
+      "main": [
+        [
+          {
+            "node": "Format Professionals List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Professionals List": {
+      "main": [
+        [
+          {
+            "node": "Merge Template + Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Template + Data": {
+      "main": [
+        [
+          {
+            "node": "Normalize Message Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use Template Directly": {
+      "main": [
+        [
+          {
+            "node": "Normalize Message Text",
             "type": "main",
             "index": 0
           }
@@ -1203,6 +2104,17 @@
       "main": [
         [
           {
+            "node": "Normalize Message Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Message Text": {
+      "main": [
+        [
+          {
             "node": "Send WhatsApp Response",
             "type": "main",
             "index": 0
@@ -1210,6 +2122,17 @@
           {
             "node": "Update FAQ Cache",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Patient Assistant Agent",
+            "type": "ai_languageModel",
             "index": 0
           }
         ]
@@ -1303,12 +2226,12 @@
         ]
       ]
     },
-    "OpenRouter Chat Model": {
-      "ai_languageModel": [
+    "Send WhatsApp Response": {
+      "main": [
         [
           {
-            "node": "Patient Assistant Agent",
-            "type": "ai_languageModel",
+            "node": "Release Lock",
+            "type": "main",
             "index": 0
           }
         ]
@@ -1318,38 +2241,35 @@
   "active": false,
   "settings": {
     "executionOrder": "v1",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "errorWorkflow": "{{ERROR_HANDLER_WORKFLOW_ID}}"
   },
-  "versionId": "b8ae13d2-0a98-451c-9899-07ef1f006147",
+  "versionId": "6935e188-c3bf-4f9d-adeb-b43ee694433c",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "bc055219b8ddb8cb6a3ed41fcda359f13436b13a927934d06acc0a1be80d63bb"
   },
-  "id": "CTIj77BYWOg8XMgp",
+  "id": "merged-whatsapp-main",
   "tags": [
     {
-      "updatedAt": "2026-02-01T17:43:34.066Z",
-      "createdAt": "2026-02-01T17:43:34.066Z",
-      "id": "dBwxOw34fNR2Qo0i",
-      "name": "production"
+      "name": "production",
+      "id": "d0526270-ed6f-4e10-9115-1b6c8cc1e792"
     },
     {
-      "updatedAt": "2026-02-01T17:43:34.050Z",
-      "createdAt": "2026-02-01T17:43:34.050Z",
-      "id": "ikSmm4x8DZOcPHWv",
-      "name": "optimized"
+      "name": "main",
+      "id": "fd6a307f-f713-4cea-bace-04ea91ce53c5"
     },
     {
-      "updatedAt": "2026-02-01T17:43:34.049Z",
-      "createdAt": "2026-02-01T17:43:34.049Z",
-      "id": "zXh5AWeZaJ5VTcIN",
-      "name": "multi-tenant"
+      "name": "multi-tenant",
+      "id": "77ea71e5-cf3a-476e-bc62-6029eef68291"
     },
     {
-      "updatedAt": "2026-02-01T17:43:34.064Z",
-      "createdAt": "2026-02-01T17:43:34.064Z",
-      "id": "6uHht8steTUl8Qar",
-      "name": "main"
+      "name": "state-machine",
+      "id": "b74a7fab-622e-4f08-8ead-79942af1d149"
+    },
+    {
+      "name": "optimized",
+      "id": "16de3590-d304-4c96-9c77-8bee6456671b"
     }
   ]
 }

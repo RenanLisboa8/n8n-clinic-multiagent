@@ -74,23 +74,27 @@
     },
     {
       "parameters": {
-        "resource": "messages-api",
-        "instanceName": "={{ $json.instance_name || $env.EVOLUTION_INSTANCE_NAME }}",
-        "remoteJid": "={{ $json.phone_number }}",
-        "messageText": "={{ $json.patient_message }}",
-        "options_message": {}
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ 'Messaging Send Tool' }}",
+          "mode": "list"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $('Execute Workflow Trigger').item.json.tenant_id }}",
+            "instance_name": "={{ $('Execute Workflow Trigger').item.json.instance_name }}",
+            "remote_jid": "={{ $json.phone_number }}",
+            "message_text": "={{ $json.patient_message }}"
+          }
+        },
+        "options": {}
       },
       "id": "notify-patient",
       "name": "Notify Patient",
-      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "type": "n8n-nodes-base.executeWorkflow",
       "position": [680, 500],
-      "typeVersion": 1,
-      "credentials": {
-        "evolutionApi": {
-          "id": "{{EVOLUTION_API_CREDENTIAL_ID}}",
-          "name": "Evolution API"
-        }
-      }
+      "typeVersion": 1.2
     },
     {
       "parameters": {

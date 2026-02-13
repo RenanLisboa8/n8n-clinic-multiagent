@@ -243,24 +243,25 @@
     },
     {
       "parameters": {
-        "name": "Ferramenta_Envio_Wpp",
-        "description": "Use para enviar mensagem de confirmação/remarcação ao paciente via WhatsApp",
+        "name": "Ferramenta_Envio_Mensagem",
+        "description": "Use para enviar mensagem de confirmação/remarcação ao paciente via WhatsApp ou Chatwoot (detecta automaticamente o provedor do tenant)",
         "workflowId": {
           "__rl": true,
-          "value": "{{ 'WhatsApp Send Tool' }}",
+          "value": "={{ 'Messaging Send Tool' }}",
           "mode": "list"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
+            "tenant_id": "={{ $json.tenant_config.tenant_id }}",
             "instance_name": "={{ $json.tenant_config.evolution_instance_name }}",
             "remote_jid": "={{ $fromAI('patient_phone', '', 'string') }}",
             "message_text": "={{ $fromAI('message_text', '', 'string') }}"
           }
         }
       },
-      "id": "whatsapp-tool",
-      "name": "WhatsApp Send Tool",
+      "id": "messaging-tool",
+      "name": "Messaging Send Tool",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "position": [1200, 920],
       "typeVersion": 2.1
@@ -419,7 +420,7 @@
         ]
       ]
     },
-    "WhatsApp Send Tool": {
+    "Messaging Send Tool": {
       "ai_tool": [
         [
           {
@@ -436,7 +437,7 @@
     "executionOrder": "v1",
     "saveManualExecutions": true,
     "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": "={{ '04 - Error Handler' }}"
+    "errorWorkflow": "{{ERROR_HANDLER_WORKFLOW_ID}}"
   },
   "versionId": "telegram-internal-assistant-mt-v1",
   "meta": {

@@ -13,7 +13,7 @@
       "parameters": {
         "resource": "chat-api",
         "operation": "get-media-base64",
-        "instanceName": "={{ $json.instance_name || $env.EVOLUTION_INSTANCE_NAME }}",
+        "instanceName": "={{ $json.instance_name }}",
         "messageId": "={{ $json.message_id }}",
         "convertToMp4": true
       },

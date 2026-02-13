@@ -1,0 +1,17 @@
+{
+  "event": "messages.upsert",
+  "instance": "clinica-demo",
+  "data": {
+    "key": {
+      "remoteJid": "5516999880002@s.whatsapp.net",
+      "fromMe": false,
+      "id": "RESCHED_FLOW_001"
+    },
+    "pushName": "João Oliveira",
+    "messageType": "conversation",
+    "message": {
+      "conversation": "Preciso remarcar minha consulta de segunda"
+    }
+  },
+  "description": "Reschedule flow: patient requests to change existing appointment"
+}

@@ -1,0 +1,49 @@
+name: Validate Workflows
+
+on:
+  pull_request:
+    paths:
+      - 'workflows/**'
+      - 'scripts/**'
+      - 'tests/**'
+  push:
+    branches: [main]
+    paths:
+      - 'workflows/**'
+      - 'scripts/**'
+      - 'tests/**'
+
+jobs:
+  validate:
+    name: Validate Workflows & Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate workflow JSON files
+        run: python tests/validate-workflows.py
+
+      - name: Check Python scripts compile
+        run: |
+          python -m py_compile scripts/cli/cli.py
+          python -m py_compile tests/validate-workflows.py
+
+      - name: Validate test payload JSON
+        run: |
+          for f in tests/sample-payloads/*.json; do
+            python -c "import json; json.load(open('$f'))" || { echo "Invalid JSON: $f"; exit 1; }
+          done
+
+      - name: Check SQL syntax (basic)
+        run: |
+          # Verify all SQL files are valid UTF-8 and non-empty
+          for f in scripts/db/schema/*.sql scripts/db/seeds/*.sql scripts/db/migrations/*.sql; do
+            if [ -f "$f" ]; then
+              file "$f" | grep -q "text" || { echo "Not a text file: $f"; exit 1; }
+              [ -s "$f" ] || { echo "Empty file: $f"; exit 1; }
+            fi
+          done

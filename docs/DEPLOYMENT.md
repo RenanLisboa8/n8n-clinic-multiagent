@@ -826,6 +826,65 @@ Para suporte técnico, entre em contato:
 
 ---
 
-**Versão do Documento**: 1.0  
-**Última Atualização**: 01-01-2026  
+## Configuração do Role `n8n_app` (Segurança)
+
+O schema do banco utiliza um role dedicado `n8n_app` em vez de conceder acesso público. Configure durante a inicialização:
+
+```bash
+# 1. Inicialize o banco normalmente
+DATABASE_URL=postgres://clinic_admin:senha@localhost:5432/clinic_db ./scripts/init-db.sh
+
+# 2. O script schema.sql cria automaticamente o role n8n_app
+# Defina a senha no PostgreSQL:
+docker compose exec postgres psql -U clinic_admin -d clinic_db -c \
+  "ALTER ROLE n8n_app WITH PASSWORD 'SENHA_SEGURA_AQUI';"
+
+# 3. Configure a credencial Postgres do n8n para usar n8n_app (não clinic_admin)
+# Isso garante que o n8n não pode executar DDL (DROP TABLE, ALTER TABLE, etc.)
+```
+
+### Permissões do `n8n_app`
+
+| Permissão | Concedida |
+|---|---|
+| SELECT, INSERT, UPDATE, DELETE | Sim |
+| CREATE TABLE, DROP TABLE | **Não** |
+| ALTER TABLE | **Não** |
+| EXECUTE (funções) | Sim |
+
+---
+
+## Substituição de Placeholders nos Workflows
+
+Os workflows JSON contêm placeholders que devem ser substituídos pelos IDs reais das credenciais e workflows no n8n:
+
+| Placeholder | Onde Encontrar |
+|---|---|
+| `{{POSTGRES_CREDENTIAL_ID}}` | n8n → Settings → Credentials → Postgres → URL contém o ID |
+| `{{OPENROUTER_CREDENTIAL_ID}}` | n8n → Settings → Credentials → OpenRouter → URL contém o ID |
+| `{{EVOLUTION_API_CREDENTIAL_ID}}` | n8n → Settings → Credentials → Evolution API → URL contém o ID |
+| `{{TELEGRAM_BOT_CREDENTIAL_ID}}` | n8n → Settings → Credentials → Telegram Bot → URL contém o ID |
+| `{{TENANT_CONFIG_LOADER_WORKFLOW_ID}}` | n8n → Workflows → Tenant Config Loader → URL contém o ID |
+| `{{GOOGLE_CALENDAR_CLIENT_WORKFLOW_ID}}` | n8n → Workflows → Google Calendar Client → URL contém o ID |
+| `{{ERROR_HANDLER_WORKFLOW_ID}}` | n8n → Workflows → 04 - Error Handler → URL contém o ID |
+| `{{N8N_APP_PASSWORD}}` | Senha definida para o role `n8n_app` no PostgreSQL |
+
+### Substituição Automática
+
+```bash
+# Use sed para substituir todos os placeholders de uma vez
+cd workflows/
+find . -name "*.json" -exec sed -i \
+  -e 's/{{POSTGRES_CREDENTIAL_ID}}/SEU_ID_REAL/g' \
+  -e 's/{{OPENROUTER_CREDENTIAL_ID}}/SEU_ID_REAL/g' \
+  -e 's/{{TENANT_CONFIG_LOADER_WORKFLOW_ID}}/SEU_ID_REAL/g' \
+  -e 's/{{GOOGLE_CALENDAR_CLIENT_WORKFLOW_ID}}/SEU_ID_REAL/g' \
+  -e 's/{{ERROR_HANDLER_WORKFLOW_ID}}/SEU_ID_REAL/g' \
+  {} \;
+```
+
+---
+
+**Versão do Documento**: 2.0
+**Última Atualização**: 2026-02-13
 **Classificação**: Proprietário e Confidencial
