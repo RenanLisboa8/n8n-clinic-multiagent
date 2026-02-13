@@ -2361,7 +2361,17 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================================
--- 23. SCHEMA COMPLETE
+-- 23. SCHEMA MIGRATIONS TRACKING
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  version VARCHAR(14) PRIMARY KEY,
+  name VARCHAR(255),
+  applied_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================================
+-- 24. SCHEMA COMPLETE
 -- ============================================================================
 
 DO $$
@@ -2377,6 +2387,8 @@ BEGIN
     RAISE NOTICE '  • services_catalog, professionals, professional_services';
     RAISE NOTICE '  • response_templates, state_definitions, conversation_state';
     RAISE NOTICE '  • calendars, appointments';
+    RAISE NOTICE '  • message_queue, conversation_locks';
+    RAISE NOTICE '  • schema_migrations';
     RAISE NOTICE '';
     RAISE NOTICE 'Next steps:';
     RAISE NOTICE '  1. Run seed files from db/seeds/ to populate initial data';

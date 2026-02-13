@@ -125,6 +125,10 @@ dev/
 .nuxt/
 .vercel/
 
+# Claude Code / AI tooling
+.claude/
+.github/prompts/
+
 # Legacy Reference (prototype v3 - not used by current system)
 Material Secretária v3/
 

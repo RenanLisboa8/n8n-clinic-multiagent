@@ -6,7 +6,7 @@ INSERT INTO tenant_secrets (tenant_id, secret_key, secret_value_encrypted, secre
 SELECT c.tenant_id,
        'google_client_secret_' || c.calendar_id::text,
        c.google_client_secret,
-       'oauth'
+       'oauth_token'
 FROM calendars c
 WHERE c.google_client_secret IS NOT NULL
 ON CONFLICT DO NOTHING;
@@ -16,7 +16,7 @@ INSERT INTO tenant_secrets (tenant_id, secret_key, secret_value_encrypted, secre
 SELECT c.tenant_id,
        'google_refresh_token_' || c.calendar_id::text,
        c.google_refresh_token,
-       'oauth'
+       'oauth_token'
 FROM calendars c
 WHERE c.google_refresh_token IS NOT NULL
 ON CONFLICT DO NOTHING;
@@ -26,7 +26,7 @@ INSERT INTO tenant_secrets (tenant_id, secret_key, secret_value_encrypted, secre
 SELECT c.tenant_id,
        'google_access_token_' || c.calendar_id::text,
        c.google_access_token,
-       'oauth'
+       'oauth_token'
 FROM calendars c
 WHERE c.google_access_token IS NOT NULL
 ON CONFLICT DO NOTHING;

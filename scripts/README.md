@@ -15,16 +15,17 @@ scripts/
 │   │   ├── 02_tenant_dev.sql           # Development tenant
 │   │   ├── 03_services_catalog.sql     # Service definitions
 │   │   ├── 04_tenant_professionals.sql # Sample professionals
-│   │   └── 05_response_templates.sql   # Response templates
-│   └── migrations/              # Future schema changes (V1, V2, ...)
-│       └── .gitkeep
-├── ops/
-│   ├── setup.sh                 # Initialize database with schema + seeds
-│   └── reset.sh                 # DEV ONLY: Wipe and rebuild database
+│   │   ├── 05_response_templates.sql   # Response templates
+│   │   ├── 06_faq_common.sql          # Common FAQ entries
+│   │   └── 07_calendars.sql           # Calendar configuration
+│   └── migrations/              # Incremental schema changes
 ├── cli/
 │   ├── cli.py                   # Python CLI for tenant/professional management
 │   └── requirements.txt         # CLI dependencies
-└── migrations_legacy_archive/   # Archived legacy migrations (reference only)
+├── import-workflows.py          # Import workflows to n8n via API
+├── import-workflows.sh          # Shell wrapper for workflow import
+├── init-db.sh                   # Initialize database (schema + seeds)
+└── reset-db.sh                  # DEV ONLY: Wipe and rebuild database
 ```
 
 ## 🚀 Quick Start
@@ -32,21 +33,27 @@ scripts/
 ### 1. Initial Setup
 
 ```bash
-# Start postgres and apply schema + seeds
-./scripts/ops/setup.sh
+# Apply schema + seeds
+DATABASE_URL=postgres://n8n_clinic:password@localhost:5432/n8n_clinic_db ./scripts/init-db.sh
 
-# Without seeds (schema only)
-./scripts/ops/setup.sh --no-seeds
+# With migrations
+RUN_MIGRATIONS=true DATABASE_URL=... ./scripts/init-db.sh
 ```
 
-### 2. Reset Database (Development Only)
+### 2. Import Workflows to n8n
 
 ```bash
-# With confirmation prompt
-./scripts/ops/reset.sh
+# Python (recommended)
+N8N_URL=http://localhost:5678 N8N_API_KEY=your_key python scripts/import-workflows.py
 
-# Auto-confirm (CI/CD)
-RESET_DEV=1 ./scripts/ops/reset.sh
+# Shell wrapper
+./scripts/import-workflows.sh
+```
+
+### 3. Reset Database (Development Only)
+
+```bash
+./scripts/reset-db.sh
 ```
 
 ### 3. Using the CLI
@@ -135,20 +142,7 @@ BEGIN
 END $$;
 ```
 
-## 🗑️ Legacy Files (Archived)
-
-Legacy migration scripts and obsolete shell scripts have been archived:
-
-| Archived Item | Current Replacement |
-|---------------|---------------------|
-| `migrations/001_*.sql` through `024_*.sql` | `db/schema/schema.sql` + `db/seeds/` |
-| `apply-migrations.sh` | `ops/setup.sh` |
-| `init-db.sh` | `ops/setup.sh` |
-| `reset-db.sh` | `ops/reset.sh` |
-
-The archived files are located in `migrations_legacy_archive/` for reference only. **Do not run them.**
-
-## 🔧 Environment Variables
+## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -164,4 +158,4 @@ The archived files are located in `migrations_legacy_archive/` for reference onl
 
 - [DATABASE_ERD.md](../docs/DATABASE_ERD.md) - Entity relationship diagram
 - [DEPLOYMENT.md](../docs/DEPLOYMENT.md) - Deployment guide
-- [SERVICE_RESOLVER_ARCHITECTURE.md](../docs/SERVICE_RESOLVER_ARCHITECTURE.md) - Service resolution logic
+- [ARCHITECTURE.md](../docs/ARCHITECTURE.md) - System architecture (includes service resolution)

@@ -1,224 +1,186 @@
-# 🏥 Sistema Multi-Agente para Gestão de Clínicas (v3.0)
+# Sistema Multi-Agente para Gestao de Clinicas (v4.0)
 
-> **Automação multi-tenant e multi-profissional com n8n**  
-> **Baseado no Material Secretária v3** | **Workflows validados em `workflows/`**
-
-[![Licença](https://img.shields.io/badge/Licença-Proprietária-red.svg)](LICENSE)
-[![Versão](https://img.shields.io/badge/Versão-3.0.0-blue.svg)]()
-[![Status](https://img.shields.io/badge/Status-Produção-green.svg)]()
+> **Automacao multi-tenant e multi-profissional com n8n**
+> Workflows validados em `workflows/` | Documentacao em `docs/`
 
 ---
 
-## 🎯 Visão Geral
+## Visao Geral
 
-Plataforma de automação para clínicas com fluxos de atendimento, agendamento e operações internas via n8n. Suporta **multi-tenant**, **multi-profissional** e **multi-serviço**, com integração a **WhatsApp**, **Telegram** e **Google Calendar**.
-
----
-
-## ✅ O que existe nesta versão (validado em `workflows/`)
-
-- Orquestradores principais em `workflows/main/`
-- Sub-workflows em `workflows/sub/`
-- Ferramentas em `workflows/tools/`:
-  - Calendário (Google Calendar)
-  - Comunicação (WhatsApp, Telegram)
-  - IA e mídia (OCR e áudio)
-  - Escalonamento humano
-  - Catálogo/serviços
+Plataforma de automacao para clinicas com fluxos de atendimento, agendamento e operacoes internas via n8n. Suporta **multi-tenant**, **multi-profissional** e **multi-servico**, com integracao a **WhatsApp**, **Telegram** e **Google Calendar**.
 
 ---
 
-## 🧭 Visão Geral da Arquitetura
+## Stack Tecnologico
 
-```mermaid
-flowchart TB
-    WAPP[WhatsApp] --> EVO[Evolution API] --> WF1[01 - WhatsApp Patient Handler]
-    TGRAM[Telegram] --> TGAPI[Telegram API] --> WF2[02 - Telegram Internal Assistant]
-    WF3[03 - Appointment Confirmation Scheduler]
-    WF4[04 - Error Handler]
+| Componente | Tecnologia |
+|---|---|
+| Orquestracao | n8n (Docker) |
+| Banco | PostgreSQL 16 |
+| Cache | Redis 7 |
+| WhatsApp | Evolution API v2.2.3 |
+| IA | Google Gemini (via OpenRouter) |
+| Calendario | Google Calendar (OAuth custom) |
+| Deploy | Docker Compose |
 
-    WF1 --> SUB[sub/tenant-config-loader]
-    WF2 --> SUB
-    WF3 --> SUB
+---
 
-    WF1 --> CAL[tools/calendar/*]
-    WF1 --> COMM[tools/communication/*]
-    WF1 --> AI[tools/ai-processing/*]
-    WF1 --> ESC[tools/escalation/*]
-    WF1 --> SVC[tools/service/*]
+## Estrutura do Projeto
 
-    WF2 --> CAL
-    WF2 --> COMM
-    WF3 --> CAL
-    WF3 --> COMM
-    WF4 --> COMM
+```
+.
+├── workflows/
+│   ├── main/                    # Orquestradores principais
+│   │   ├── 01-whatsapp-main.json
+│   │   ├── 02-telegram-internal-assistant-multitenant.json
+│   │   ├── 03-appointment-confirmation-scheduler.json
+│   │   └── 04-error-handler.json
+│   ├── sub/                     # Sub-workflows reutilizaveis
+│   │   └── tenant-config-loader.json
+│   └── tools/                   # Ferramentas para agentes
+│       ├── calendar/            # Google Calendar (OAuth custom)
+│       ├── communication/       # Mensageria (Evolution/Chatwoot)
+│       ├── ai-processing/       # Audio transcription + Image OCR
+│       ├── escalation/          # Encaminhamento humano
+│       └── service/             # Busca de profissionais
+├── scripts/
+│   ├── db/schema/schema.sql     # Schema consolidado
+│   ├── db/seeds/                # Seeds (01-07)
+│   ├── db/migrations/           # Migracoes incrementais
+│   ├── cli/cli.py               # CLI para gestao de tenants
+│   ├── import-workflows.py      # Importador automatico de workflows
+│   └── import-workflows.sh      # Wrapper shell
+├── tests/
+│   ├── validate-workflows.py    # Validacao de workflows
+│   ├── run-integration-tests.sh # Testes de integracao
+│   └── sample-payloads/         # Payloads de teste
+├── docs/                        # Documentacao (9 arquivos)
+├── docker-compose.yml
+├── env.example
+├── QUICK_START.md
+└── README.md
 ```
 
 ---
 
-## 🗂️ Estrutura de Workflows
+## Workflows Principais
 
-```
-workflows/
-├── main/   # Orquestradores principais
-├── sub/    # Sub-workflows reutilizáveis
-└── tools/  # Ferramentas para agentes
-```
+### 01 - WhatsApp Main Handler
+- **Arquivo**: `workflows/main/01-whatsapp-main.json`
+- **Funcao**: Atendimento e agendamento via WhatsApp
+- **Arquitetura**: State machine (DB-driven) + 3-layer AI defense (FAQ -> Template -> AI)
+- **Features**: Deduplicacao, conversation locks, audio transcription, image OCR
 
----
-
-## 🤖 Workflows Principais (`workflows/main/`)
-
-### 01 - WhatsApp Patient Handler (AI Optimized)
-**Arquivo**: `workflows/main/01-whatsapp-patient-handler-optimized.json`  
-**Função**: Atendimento e agendamento via WhatsApp com suporte a multi-profissional e multi-serviço.
-
-```mermaid
-sequenceDiagram
-    participant Cliente
-    participant WF as WhatsApp Handler
-    participant Svc as FindProfessionals
-    participant Cal as Google Calendar
-    Cliente->>WF: Pedido de agendamento
-    WF->>Svc: Buscar profissionais por serviço
-    Svc-->>WF: Profissionais + calendar_id + duration
-    WF->>Cal: Checar disponibilidade
-    Cal-->>WF: Slots disponíveis
-    WF->>Cal: Criar evento no calendário correto
-```
-
-### 02 - Telegram Internal Assistant (Multi-Tenant)
-**Arquivo**: `workflows/main/02-telegram-internal-assistant-multitenant.json`  
-**Função**: Assistente interno para equipe via Telegram.  
-Inclui **lista de compras** com **Google Tasks** e reagendamentos com notificação ao paciente.
+### 02 - Telegram Internal Assistant
+- **Arquivo**: `workflows/main/02-telegram-internal-assistant-multitenant.json`
+- **Funcao**: Assistente interno para equipe via Telegram
+- **Features**: Google Calendar, Google Tasks, mensageria
 
 ### 03 - Appointment Confirmation Scheduler
-**Arquivo**: `workflows/main/03-appointment-confirmation-scheduler.json`  
-**Função**: Lembretes diários de confirmação para consultas do dia seguinte.
+- **Arquivo**: `workflows/main/03-appointment-confirmation-scheduler.json`
+- **Funcao**: Lembretes diarios de confirmacao (Cron 8AM)
+- **Dados**: `get_appointments_for_reminders()` stored function (DB-based)
 
 ### 04 - Error Handler
-**Arquivo**: `workflows/main/04-error-handler.json`  
-**Função**: Captura e registra erros globais e notifica via Telegram.
+- **Arquivo**: `workflows/main/04-error-handler.json`
+- **Funcao**: Captura erros, resolve tenant, notifica via Telegram
+- **Fallback**: `$env.FALLBACK_TELEGRAM_CHAT_ID` quando tenant desconhecido
 
 ---
 
-## 🛠️ Ferramentas (`workflows/tools/`)
+## Ferramentas (`workflows/tools/`)
 
-### 📅 Calendário
-- `google-calendar-availability-tool.json`
-- `google-calendar-create-event-tool.json`
-- `google-calendar-list-events-tool.json`
-
-### 🗣️ Comunicação
-- `whatsapp-send-tool.json`
-- `telegram-notify-tool.json`
-- `message-formatter-tool.json`
-
-### 🧠 IA e Mídia
-- `audio-transcription-tool.json`
-- `image-ocr-tool.json`
-
-### 🧑‍⚕️ Serviços
-- `find-professionals-tool.json`
-
-### 🧯 Escalonamento
-- `call-to-human-tool.json`
+| Grupo | Workflows |
+|---|---|
+| calendar/ | availability, create, update, delete, list, client (OAuth) |
+| communication/ | messaging-send (router), whatsapp-send, chatwoot-send, telegram-client, telegram-notify |
+| ai-processing/ | audio-transcription, image-ocr |
+| service/ | find-professionals |
+| escalation/ | call-to-human |
 
 ---
 
-## 🔐 Regras Críticas (Multi-Profissional)
+## Regras Criticas
 
-1. **Sempre usar `google_calendar_id` retornado por `FindProfessionals`.**
-2. **Sempre usar `duration_minutes` do profissional selecionado.**
-3. Agendamentos e confirmações são por calendário de profissional.
-
----
-
-## 🚀 Instalação (resumo)
-
-1. `cp .env.example .env`
-2. `docker compose up -d`
-3. `./scripts/init-db.sh`
-4. `./scripts/reimport-all-workflows.sh`
+1. **NO native n8n Google Calendar nodes** - usar custom OAuth via sub-workflows
+2. **Sempre usar `google_calendar_id`** retornado por `FindProfessionals` (nunca hardcodar)
+3. **Sempre usar `duration_minutes`** de `professional_services` (varia por profissional)
+4. **Todo SQL deve filtrar por `tenant_id`** - isolamento multi-tenant estrito
+5. **Usar camada de mensageria** - `messaging-send-tool.json`, nao `whatsapp-send-tool.json` direto
 
 ---
 
-## 🔑 Google OAuth (coleta de dados para novos clientes)
+## Instalacao Rapida
 
-Para cada novo tenant, voce precisa gerar e armazenar 3 valores no banco (tabela `calendars`):
-
-- `google_client_id`
-- `google_client_secret`
-- `google_refresh_token`
-
-### Passo a passo (Google Cloud Console)
-
-1. Acesse [Google Cloud Console - Credentials](https://console.cloud.google.com/apis/credentials)
-2. Selecione o projeto (ou crie um novo)
-3. Em **APIs e Servicos > Biblioteca**, ative **Google Calendar API**
-4. Volte em **Credentials** e clique em **Create Credentials > OAuth client ID**
-5. Tipo: **Web application**
-6. Em **Authorized redirect URIs**, adicione:
-
-```
-https://developers.google.com/oauthplayground
-```
-
-7. Salve e copie:
-  - **Client ID** (termina com `apps.googleusercontent.com`)
-  - **Client Secret**
-
-### Passo a passo (OAuth 2.0 Playground)
-
-1. Acesse [OAuth 2.0 Playground](https://developers.google.com/oauthplayground)
-2. Clique na engrenagem (canto superior direito)
-3. Marque **Use your own OAuth credentials**
-4. Cole o **Client ID** e **Client Secret**
-5. Em **Step 1**, selecione **Google Calendar API v3** e marque:
-
-```
-https://www.googleapis.com/auth/calendar
-```
-
-6. Clique **Authorize APIs** e faca login com o email do cliente
-7. Clique **Exchange authorization code for tokens**
-8. Copie o **Refresh Token** gerado
-
-### Onde salvar no banco
-
-Atualize a tabela `calendars` com os 3 campos acima para o `tenant_id` do cliente.
-Sem `google_refresh_token`, o workflow **Google Calendar Client** nao retorna credenciais.
-
----
-
-## 📚 Documentação (mantida)
-
-- [Arquitetura](docs/ARCHITECTURE.md)
-- [Guia do Usuário](docs/USER_GUIDE.md)
-- [Implantação](docs/DEPLOYMENT.md)
-- [Migração](docs/MIGRATION_GUIDE.md)
-- [Configuração de Tipos de Clínica](docs/CLINIC_TYPE_CONFIGURATION.md)
-- [Catálogo Dinâmico](docs/DYNAMIC_CATALOG_ARCHITECTURE.md)
-- [Arquitetura Multi-Profissional](docs/MULTI_PROVIDER_ARCHITECTURE.md)
-- [Service Resolver](docs/SERVICE_RESOLVER_ARCHITECTURE.md)
-- [Setup Google Calendar API](docs/SETUP_GOOGLE_CALENDAR_API.md)
-- [Alternativas MCP](docs/MCP_ALTERNATIVES.md)
-
----
-
-## 🐛 Troubleshooting Rápido
-
-- **Erro na importação**: `./scripts/reimport-all-workflows.sh`
-- **Banco**: `docker compose ps` e confira `.env`
-- **Evolution API**: webhook apontando para o n8n
-
-Logs do n8n:
 ```bash
+# 1. Configurar ambiente
+cp env.example .env
+# Editar .env com valores reais
+
+# 2. Iniciar servicos
+docker compose up -d
+
+# 3. Inicializar banco
+./scripts/init-db.sh
+
+# 4. Importar workflows
+python scripts/import-workflows.py
+
+# 5. Configurar credentials no n8n UI
+# Ver QUICK_START.md para detalhes
+```
+
+Para o guia completo, consulte [QUICK_START.md](QUICK_START.md).
+
+---
+
+## Google OAuth (novos clientes)
+
+Para cada novo tenant, gerar e armazenar credenciais OAuth no banco:
+
+1. Criar projeto no [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Ativar Google Calendar API
+3. Criar OAuth 2.0 credentials (Web application)
+4. Obter refresh token via [OAuth Playground](https://developers.google.com/oauthplayground)
+5. Armazenar em `tenant_secrets` ou `calendars` table
+
+Guia detalhado: [docs/SETUP_GOOGLE_CALENDAR_API.md](docs/SETUP_GOOGLE_CALENDAR_API.md)
+
+---
+
+## Documentacao
+
+| Documento | Descricao |
+|---|---|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Arquitetura completa do sistema |
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Guia de deploy em producao |
+| [MONITORING.md](docs/MONITORING.md) | Monitoramento e alertas |
+| [BACKUP.md](docs/BACKUP.md) | Estrategia de backup e recovery |
+| [SETUP_GOOGLE_CALENDAR_API.md](docs/SETUP_GOOGLE_CALENDAR_API.md) | Setup Google Calendar OAuth |
+| [USER_GUIDE.md](docs/USER_GUIDE.md) | Guia do usuario |
+| [MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md) | Guia de migracoes |
+| [DATABASE_ERD.md](docs/DATABASE_ERD.md) | Diagrama ER do banco |
+| [CLINIC_TYPE_CONFIGURATION.md](docs/CLINIC_TYPE_CONFIGURATION.md) | Configuracao de tipos de clinica |
+
+---
+
+## Troubleshooting
+
+```bash
+# Verificar servicos
+docker compose ps
+
+# Logs do n8n
 docker compose logs -f n8n
+
+# Validar workflows
+python tests/validate-workflows.py
+
+# Health check
+curl http://localhost:5678/healthz
 ```
 
 ---
 
-## 📄 Licença
-
-Projeto proprietário. Consulte [LICENSE](LICENSE).
+**Versao**: 4.0
+**Ultima Atualizacao**: 2026-02-13

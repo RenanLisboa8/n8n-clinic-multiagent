@@ -34,7 +34,7 @@ PGHOST=localhost PGPORT=5432 PGDATABASE=n8n_clinic_db PGUSER=n8n_clinic ./script
 
 This runs:
 1. `scripts/db/schema/schema.sql` — creates all tables, functions, and the `n8n_app` role
-2. `scripts/db/seeds/01-06*.sql` — seeds state definitions, sample tenant, services, professionals, templates, FAQ
+2. `scripts/db/seeds/01-07*.sql` — seeds state definitions, sample tenant, services, professionals, templates, FAQ, calendars
 
 To also run pending migrations:
 ```bash
@@ -86,10 +86,18 @@ Summary:
 
 ## 6. Import Workflows to n8n
 
+### Automated import:
+```bash
+N8N_URL=http://localhost:5678 N8N_API_KEY=your_key python scripts/import-workflows.py
+```
+
+### Manual import:
 1. Open n8n UI: `http://localhost:5678`
 2. Create credentials (Settings > Credentials):
    - PostgreSQL, OpenRouter, Evolution API, Telegram Bot
 3. Import workflow JSON files from `workflows/` directory
+
+### Post-import:
 4. Replace `{{PLACEHOLDER}}` tokens with actual credential/workflow IDs (see `workflows/README.md` for full list)
 5. Activate main workflows (01, 02, 03, 04)
 

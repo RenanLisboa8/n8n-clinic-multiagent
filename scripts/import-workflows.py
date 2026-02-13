@@ -192,9 +192,12 @@ def main():
         print()
         print_status("📝 Next steps:")
         print_status("1. Open n8n UI: http://localhost:5678")
-        print_status("2. Configure credentials (see CONFIGURACAO_POS_IMPORT.md)")
-        print_status("3. Activate main workflows:")
-        print_status("   - 01 - WhatsApp Patient Handler (AI Optimized)")
+        print_status("2. Configure credentials (see QUICK_START.md)")
+        print_status("3. Replace {{PLACEHOLDER}} tokens (see workflows/README.md)")
+        print_status("4. Activate main workflows:")
+        print_status("   - 01 - WhatsApp Main Handler")
+        print_status("   - 02 - Telegram Internal Assistant")
+        print_status("   - 03 - Appointment Confirmation Scheduler")
         print_status("   - 04 - Error Handler")
 
 if __name__ == "__main__":
