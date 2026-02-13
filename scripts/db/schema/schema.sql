@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS tenant_config (
     telegram_internal_chat_id VARCHAR(50),
     telegram_bot_token TEXT,
     whatsapp_number VARCHAR(20),
+    messaging_provider VARCHAR(20) DEFAULT 'evolution',
     
     -- AI Configuration
     system_prompt_patient TEXT NOT NULL,
@@ -98,7 +99,8 @@ CREATE TABLE IF NOT EXISTS tenant_config (
     CONSTRAINT valid_temperature CHECK (llm_temperature BETWEEN 0.0 AND 2.0),
     CONSTRAINT valid_tier CHECK (subscription_tier IN ('basic', 'professional', 'enterprise')),
     CONSTRAINT valid_status CHECK (subscription_status IN ('active', 'suspended', 'cancelled', 'trial')),
-    CONSTRAINT valid_clinic_type CHECK (clinic_type IN ('medical', 'aesthetic', 'mixed', 'dental', 'other'))
+    CONSTRAINT valid_clinic_type CHECK (clinic_type IN ('medical', 'aesthetic', 'mixed', 'dental', 'other')),
+    CONSTRAINT valid_messaging_provider CHECK (messaging_provider IN ('evolution', 'chatwoot'))
 );
 
 COMMENT ON TABLE tenant_config IS 'Core multi-tenant configuration table';
@@ -2256,14 +2258,6 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO n8n_app;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO n8n_app;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO n8n_app;
 REVOKE CREATE ON SCHEMA public FROM n8n_app;
-
--- ============================================================================
--- MESSAGING ABSTRACTION
--- ============================================================================
-
-ALTER TABLE tenant_config
-ADD COLUMN IF NOT EXISTS messaging_provider VARCHAR(20) DEFAULT 'evolution'
-CHECK (messaging_provider IN ('evolution', 'chatwoot'));
 
 -- ============================================================================
 -- MESSAGE QUEUE & DEDUPLICATION
